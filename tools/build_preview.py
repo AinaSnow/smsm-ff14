@@ -86,7 +86,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("capture", type=Path)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--extended", action="store_true", help="Include capture-reviewed DoF, reflection, shadow and output experiments")
+    parser.add_argument("--extended", action="store_true", help="Include capture-reviewed reflection, shadow and output experiments")
+    parser.add_argument("--experimental-dof", action="store_true", help="Opt into the unproven 48-tap DoF experiment; requires --extended")
     parser.add_argument("--isolate-dof", action="store_true", help="Diagnostic package with only the DoF replacement; F9 then isolates blur")
     parser.add_argument("--decompiler", type=Path, help="Official cmd_Decompiler 1.3.16, required for --extended")
     parser.add_argument("--look", choices=("legacy", "game-bloom", "calibrated-static", "calibrated"), default="legacy",
@@ -98,6 +99,8 @@ def main():
         parser.error("--tonemap-percent must be between 0 and 100")
     if args.isolate_dof and (args.extended or args.look != "legacy"):
         parser.error("--isolate-dof cannot be combined with --extended or a non-legacy --look")
+    if args.experimental_dof and not args.extended:
+        parser.error("--experimental-dof requires --extended")
     blends_tone = args.look in ("calibrated-static", "calibrated")
     runtime_tone = args.look == "calibrated"
     game_bloom = args.look != "legacy"
@@ -116,7 +119,9 @@ def main():
         from patch_shader_asm import PATCHES, build_patch
         if not args.decompiler or not args.decompiler.is_file():
             raise ValueError("--extended requires --decompiler pointing to cmd_Decompiler 1.3.16")
-        shaders.update({"00f2b6068017c6c6": "gpose depth-weighted aperture blur", "23d27700572e0c4d": "post-tonemap output dithering"})
+        shaders["23d27700572e0c4d"] = "post-tonemap output dithering"
+        if args.experimental_dof:
+            shaders["00f2b6068017c6c6"] = "experimental gpose aperture blur (visual benefit unproven)"
         shaders.update(PATCHES)
     source_root = ROOT / "ShaderFixes"
     if game_bloom:
@@ -213,6 +218,7 @@ def main():
         "bloom": "game" if game_bloom or args.isolate_dof else "smsm",
         "frame_capture": args.frame_capture,
         "runtime_tone_control": runtime_tone,
+        "depth_of_field": "experimental-48-tap" if args.experimental_dof or args.isolate_dof else "game",
         "shaders": rows, "files": files
     }, indent=2), encoding="utf-8")
     print(f"Built {len(rows)} shaders; original hash, compilation and interface checks passed: {args.output}")

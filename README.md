@@ -2,20 +2,15 @@
 
 > International-client port in progress: build `2026.09.15.0000.0000`.
 > See [porting status and preview build instructions](docs/PORTING.md).
-> The initial 8-replacement preview passed an in-game visual check. An extended
-> 13-replacement preview adds capture-reviewed DoF, reflection, normal shadows,
-> and gated output dithering; its new effects still need in-game validation.
 > Build the preview with `tools/build_preview.py` instead of copying every legacy fix below.
-> SDR candidate r5 (`--extended --look calibrated`) is suspended after a report of
-> unresponsive F6/F7/F9 comparisons and a game hang during the same test session.
-> Roll back to the previously usable r4 package while investigating; its pale skin
-> and reduced lamp glow remain known issues. No preview is fully validated.
-> After r4 recovery, r6 (`--extended --look game-bloom`) isolates game Bloom,
-> keeping all nine remaining shader binaries identical to r4. F8 capture is now
-> disabled by default; use `--capture` only for a planned diagnostic capture.
-> The user confirmed restored Bloom in r6, but found r7's fixed 25% tone blend
-> too subtle. Candidate r8 uses `--extended --look calibrated-static --tonemap-percent 50`
-> with the same game Bloom and no F6/F7 controls. Its appearance needs comparison.
+> The user accepted restored game Bloom and the fixed 50% tone blend in tested scenes.
+> Recovery preview r9 uses `--extended --look calibrated-static --tonemap-percent 50`
+> and keeps the game's DoF. It retains r8's other eight shader binaries unchanged.
+> The 48-tap DoF experiment showed no clear benefit in regular or isolated comparisons;
+> it is now opt-in via `--experimental-dof` and is not a completed bokeh port.
+> Reflection, shadows, performance and broader compatibility still need validation.
+> F8 capture is opt-in (`--capture`). The r5 F6/F7 runtime tone experiment remains
+> suspended after a hang report. No preview is fully validated.
 
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 
