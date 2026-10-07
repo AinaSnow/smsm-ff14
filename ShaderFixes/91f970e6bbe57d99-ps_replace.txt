@@ -1,0 +1,38 @@
+// Radial blur / light shafts, client build 2026.09.15.0000.0000.
+// Port of 0fed9c59a976fd24: retain the current game's dynamic viewport transform.
+// Offline bytecode and resource bindings checked; in-game visual validation pending.
+cbuffer cDynamicViewportResolutionParam : register(b0)
+{
+    float4 cDynamicViewportResolutionParam[2] : packoffset(c0);
+}
+cbuffer cRadialBlurParam : register(b1)
+{
+    float4 cRadialBlurParam : packoffset(c0);
+}
+SamplerState sInputSampler : register(s0);
+Texture2D<float4> sInputTex : register(t0);
+
+#include "Common.h"
+
+void main(float4 position : SV_POSITION0, float2 uv : TEXCOORD0,
+          out float4 output : SV_TARGET0)
+{
+    const int sampleCount = 8;
+    float2 delta = cRadialBlurParam.xy - uv;
+    // Preserve the legacy scalar jitter's x component explicitly.
+    float jitter = clamp(interleaved_gradient(position.yx) * delta.x, -1.0, 1.0);
+    float4 sum = 0;
+    float weightSum = 0;
+    [unroll]
+    for (int i = 0; i < sampleCount; ++i)
+    {
+        float spread = cRadialBlurParam.w * (i + jitter) / (sampleCount - 1);
+        float weight = 1.0 - cRadialBlurParam.z * i / sampleCount;
+        float2 sampleUv = saturate(uv + delta * spread);
+        sampleUv = min(sampleUv * cDynamicViewportResolutionParam[0].xy,
+                       cDynamicViewportResolutionParam[0].zw);
+        sum += sInputTex.Sample(sInputSampler, sampleUv) * weight;
+        weightSum += weight;
+    }
+    output = sum / weightSum;
+}

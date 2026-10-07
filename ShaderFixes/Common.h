@@ -38,7 +38,7 @@ float3 ScreenSpaceDitherTri( float2 vScreenPos : SV_POSITION ) : SV_Target
     // Source: https://www.shadertoy.com/view/Md3XRf
     float3 vDither = dot( float2( 131.0, 312.0 ), vScreenPos.xy);
     vDither.rgb = frac( vDither.rgb / float3( 103.0, 71.0, 97.0 ) );
-    vDither == remap_tri( vDither.rgb );
+    vDither = remap_tri( vDither.rgb );
     return (vDither.rgb / dither_bits); 
 }
 

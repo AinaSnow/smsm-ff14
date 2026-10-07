@@ -1,5 +1,11 @@
 # Silent's Messy Shader Mod - for FF14
 
+> International-client port in progress: build `2026.09.15.0000.0000`.
+> See [porting status and preview build instructions](docs/PORTING.md).
+> The reviewed preview contains 8 replacements and passed an initial in-game visual check;
+> wider scene/settings coverage and the remaining effects are still pending.
+> Build the preview with `tools/build_preview.py` instead of copying every legacy fix below.
+
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 
 A messy shader modification for Final Fantasy 14.

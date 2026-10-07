@@ -15,7 +15,7 @@ struct texSampler {
 
 void main( 
   float4 v0 : SV_POSITION0,
-  float4 v1 : TEXCOORD0, // Offset
+  float2 v1 : TEXCOORD0, // Match the game's two-component TEXCOORD0 signature.
   float4 v2 : TEXCOORD1, // Offset
   float4 v3 : TEXCOORD2, // Offset
   float4 v4 : TEXCOORD3, // Offset
@@ -352,4 +352,3 @@ ret
 // Approximately 16 instruction slots used
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
- 
