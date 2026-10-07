@@ -65,4 +65,6 @@ try {
     }
     throw
 }
-Write-Output "Installed $($manifest.shaders.Count) preview shaders for $version. F9: original; F10: reload; numpad 0: hunting; F8: capture."
+$config = Get-Content -LiteralPath (Join-Path $packageRoot 'd3dx.ini') -Raw
+$captureHint = if ($config -match '(?m)^\s*analyse_frame\s*=') { 'F8: capture.' } else { 'Frame capture disabled.' }
+Write-Output "Installed $($manifest.shaders.Count) preview shaders for $version. F9: hold for original; F10: reload; numpad 0: hunting; $captureHint"

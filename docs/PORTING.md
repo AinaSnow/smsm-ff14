@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-2026-10-08：确认 r4 在客户端的全部文件与安装清单一致。用户截图反馈人物偏白、台灯光晕明显减弱；因此 r4 不作为画面验收通过的版本。已准备 SDR 校准候选 `artifacts/preview-2026.09.15-r5-sdr-final`，9 个替换，保留原版 Bloom，默认 25% SMSM 色调映射。已通过离线检查，待用户安装对比。校准方法见文末。
+2026-10-08：r5 安装后用户报告按键无可见变化及游戏无响应，现已暂停测试；用户确认回退 r4 后正常，安装凭据与 r4 一致。r4 的人物偏白和台灯光晕减弱仍未通过画面验收。新的单项候选 `artifacts/preview-2026.09.15-r6-game-bloom-final` 只恢复游戏 Bloom，保留的 9 个 shader 二进制与 r4 完全一致；默认关闭 F8 抓帧，尚待游戏内对比。r5 实现与排查记录、r6 验证步骤见文末。
 
 首批代码已提交为 `1378a15`。第二批 `artifacts/preview-2026.09.15-r4` 已构建，共 13 个替换，覆盖当前捕获到的景深、反射、主光照法线阴影和输出抖动路径。新增效果通过离线检查，尚待实际安装后的画面和性能测试；不能将旧包抓帧中的阶段命中当作新效果已经验证。下表“首批测试包”及首次抓帧结果是历史记录，第二批处理见文末。
 
@@ -109,7 +109,7 @@ python tools/analyze_capture.py 'E:\SteamLibrary\steamapps\common\FINAL FANTASY 
 
 1. 启动进入场景，确认画面和 UI 正常。按住 F9 临时显示原始效果，松开恢复替换；F10 重载。若键位未生效，先按小键盘 0 开启 hunting。
 2. 对比明亮户外、夜晚、室内和强光源，检查肤色、天空渐变、Bloom、暗角以及 UI。记录抗锯齿、升频和动态分辨率设置。
-3. 用小键盘 0 开启 hunting，在需要分析的场景按一次 F8 抓帧。首批默认只导出渲染目标预览；它不能替代精确 DDS/常量缓冲区捕获。
+3. 新构建默认关闭 F8；仅在需要诊断时用 `--capture` 构建独立抓帧包，再用小键盘 0 开启 hunting、按一次 F8，等待完成，不连续触发。抓帧只导出渲染目标预览；它不能替代精确 DDS/常量缓冲区捕获。历史 r2/r4/r5 包仍保留各自原有抓帧绑定。
 4. 对选定目标按需启用 `dump_tex`、`dump_cb` 和 DDS，再核实景深、反射、法线和深度含义。不要在未知阶段直接套用旧阴影实现。
 5. 对实际可用的 FSR、DLSS、TSCMAA、动态分辨率组合分别验证。全部完成前保持 `runtime_verified=false`。
 
@@ -152,7 +152,7 @@ python tools/validate_d3d11.py artifacts/preview-extended
 
 ## SDR 辉光恢复与画面校准（r5）
 
-**当前状态：暂停安装和继续测试 r5。** 用户在安装后反馈绿色 hunting 文字可见，但 F6/F7/F9 没有可见变化，随后游戏无响应。离线检查不代表运行稳定。已确认当前安装文件与 r5 清单一致；用户授权结束游戏并准备回退至此前能正常操作的 r4。r4 的偏白和台灯光晕减弱仍是已知问题。
+**当前状态：暂停安装和继续测试 r5。** 用户在安装后反馈绿色 hunting 文字可见，但 F6/F7/F9 没有可见变化，随后游戏无响应。离线检查不代表运行稳定。已确认当时安装文件与 r5 清单一致；用户授权结束游戏，现已回退 r4 并确认正常。r4 的偏白和台灯光晕减弱仍是已知问题。
 
 同一会话留下 `FrameAnalysis-2026-10-08-024827` 和 `024828` 两份抓帧：前者日志标记 `Frame analysis aborted`，后者执行到 draw 2243。第二份包含 tone mapping draw 1936，以及输出拷贝 draw 1877 / 1951；日志实际记录了输出阶段 x 参数的复位、置 1、再次复位。该证据不能证明 F6/F7 的 y 参数变化、替换着色器最终输出正确，也不能确定无响应根因。抓帧与无响应发生在同一时段，应先在不抓帧的情况下恢复基本操作，避免连续按 F8。
 
@@ -177,7 +177,7 @@ python tools/validate_d3d11.py artifacts/preview-sdr
 
 已通过色调映射两端的编译指令等价检查、Bloom 开关检查、INI 节位置检查、9 个 shader 的接口与 D3D11 WARP 创建检查，以及新包的安装/卸载与文件保护测试。旧头文件仍有既有的向量截断等编译警告；未将这些检查表述为无警告或已完成画面验证。
 
-实际安装只使用 `preview-2026.09.15-r5-sdr-final`。关闭游戏后，先用 r4 执行卸载，再安装该包；回退顺序相反。`r5-calibrated`、`r5-sdr` 是中间构建，不用于安装。
+此前实际安装包为 `preview-2026.09.15-r5-sdr-final`，目前暂停安装。`r5-calibrated`、`r5-sdr` 是中间构建，不用于安装。保留该包及其清单用于卸载，不修改已有包。
 
 ### 对比顺序与验收目标
 
@@ -188,3 +188,19 @@ python tools/validate_d3d11.py artifacts/preview-sdr
 5. 再检查晴天、暖灯室内、夜景。不要通过消除场景本身的暖色光来追求“中性灰”。每轮只改色调混合强度，记录场景和按键状态。F7 仍偏白时可构建更低比例；F6 仍有问题时，应检查其他替换而非继续调曲线。
 
 这里首先校准游戏渲染外观。PNG 对照不能测量显示器实际亮度、白点或生成可靠 ICC。如果原版游戏、桌面照片和灰阶都明显异常，再使用 Windows 的“校准显示器颜色”向导检查 gamma、亮度、对比度和色彩平衡；不建议为了修复单个 shader 的偏白去改全系统 gamma。参考：[Microsoft 显示器颜色校准说明](https://www.microsoft.com/en-us/windows/learning-center/how-to-color-calibrate-your-monitor)。若以后开启 HDR，需单独重新验证，可使用 [Windows HDR Calibration](https://support.microsoft.com/en-us/windows/hardware/display-graphics/calibrate-your-hdr-display-using-the-windows-hdr-calibration-app)，不能直接沿用这次 SDR 结论。
+
+## r6：单独恢复原版 Bloom
+
+测试包：`artifacts/preview-2026.09.15-r6-game-bloom-final`。移除 r4 的四个 Bloom 替换，其余九个编译二进制与 r4 的 SHA-256 全部一致，三个运行时 DLL 也逐字节一致。仍使用 100% SMSM 色调映射，不含 r5 的 y 参数或 F6/F7 切换，因此这一步不解决肤色偏白。INI 保留精确节标题插入修正和输出抖动 x 标记。
+
+新构建默认关闭 F8 抓帧入口；诊断时才显式传 `--capture`。安装完成提示也按实际 INI 显示抓帧是否启用，兼容旧包。关闭抓帧只是减少测试变量，不等于已经确认或修复无响应的根因。
+
+```powershell
+python tools/build_preview.py artifacts/client-2026.09.15 artifacts/preview-bloom-only --extended --look game-bloom --decompiler artifacts/decompiler/1.3.16/cmd_Decompiler.exe
+python tools/validate_d3d11.py artifacts/preview-bloom-only
+./tools/Test-Preview.ps1 -Package artifacts/preview-bloom-only
+```
+
+已通过：原始 hash 与接口检查、ASM 原指令往返、9 个 shader 的 WARP 创建、安装/卸载和文件保护测试。额外核对删除的恰好是四个 Bloom hash、保留 shader 与 r4 二进制一致、运行时 DLL 不变、F8 和 F6/F7 均无绑定。摘要位于 `artifacts/r6-baseline-validation.json`。尚未在游戏中验证 r6；失败构建 `preview-2026.09.15-r6-game-bloom` 没有完整清单，不可安装。
+
+安装顺序：退出游戏，用 r4 包卸载，再安装 r6 final；回退则反向操作。游戏目录需管理员权限。不要覆盖已安装文件，也不要在游戏运行时热换 DLL。进入半室内台灯场景，先确认能正常操作，再开启 hunting、按住和松开 F9 比较灯芯周围光晕。F9 按住是原版、松开是 SMSM；其他保留效果仍会产生差异。只需普通截图，暂不抓帧。待确认光晕和稳定性后，再单独验证静态色调混合，避免同时引入动态按键控制。

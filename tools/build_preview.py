@@ -20,6 +20,7 @@ SHADERS = {
     "782e995758bf001d": "vignette dithering",
     "91f970e6bbe57d99": "dynamic-resolution radial blur",
 }
+BLOOM_SHADERS = ("98b1bbd7925dc288", "5813cf7e6d426c37", "d0bcbd729a678569", "a617dec7fe8f1603")
 
 
 def section(text, title):
@@ -87,8 +88,9 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--extended", action="store_true", help="Include capture-reviewed DoF, reflection, shadow and output experiments")
     parser.add_argument("--decompiler", type=Path, help="Official cmd_Decompiler 1.3.16, required for --extended")
-    parser.add_argument("--look", choices=("legacy", "calibrated"), default="legacy",
-                        help="calibrated restores game Bloom and blends the tone curve")
+    parser.add_argument("--look", choices=("legacy", "game-bloom", "calibrated"), default="legacy",
+                        help="game-bloom only restores Bloom; calibrated also blends the tone curve (suspended r5 experiment)")
+    parser.add_argument("--capture", dest="frame_capture", action="store_true", help="Explicitly enable F8 frame capture; disabled by default")
     parser.add_argument("--tonemap-percent", type=int, default=25, help="SMSM curve contribution for calibrated look (0-100)")
     args = parser.parse_args()
     if not 0 <= args.tonemap_percent <= 100:
@@ -109,11 +111,12 @@ def main():
         shaders.update({"00f2b6068017c6c6": "gpose depth-weighted aperture blur", "23d27700572e0c4d": "post-tonemap output dithering"})
         shaders.update(PATCHES)
     source_root = ROOT / "ShaderFixes"
-    if args.look == "calibrated":
+    if args.look in ("game-bloom", "calibrated"):
         # Use the full game Bloom chain, not just the merge: both old blur
         # replacements change radius and energy. Do not synthesize light halos.
-        for shader in ("98b1bbd7925dc288", "5813cf7e6d426c37", "d0bcbd729a678569", "a617dec7fe8f1603"):
+        for shader in BLOOM_SHADERS:
             shaders.pop(shader)
+    if args.look == "calibrated":
         source_root = args.output / "build-audit" / "hlsl"
         source_root.mkdir(parents=True)
         for header in (ROOT / "ShaderFixes").glob("*.h"):
@@ -169,7 +172,8 @@ def main():
         "cache_directory=ShaderCache": "cache_directory=SMSM-ShaderCache",
         "storage_directory=ShaderFromGame": "storage_directory=SMSM-ShaderFromGame",
         "dump_usage=0": "dump_usage=1", "mark_snapshot=2": "mark_snapshot=1",
-        ";analyse_frame = no_modifiers VK_F8": "analyse_frame = no_modifiers VK_F8",
+        ";analyse_frame = no_modifiers VK_F8": ("analyse_frame = no_modifiers VK_F8" if args.frame_capture
+                                                 else "; F8 capture disabled: rebuild with --capture only when needed"),
         ";analyse_options = dump_rt jps clear_rt": "analyse_options = dump_rt jpg mono",
     }.items():
         config, count = re.subn("^" + re.escape(old) + "$", lambda match: new, config, flags=re.M)
@@ -197,7 +201,9 @@ def main():
     (args.output / "SMSM-preview.json").write_text(json.dumps({
         "client_build": BUILD, "runtime_verified": False,
         "look": args.look, "tonemap_smsm_percent": args.tonemap_percent if args.look == "calibrated" else 100,
-        "bloom": "game" if args.look == "calibrated" else "smsm",
+        "bloom": "game" if args.look in ("game-bloom", "calibrated") else "smsm",
+        "frame_capture": args.frame_capture,
+        "runtime_tone_control": args.look == "calibrated",
         "shaders": rows, "files": files
     }, indent=2), encoding="utf-8")
     print(f"Built {len(rows)} shaders; original hash, compilation and interface checks passed: {args.output}")

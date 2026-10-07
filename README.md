@@ -10,6 +10,9 @@
 > unresponsive F6/F7/F9 comparisons and a game hang during the same test session.
 > Roll back to the previously usable r4 package while investigating; its pale skin
 > and reduced lamp glow remain known issues. No preview is fully validated.
+> After r4 recovery, r6 (`--extended --look game-bloom`) isolates game Bloom,
+> keeping all nine remaining shader binaries identical to r4. F8 capture is now
+> disabled by default; use `--capture` only for a planned diagnostic capture.
 
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 
