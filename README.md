@@ -11,6 +11,13 @@
 > Reflection, shadows, performance and broader compatibility still need validation.
 > F8 capture is opt-in (`--capture`). The r5 F6/F7 runtime tone experiment remains
 > suspended after a hang report. No preview is fully validated.
+>
+> New r10 management foundation: independently select/isolate effects, upgrade from
+> old receipts in one operation, and preserve recoverable backups. Defaults to
+> tone only; other effects remain experimental. Shader-only F10 switching has
+> been source-reviewed, but still needs an in-game validation cycle.
+> See [approved roadmap and acceptance criteria](docs/ROADMAP.md) and
+> [installation, effect selection and rollback](docs/MANAGEMENT.md).
 
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 

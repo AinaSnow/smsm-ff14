@@ -7,9 +7,18 @@ $ErrorActionPreference = 'Stop'
 $gameRoot = [IO.Path]::GetFullPath((Join-Path $ClientRoot 'game'))
 $packageRoot = (Resolve-Path -LiteralPath $Package).Path
 $manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'SMSM-preview.json') -Raw | ConvertFrom-Json
+if ($manifest.schema_version -ge 2 -or (Test-Path -LiteralPath (Join-Path $gameRoot 'SMSM-state.json'))) {
+    throw 'Managed effects require tools/manage_preview.py; the legacy installer cannot track profile changes.'
+}
 $version = (Get-Content -LiteralPath (Join-Path $gameRoot 'ffxivgame.ver') -Raw).Trim()
 if (-not $Uninstall -and $version -ne $manifest.client_build) { throw "Client build mismatch: $version" }
-if (Get-Process -Name ffxiv_dx11 -ErrorAction SilentlyContinue) { throw 'Close the game before installing or removing the preview.' }
+$targetExe = Join-Path $gameRoot 'ffxiv_dx11.exe'
+foreach ($gameProcess in @(Get-Process -Name ffxiv_dx11 -ErrorAction SilentlyContinue)) {
+    if (-not $gameProcess.Path) { throw 'Cannot inspect FF14 process path; use an administrator terminal.' }
+    if ([string]::Equals($gameProcess.Path, $targetExe, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Close the game before installing or removing the preview.'
+    }
+}
 
 $entries = @($manifest.files.PSObject.Properties | ForEach-Object {
     $relative = $_.Name

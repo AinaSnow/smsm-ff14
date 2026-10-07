@@ -21,6 +21,13 @@ SHADERS = {
     "91f970e6bbe57d99": "dynamic-resolution radial blur",
 }
 BLOOM_SHADERS = ("98b1bbd7925dc288", "5813cf7e6d426c37", "d0bcbd729a678569", "a617dec7fe8f1603")
+EFFECT_GROUPS = {
+    "tone": ["72a656dfd52149ad"],
+    "reflection": ["4caad0714bdcc47e"],
+    "shadows": ["8b384acd7a03c836", "e9f57e0834b642f5"],
+    "dithering": ["12dd4d7295446a19", "782e995758bf001d", "23d27700572e0c4d"],
+    "radial": ["91f970e6bbe57d99"],
+}
 
 
 def section(text, title):
@@ -88,6 +95,7 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--extended", action="store_true", help="Include capture-reviewed reflection, shadow and output experiments")
     parser.add_argument("--experimental-dof", action="store_true", help="Opt into the unproven 48-tap DoF experiment; requires --extended")
+    parser.add_argument("--managed", action="store_true", help="Build independently selectable effects for manage_preview.py; defaults to tone only")
     parser.add_argument("--isolate-dof", action="store_true", help="Diagnostic package with only the DoF replacement; F9 then isolates blur")
     parser.add_argument("--decompiler", type=Path, help="Official cmd_Decompiler 1.3.16, required for --extended")
     parser.add_argument("--look", choices=("legacy", "game-bloom", "calibrated-static", "calibrated"), default="legacy",
@@ -101,6 +109,9 @@ def main():
         parser.error("--isolate-dof cannot be combined with --extended or a non-legacy --look")
     if args.experimental_dof and not args.extended:
         parser.error("--experimental-dof requires --extended")
+    if args.managed and (not args.extended or args.look != "calibrated-static" or args.tonemap_percent != 50 or
+                         args.experimental_dof or args.isolate_dof or args.frame_capture):
+        parser.error("--managed requires --extended --look calibrated-static --tonemap-percent 50, without DoF or capture experiments")
     blends_tone = args.look in ("calibrated-static", "calibrated")
     runtime_tone = args.look == "calibrated"
     game_bloom = args.look != "legacy"
@@ -211,7 +222,7 @@ def main():
         (args.output / "d3dx.ini").write_text(config, encoding="utf-8")
     files = {p.relative_to(args.output).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
              for p in sorted(args.output.rglob("*")) if p.is_file() and "build-audit" not in p.relative_to(args.output).parts}
-    (args.output / "SMSM-preview.json").write_text(json.dumps({
+    package_manifest = {
         "client_build": BUILD, "runtime_verified": False,
         "look": "dof-only" if args.isolate_dof else args.look,
         "tonemap_smsm_percent": 0 if args.isolate_dof else (args.tonemap_percent if blends_tone else 100),
@@ -220,7 +231,20 @@ def main():
         "runtime_tone_control": runtime_tone,
         "depth_of_field": "experimental-48-tap" if args.experimental_dof or args.isolate_dof else "game",
         "shaders": rows, "files": files
-    }, indent=2), encoding="utf-8")
+    }
+    if args.managed:
+        package_manifest.update({
+            "schema_version": 2,
+            "effects": {name: {"shaders": hashes,
+                        "status": "scene-accepted" if name == "tone" else "experimental",
+                        "execution_verified": False, "performance_verified": False}
+                        for name, hashes in EFFECT_GROUPS.items()},
+            "profiles": {"daily": ["tone"], "vanilla": [], "r9-baseline": list(EFFECT_GROUPS)},
+            "default_profile": "daily",
+            "reload": {"method": "file-selection-and-F10", "source_reviewed_version": "1.3.11",
+                       "game_verified": False},
+        })
+    (args.output / "SMSM-preview.json").write_text(json.dumps(package_manifest, indent=2), encoding="utf-8")
     print(f"Built {len(rows)} shaders; original hash, compilation and interface checks passed: {args.output}")
 
 
