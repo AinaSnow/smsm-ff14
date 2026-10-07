@@ -53,7 +53,7 @@ void main(
   // With the new tonemapping, the original bloom gets really washed out and weird looking.
   // This replaces or disables the brightening code.
 
-  #if DisableWhitening // Original code
+  #if UseOriginalWhitening // Match the public switch in Configuration.h.
   fullLuma = bloomColor.x + bloomColor.y + bloomColor.z; // Total luminance sum
   bloomColor.xyz = -fullLuma * 0.5 + bloomColor.xyz; // Removes half the sum
   colorAmount = cMergeWeight.z * fullLuma; // 

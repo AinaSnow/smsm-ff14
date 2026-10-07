@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-10-08：确认 r4 在客户端的全部文件与安装清单一致。用户截图反馈人物偏白、台灯光晕明显减弱；因此 r4 不作为画面验收通过的版本。已准备 SDR 校准候选 `artifacts/preview-2026.09.15-r5-sdr-final`，9 个替换，保留原版 Bloom，默认 25% SMSM 色调映射。已通过离线检查，待用户安装对比。校准方法见文末。
+
 首批代码已提交为 `1378a15`。第二批 `artifacts/preview-2026.09.15-r4` 已构建，共 13 个替换，覆盖当前捕获到的景深、反射、主光照法线阴影和输出抖动路径。新增效果通过离线检查，尚待实际安装后的画面和性能测试；不能将旧包抓帧中的阶段命中当作新效果已经验证。下表“首批测试包”及首次抓帧结果是历史记录，第二批处理见文末。
 
 已完成离线提取、候选匹配、编译和首批接口检查。首批测试包已由用户通过管理员 PowerShell 安装；已从实际游戏进程确认加载游戏目录内的 d3d11.dll、d3dcompiler_46.dll 和 nvapi64.dll。用户进入场景并用 F9 对比后确认“有明显变化，画面正常”。这通过了首次加载和当前场景的基本目视检查；逐 shader 命中、其他场景、性能及 DLSS/FSR/TSCMAA 组合仍需验证。
@@ -147,3 +149,36 @@ python tools/validate_d3d11.py artifacts/preview-extended
 实际待测包为 `artifacts/preview-2026.09.15-r4`。`r3`、`r3b`、`r3c` 都是构建中间产物，不用于安装。升级先关闭游戏，用首批 `r2` 包执行 `Install-Preview.ps1 -Uninstall`，再用 r4 执行安装。回退则先用 r4 卸载，再安装 r2；保留两份包及各自安装清单。
 
 仍需验证：同一场景 F9 对照、/gpose 前后景和焦点滑块、反射表面、主光源阴影及帧率。当前实现只覆盖捕获确认的路径，其他画质下的 shader 变体及 DLSS/FSR 组合不视为已验证。新增采样可能增加 GPU 时间，若明显掉帧应先回退再按效果拆分测量。
+
+## SDR 辉光恢复与画面校准（r5）
+
+用户确认 Windows HDR 和自动 HDR 均关闭。截图 `023516`（SMSM）与 `023520`（原版）中人物肤色/头发的明暗层次不同；室内 `023715` 有明显台灯光晕，`023711` 光晕减弱。人物姿势并不完全一致，不能将两张图直接相减当成精确光照测量。
+
+发现旧 Bloom 合成检查 `DisableWhitening`，而配置定义 `UseOriginalWhitening`；已统一名称，编译验证开启后与原版合成函数的指令字节一致。为了同时排除旧模糊采样范围和能量变化，校准包不部署 Bloom 提取、两次模糊和合成这 4 个替换，整条 Bloom 使用游戏实现。其余景深、反射、法线阴影、径向模糊和抖动保留。
+
+色调映射加入 `TONEMAP_SMSM_PERCENT`。0% 与原版函数编译出的指令字节一致；100% 与此前 SMSM 二进制指令一致。校准包暂定 25%，在同一场景输入上混合原版曝光/LUT 曲线与 SMSM 曲线，不是统一压低输出亮度。25% 是人工对比的起点，不是经显示器测量得出的最终参数。
+
+校准包额外启用 t120 的 y 通道作为曲线比较开关，x 仍用于最终输出抖动。F6 将 y 置 0（原版色调曲线），F7 将 y 置 1（25% SMSM），均为按一次切换；F9 仍是按住临时绕过所有替换。F6 不等于关闭 SMSM，不能用它验证原版景深/阴影。INI 插入现已严格匹配真正的节标题，防止向注释里的 `[Constants]` / `[Present]` 字样后写入活动命令。
+
+### 构建和检查
+
+```powershell
+python tools/build_preview.py artifacts/client-2026.09.15 artifacts/preview-sdr --extended --look calibrated --tonemap-percent 25 --decompiler artifacts/decompiler/1.3.16/cmd_Decompiler.exe
+python tools/test_calibration.py
+python tools/validate_d3d11.py artifacts/preview-sdr
+./tools/Test-Preview.ps1 -Package artifacts/preview-sdr
+```
+
+已通过色调映射两端的编译指令等价检查、Bloom 开关检查、INI 节位置检查、9 个 shader 的接口与 D3D11 WARP 创建检查，以及新包的安装/卸载与文件保护测试。旧头文件仍有既有的向量截断等编译警告；未将这些检查表述为无警告或已完成画面验证。
+
+实际安装只使用 `preview-2026.09.15-r5-sdr-final`。关闭游戏后，先用 r4 执行卸载，再安装该包；回退顺序相反。`r5-calibrated`、`r5-sdr` 是中间构建，不用于安装。
+
+### 对比顺序与验收目标
+
+1. 保持 Windows HDR/自动 HDR 关闭。先保持现有游戏亮度、显示器亮度/对比度和 ICC 不变，避免同时调整多个环节。
+2. 用同一个相机位置、同一个角色姿势和光照进行对比；/gpose 暂停动作，颜色滤镜保持标准，手动亮度设置一致。停下镜头后等曝光稳定再截图。
+3. 半室内台灯场景先按 F6，再按住 F9 比较：确认灯芯周围的光晕恢复。两者还有阴影等其他效果差别，不能要求逐像素相同。发光灯芯本身可以饱和，不能以灯芯不过曝作为唯一标准。
+4. 同一个白衣/肤色场景比较 F6 和 F7：衣服折纹和脸部明暗应保留，头发不应变成大片平白；同时检查树阴、墙角，避免为了压白而丢失暗部细节。
+5. 再检查晴天、暖灯室内、夜景。不要通过消除场景本身的暖色光来追求“中性灰”。每轮只改色调混合强度，记录场景和按键状态。F7 仍偏白时可构建更低比例；F6 仍有问题时，应检查其他替换而非继续调曲线。
+
+这里首先校准游戏渲染外观。PNG 对照不能测量显示器实际亮度、白点或生成可靠 ICC。如果原版游戏、桌面照片和灰阶都明显异常，再使用 Windows 的“校准显示器颜色”向导检查 gamma、亮度、对比度和色彩平衡；不建议为了修复单个 shader 的偏白去改全系统 gamma。参考：[Microsoft 显示器颜色校准说明](https://www.microsoft.com/en-us/windows/learning-center/how-to-color-calibrate-your-monitor)。若以后开启 HDR，需单独重新验证，可使用 [Windows HDR Calibration](https://support.microsoft.com/en-us/windows/hardware/display-graphics/calibrate-your-hdr-display-using-the-windows-hdr-calibration-app)，不能直接沿用这次 SDR 结论。

@@ -72,13 +72,27 @@ def verify_interface(original, replacement, allow_ini_params=False):
             raise ValueError(f"Constant buffer b{slot} reads beyond original range")
 
 
+def insert_section(config, name, commands):
+    # Section names also occur in prose comments. Match only a real header.
+    result, count = re.subn(r"^\[" + re.escape(name) + r"\]$",
+                            lambda m: m[0] + "\n" + commands, config, flags=re.M)
+    if count != 1:
+        raise ValueError(f"Expected one INI section: {name}")
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("capture", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--extended", action="store_true", help="Include capture-reviewed DoF, reflection, shadow and output experiments")
     parser.add_argument("--decompiler", type=Path, help="Official cmd_Decompiler 1.3.16, required for --extended")
+    parser.add_argument("--look", choices=("legacy", "calibrated"), default="legacy",
+                        help="calibrated restores game Bloom and blends the tone curve")
+    parser.add_argument("--tonemap-percent", type=int, default=25, help="SMSM curve contribution for calibrated look (0-100)")
     args = parser.parse_args()
+    if not 0 <= args.tonemap_percent <= 100:
+        parser.error("--tonemap-percent must be between 0 and 100")
     manifest = json.loads((args.capture / "manifest.json").read_text())
     if manifest["ClientBuild"] != BUILD:
         raise ValueError("Unreviewed client build; extract and review before updating the whitelist")
@@ -94,6 +108,26 @@ def main():
             raise ValueError("--extended requires --decompiler pointing to cmd_Decompiler 1.3.16")
         shaders.update({"00f2b6068017c6c6": "gpose depth-weighted aperture blur", "23d27700572e0c4d": "post-tonemap output dithering"})
         shaders.update(PATCHES)
+    source_root = ROOT / "ShaderFixes"
+    if args.look == "calibrated":
+        # Use the full game Bloom chain, not just the merge: both old blur
+        # replacements change radius and energy. Do not synthesize light halos.
+        for shader in ("98b1bbd7925dc288", "5813cf7e6d426c37", "d0bcbd729a678569", "a617dec7fe8f1603"):
+            shaders.pop(shader)
+        source_root = args.output / "build-audit" / "hlsl"
+        source_root.mkdir(parents=True)
+        for header in (ROOT / "ShaderFixes").glob("*.h"):
+            shutil.copy2(header, source_root / header.name)
+        settings = (source_root / "Configuration.h").read_text()
+        for name, value in (("TONEMAP_SMSM_PERCENT", args.tonemap_percent), ("UseOriginalWhitening", 1), ("TONEMAP_RUNTIME_CONTROL", 1)):
+            settings, count = re.subn(r"(#define\s+" + name + r"\s+)\d+", lambda m: m[1] + str(value), settings)
+            if count != 1:
+                raise ValueError(f"Expected one configuration definition: {name}")
+        (source_root / "Configuration.h").write_text(settings)
+        for shader in shaders:
+            source = ROOT / "ShaderFixes" / f"{shader}-ps_replace.txt"
+            if source.exists():
+                shutil.copy2(source, source_root / source.name)
     for hash_value, effect in shaders.items():
         record = records[hash_value]
         original = (args.capture / record["File"]).read_bytes()
@@ -104,7 +138,7 @@ def main():
             fnv = ((fnv * 0x100000001b3) & 0xffffffffffffffff) ^ value
         if f"{fnv:016x}" != hash_value:
             raise ValueError(f"Wrong original hash: {hash_value}")
-        source = ROOT / "ShaderFixes" / f"{hash_value}-ps_replace.txt"
+        source = source_root / f"{hash_value}-ps_replace.txt"
         if args.extended and hash_value in PATCHES:
             source, data = build_patch(hash_value, original, args.output / "build-audit", compiler, args.decompiler.resolve(), ROOT)
             diagnostics = "Original instruction stream roundtrip verified; bounded ASM insertion"
@@ -112,13 +146,14 @@ def main():
             data, diagnostics = compiler.compile(source)
         original_asm, patched_asm = compiler.disassemble(original), compiler.disassemble(data)
         try:
-            verify_interface(original_asm, patched_asm, allow_ini_params=hash_value == "23d27700572e0c4d")
+            verify_interface(original_asm, patched_asm, allow_ini_params=(hash_value == "23d27700572e0c4d" or
+                             (args.look == "calibrated" and hash_value == "72a656dfd52149ad")))
         except ValueError as ex:
             raise ValueError(f"{hash_value} ({effect}): {ex}") from ex
         compiled.append((hash_value, effect, source, data, diagnostics))
     fixes = args.output / "SMSM-ShaderFixes"
     fixes.mkdir(parents=True)
-    for header in (ROOT / "ShaderFixes").glob("*.h"):
+    for header in source_root.glob("*.h"):
         shutil.copy2(header, fixes / header.name)
     rows = []
     for hash_value, effect, source, data, diagnostics in compiled:
@@ -145,15 +180,25 @@ def main():
         # x is reserved by this independent preview. Reset on frame boundary and
         # consume only after tone mapping, because the copy shader also runs early.
         config = config.replace("ini_params = -1", "ini_params = 120")
-        config = config.replace("[Constants]", "[Constants]\nx = 0")
-        config = config.replace("[Present]", "[Present]\npost x = 0")
+        config = insert_section(config, "Constants", "x = 0")
+        config = insert_section(config, "Present", "post x = 0")
         config += "\n[ShaderOverrideSMSMOutputArm]\nhash = 72a656dfd52149ad\nx = 1\n"
         config += "\n[ShaderOverrideSMSMOutputConsume]\nhash = 23d27700572e0c4d\npost x = 0\n"
+        (args.output / "d3dx.ini").write_text(config, encoding="utf-8")
+    if args.look == "calibrated":
+        config = config.replace("ini_params = -1", "ini_params = 120")
+        config = insert_section(config, "Constants", "y = 1")
+        # These keys isolate tone mapping, unlike F9 which bypasses every fix.
+        config += "\n[KeySMSMGameTone]\nkey = no_modifiers VK_F6\ny = 0\n"
+        config += "\n[KeySMSMCalibratedTone]\nkey = no_modifiers VK_F7\ny = 1\n"
         (args.output / "d3dx.ini").write_text(config, encoding="utf-8")
     files = {p.relative_to(args.output).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
              for p in sorted(args.output.rglob("*")) if p.is_file() and "build-audit" not in p.relative_to(args.output).parts}
     (args.output / "SMSM-preview.json").write_text(json.dumps({
-        "client_build": BUILD, "runtime_verified": False, "shaders": rows, "files": files
+        "client_build": BUILD, "runtime_verified": False,
+        "look": args.look, "tonemap_smsm_percent": args.tonemap_percent if args.look == "calibrated" else 100,
+        "bloom": "game" if args.look == "calibrated" else "smsm",
+        "shaders": rows, "files": files
     }, indent=2), encoding="utf-8")
     print(f"Built {len(rows)} shaders; original hash, compilation and interface checks passed: {args.output}")
 

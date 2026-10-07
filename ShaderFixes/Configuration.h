@@ -42,6 +42,12 @@
 
 	#define TONEMAP_EVILS 1
 
+    // Blend in the game's own tone mapping, including exposure and its LUT.
+    // 0 = game curve, 100 = full SMSM. Calibrated packages override this to 25.
+    #define TONEMAP_SMSM_PERCENT 100
+    // Enabled only in packages that bind t120 and configure the F6/F7 keys.
+    #define TONEMAP_RUNTIME_CONTROL 0
+
 	#define USE_Power 0
 	// As the original tonemapper does, increases color to color^2 before adaptation and then sqrts it.
 	// Should not be used. 

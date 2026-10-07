@@ -49,6 +49,20 @@ Texture2D<float4> StereoParams : register(t125);
 
 #include "Tonemapping.h"
 
+#if TONEMAP_SMSM_PERCENT < 0 || TONEMAP_SMSM_PERCENT > 100
+#error TONEMAP_SMSM_PERCENT must be between 0 and 100
+#endif
+
+float3 GameToneMap(float3 sourceColor)
+{
+  float3 exposed = max(sourceColor, 0) * cCommonTexParam.y;
+  float3 squared = exposed * exposed;
+  float luminance = dot(squared, float3(0.298909992f, 0.586610019f, 0.114480004f));
+  luminance = saturate(cToneMapParam[0].z * luminance);
+  float lutX = luminance * (cToneMapParam[1].y - cToneMapParam[1].x) + cToneMapParam[1].x;
+  return sqrt(sToneMap.T.Sample(sToneMap.S_s, float2(lutX, 0.5)).rgb * squared);
+}
+
 // Main effect
 void main (
 #if (TONEMAP_VANILLA==0)
@@ -61,6 +75,7 @@ void main (
   float4 fDest;
 
   color = sInput.T.Sample(sInput.S_s, v1.xy);
+  float3 sourceColor = color.rgb;
 
   // Passthrough alpha
   o0.w = color.w;
@@ -183,7 +198,16 @@ void main (
     //color.xyz = lerp(color, contra, color);
   }
 
-  o0.xyz = (color.xyz);
+  #if TONEMAP_RUNTIME_CONTROL
+    float blend = saturate(IniParams.Load(int2(0, 0)).y) * (TONEMAP_SMSM_PERCENT / 100.0);
+    o0.rgb = lerp(GameToneMap(sourceColor), color.rgb, blend);
+  #elif TONEMAP_SMSM_PERCENT == 0
+    o0.rgb = GameToneMap(sourceColor);
+  #elif TONEMAP_SMSM_PERCENT < 100
+    o0.rgb = lerp(GameToneMap(sourceColor), color.rgb, TONEMAP_SMSM_PERCENT / 100.0);
+  #else
+    o0.rgb = color.rgb;
+  #endif
 }
 
 void orig_dec ( 
@@ -317,4 +341,3 @@ ret
 // Approximately 14 instruction slots used
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-       
