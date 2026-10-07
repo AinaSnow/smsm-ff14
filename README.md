@@ -13,9 +13,9 @@
 > After r4 recovery, r6 (`--extended --look game-bloom`) isolates game Bloom,
 > keeping all nine remaining shader binaries identical to r4. F8 capture is now
 > disabled by default; use `--capture` only for a planned diagnostic capture.
-> The user confirmed restored Bloom in r6. The next color candidate is r7
-> (`--extended --look calibrated-static --tonemap-percent 25`): a fixed tone blend
-> with no F6/F7 controls. Its color appearance still needs in-game comparison.
+> The user confirmed restored Bloom in r6, but found r7's fixed 25% tone blend
+> too subtle. Candidate r8 uses `--extended --look calibrated-static --tonemap-percent 50`
+> with the same game Bloom and no F6/F7 controls. Its appearance needs comparison.
 
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 

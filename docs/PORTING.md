@@ -226,3 +226,17 @@ python tools/validate_d3d11.py artifacts/preview-color-static
 实际候选 `artifacts/preview-2026.09.15-r7-static25` 通过 9 个 shader 的接口和 WARP 创建检查，以及安装/卸载保护测试。测试验证 0% 与原版转写函数的编译指令一致、100% 与原 SMSM 编译指令一致；25% 保留 t1/s1 游戏 tone LUT，编译结果不读取 t120 参数。保留的另外 8 个 shader、d3dx.ini 和三个运行时 DLL 与 r6 逐字节一致；`artifacts/r7-color-validation.json` 保存检查摘要。F6/F7 和 F8 仍关闭，输出抖动原有的 t120.x 阶段标记继续保留。这不代表已解决 r5 无响应根因。
 
 退出游戏，用 r6 final 卸载后安装 r7 static25；回退时使用相反顺序及各自清单。以普通截图对比白衣褶皱、肤色红润程度、浅蓝头发/衣料、草木绿与暖灯场景。保持 HDR 关闭、标准滤镜、固定镜头和曝光，不同时修改显示器或游戏亮度。按住 F9 显示全原版、松开显示候选；F9 同时绕过其他效果，不是严格仅隔离色调映射。先观察是否比此前 SMSM 的平白感减轻，并确认 r6 已恢复的辉光仍正常。25% 尚无实际视觉验收；若仍需更接近原版，可独立构建更低比例，避免一次改变多个颜色参数。
+
+## r8：根据外观反馈提高色调强度
+
+用户的 r7 室内对照与原版较接近，且确认咖啡馆人物的绿色在原版也存在，因此未添加全局去绿处理。随后户外人物截图 `031347_225` / `031349_981` 的差异较小，用户反馈 SMSM 不明显。这属于外观偏好反馈，不应将“尽量接近原版”自动当作最终验收目标。两图有动作差异，未用逐像素差分量化色差。
+
+准备 `artifacts/preview-2026.09.15-r8-static50`：固定混合 50% 游戏与 50% SMSM，仅提高色调映射比例；保留游戏 Bloom，其他效果仍维持原强度。25%/50% 指色调 shader 的混合比例，不是整个 SMSM 的总强度，也不等同于主观效果强度。
+
+```powershell
+python tools/build_preview.py artifacts/client-2026.09.15 artifacts/preview-color-static50 --extended --look calibrated-static --tonemap-percent 50 --decompiler artifacts/decompiler/1.3.16/cmd_Decompiler.exe
+```
+
+已核对 r8 只有 `72a656dfd52149ad` 的 shader 二进制相对 r7 改变，其他 8 个、INI 和运行时 DLL 完全一致；游戏 tone LUT 仍使用，色调映射不读取 t120。通过打包接口/原始 hash 检查、9 个 shader 的 WARP 创建和安装/卸载保护测试。摘要 `artifacts/r8-color-validation.json`。客户端当前凭据确认为 r7，r8 尚未安装或视觉验收。
+
+退出游戏后先以 r7 static25 包卸载，再安装 r8 static50。保持原来的人物、衣服和白天/暖灯场景，用 F9 对照风格强度与肤色、白衣细节；原版 Bloom 继续保留，F6/F7 和 F8 不启用。r7 保留用于回退。50% 可能重新放大旧曲线的偏白或通道比例变化，不能宣称它只增强风格而完全不影响色相；如果风格强度满意但偏白仍存在，应单独改曲线本身，而不是反复降低全部混合强度。
