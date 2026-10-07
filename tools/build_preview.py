@@ -87,6 +87,7 @@ def main():
     parser.add_argument("capture", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--extended", action="store_true", help="Include capture-reviewed DoF, reflection, shadow and output experiments")
+    parser.add_argument("--isolate-dof", action="store_true", help="Diagnostic package with only the DoF replacement; F9 then isolates blur")
     parser.add_argument("--decompiler", type=Path, help="Official cmd_Decompiler 1.3.16, required for --extended")
     parser.add_argument("--look", choices=("legacy", "game-bloom", "calibrated-static", "calibrated"), default="legacy",
                         help="game-bloom restores Bloom; calibrated-static blends tone without keys; calibrated is the suspended r5 runtime experiment")
@@ -95,6 +96,8 @@ def main():
     args = parser.parse_args()
     if not 0 <= args.tonemap_percent <= 100:
         parser.error("--tonemap-percent must be between 0 and 100")
+    if args.isolate_dof and (args.extended or args.look != "legacy"):
+        parser.error("--isolate-dof cannot be combined with --extended or a non-legacy --look")
     blends_tone = args.look in ("calibrated-static", "calibrated")
     runtime_tone = args.look == "calibrated"
     game_bloom = args.look != "legacy"
@@ -107,6 +110,8 @@ def main():
     records = {s["Hash"]: s for s in manifest["Shaders"] if s["Profile"] == "ps_5_0"}
     compiled = []
     shaders = dict(SHADERS)
+    if args.isolate_dof:
+        shaders = {"00f2b6068017c6c6": "isolated gpose depth-weighted aperture blur"}
     if args.extended:
         from patch_shader_asm import PATCHES, build_patch
         if not args.decompiler or not args.decompiler.is_file():
@@ -203,8 +208,9 @@ def main():
              for p in sorted(args.output.rglob("*")) if p.is_file() and "build-audit" not in p.relative_to(args.output).parts}
     (args.output / "SMSM-preview.json").write_text(json.dumps({
         "client_build": BUILD, "runtime_verified": False,
-        "look": args.look, "tonemap_smsm_percent": args.tonemap_percent if blends_tone else 100,
-        "bloom": "game" if game_bloom else "smsm",
+        "look": "dof-only" if args.isolate_dof else args.look,
+        "tonemap_smsm_percent": 0 if args.isolate_dof else (args.tonemap_percent if blends_tone else 100),
+        "bloom": "game" if game_bloom or args.isolate_dof else "smsm",
         "frame_capture": args.frame_capture,
         "runtime_tone_control": runtime_tone,
         "shaders": rows, "files": files
