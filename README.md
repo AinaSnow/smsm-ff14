@@ -6,9 +6,10 @@
 > 13-replacement preview adds capture-reviewed DoF, reflection, normal shadows,
 > and gated output dithering; its new effects still need in-game validation.
 > Build the preview with `tools/build_preview.py` instead of copying every legacy fix below.
-> For SDR testing after the reported pale skin / missing lamp glow, use
-> `--extended --look calibrated`: game Bloom, 25% SMSM tone mapping, F6/F7 curve comparison.
-> This is a calibration candidate, not a completed visual validation.
+> SDR candidate r5 (`--extended --look calibrated`) is suspended after a report of
+> unresponsive F6/F7/F9 comparisons and a game hang during the same test session.
+> Roll back to the previously usable r4 package while investigating; its pale skin
+> and reduced lamp glow remain known issues. No preview is fully validated.
 
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 
