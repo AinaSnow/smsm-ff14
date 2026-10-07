@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+首批代码已提交为 `1378a15`。第二批 `artifacts/preview-2026.09.15-r4` 已构建，共 13 个替换，覆盖当前捕获到的景深、反射、主光照法线阴影和输出抖动路径。新增效果通过离线检查，尚待实际安装后的画面和性能测试；不能将旧包抓帧中的阶段命中当作新效果已经验证。下表“首批测试包”及首次抓帧结果是历史记录，第二批处理见文末。
+
 已完成离线提取、候选匹配、编译和首批接口检查。首批测试包已由用户通过管理员 PowerShell 安装；已从实际游戏进程确认加载游戏目录内的 d3d11.dll、d3dcompiler_46.dll 和 nvapi64.dll。用户进入场景并用 F9 对比后确认“有明显变化，画面正常”。这通过了首次加载和当前场景的基本目视检查；逐 shader 命中、其他场景、性能及 DLSS/FSR/TSCMAA 组合仍需验证。
 
 shader 类别共有 319 个资源文件，提取出 34,309 份 DXBC，去重后为 31,018 份。哈希使用 3DMigoto 的 64 位无种子 FNV-1，且只覆盖 DXBC 数据，不包括 SHCD/SHPK 容器头。SHA-256 另用于完整性检查。
@@ -93,7 +95,7 @@ python tools/build_preview.py artifacts/client-2026.09.15 artifacts/preview
 
 重要发现：本帧 Bloom 提取变体 `7a34722c12f5794d` 在输入 RGB 上新增 `sqrt`，不可直接使用旧版不带该步骤的代码。`afe77c8a06f4c15c` 虽然与旧输出 shader 的指令相似，但实际是色调映射前的 soft-focus/glare 参数处理：alpha 来自 `cSoftFocusParam.glareCompositeRate`，不能当成最终输出抖动阶段。当前 LUT 阶段为 `33055a94eacb90ff`，另有暗部颜色矩阵和参数，不能覆盖成旧单矩阵版本。
 
-已查看 draw 1772 的场景输出，图像完整；结合用户 F9 对比确认，首批画面基本正常。单帧不能证明所有效果、天气、场景或抗锯齿设置均已兼容。景深、反射、阴影和当前管线的输出抖动仍属于后续适配内容。
+已查看 draw 1772 的场景输出，图像完整；结合用户 F9 对比确认，首批画面基本正常。单帧不能证明所有效果、天气、场景或抗锯齿设置均已兼容。第二批补充景深、反射、阴影和当前管线的输出抖动实现，验证状态单独记录如下。
 
 重现捕获分析：
 
@@ -110,3 +112,38 @@ python tools/analyze_capture.py 'E:\SteamLibrary\steamapps\common\FINAL FANTASY 
 5. 对实际可用的 FSR、DLSS、TSCMAA、动态分辨率组合分别验证。全部完成前保持 `runtime_verified=false`。
 
 参考：[3DMigoto 哈希实现](https://github.com/bo3b/3Dmigoto/blob/master/util.h)、[原项目](https://github.com/s-ilent/smsm-ff14)。
+
+## 第二批：当前渲染路径
+
+依据用户开启景深后的 `FrameAnalysis-2026-10-08-021615`，重新定位实际调用。旧 `d6be0b6332618e80` 和 `762c17c406a1cd4f` 候选未在这帧执行，不能代表当前 /gpose。
+
+| 效果 | 第二批实现 | 旧包抓帧中的定位证据 |
+|---|---|---|
+| 景深散景 | `00f2b6068017c6c6`，为当前双层模糊的每个 tap 增加 ±10° 角度采样，16 → 48 次采样，保留原 CoC 权重和 alpha | draw 2370–2373 |
+| 反射采样 | `4caad0714bdcc47e`，仅在最终反射颜色查询增加六纹素范围内的抖动，保留 Hi-Z 步进、命中判定、材质遮罩、距离衰减与 alpha | draw 2192 |
+| 法线阴影 | `e9f57e0834b642f5` / `8b384acd7a03c836`，24 步法线积分，按新版深度重建和世界到视图法线变换采样 | 日志 draw 1735 / 2000；没有对应 JPG，但存在实际 Draw 调用 |
+| 输出抖动 | `23d27700572e0c4d`，色调映射后启用，保留 RGB 的 NaN 清理和 alpha | 早期 draw 2334 禁用，最终 draw 2413 启用；普通场景对应 1692 / 1772 |
+
+新版景深的 CoC 生成、前后景分离、两级合成继续由游戏负责，保留手动焦点和近远模糊参数。旧版的中心/边缘混合 hack 不适用于新的五纹理合成。散景保留 SMSM 增加采样以平滑光斑的意图，并非逐像素复刻旧版外观。
+
+旧 `522bc90ae2005807`、`c366310c6e0bd092`、`6dd11ec05e8b6088`、`5613235b3daabe76`、`f7bc496f9f1b7e0d` 的有效主函数基本是原处理的转写；其探索代码多在注释或未调用函数中。这里保留当前游戏的深度、LUT、反射模糊和阴影贴图处理。`7a34722c12f5794d` 的新 Bloom 提取同样保留，避免丢失新增 sqrt。真正的额外法线阴影移入当前主光照阶段。
+
+复杂光照与反射采用局部 ASM 插入，由 `tools/patch_shader_asm.py` 生成。先以原始 DXBC 验证反汇编/汇编后的指令字节完全一致，再插入独立临时寄存器中的效果；新资源与常量读取不能超出宿主绑定。这样无需依赖反编译器重新生成数百条材质/云影/散射指令。生成的游戏原始字节码和完整 ASM 留在被忽略的 artifacts 中，不提交到仓库。
+
+输出 shader 是复用的拷贝，不能全局加噪点。独立包启用 `ini_params=120` 并保留 `x` 作为阶段标记：色调映射设置 1，目标拷贝消费后置 0，Present 再次复位。分析工具按实际调用顺序重放，确认两份捕获都跳过早期拷贝。标记的运行时行为仍需要新包抓帧确认。新增抖动去除了旧公式的均值偏移，黑白端点渐隐；位运算判断 NaN，避免编译器在 /O3 下消除 `isnan()`。
+
+### 构建与离线验证
+
+额外需要 [3DMigoto 官方 cmd_Decompiler 1.3.16](https://github.com/bo3b/3Dmigoto/releases/tag/1.3.16)。本次下载的 `cmd_Decompiler-1.3.16.zip` SHA-256 为 `5e72e067dfcb15c36f106efa74d805055eec5314dc84b8fca8e65d835683a1b2`，解压到 `artifacts/decompiler/1.3.16`。该工具只参与离线构建，客户端仍使用项目原有的 1.3.11 DLL。
+
+```powershell
+python tools/build_preview.py artifacts/client-2026.09.15 artifacts/preview-extended --extended --decompiler artifacts/decompiler/1.3.16/cmd_Decompiler.exe
+python tools/validate_d3d11.py artifacts/preview-extended
+./tools/Test-Preview.ps1 -Package artifacts/preview-extended
+```
+
+已通过：13 个 shader 哈希/接口检查；两个新增 HLSL 无编译警告；3 个 ASM 插入的原指令逐字节往返检查及修改后的汇编验证；13 个 shader 的 D3D11 WARP CreatePixelShader；r4 安装、版本拦截、同名文件保护、修改文件保护和卸载测试。WARP 创建检查只证明字节码能创建，不能证明画面或帧率。
+
+实际待测包为 `artifacts/preview-2026.09.15-r4`。`r3`、`r3b`、`r3c` 都是构建中间产物，不用于安装。升级先关闭游戏，用首批 `r2` 包执行 `Install-Preview.ps1 -Uninstall`，再用 r4 执行安装。回退则先用 r4 卸载，再安装 r2；保留两份包及各自安装清单。
+
+仍需验证：同一场景 F9 对照、/gpose 前后景和焦点滑块、反射表面、主光源阴影及帧率。当前实现只覆盖捕获确认的路径，其他画质下的 shader 变体及 DLSS/FSR 组合不视为已验证。新增采样可能增加 GPU 时间，若明显掉帧应先回退再按效果拆分测量。

@@ -1,0 +1,48 @@
+// Current scene output copy. x is armed by tone mapping, consumed here, and
+// reset at Present. Earlier copies keep the original NaN cleanup and alpha.
+#include "Common.h"
+#include "Configuration.h"
+SamplerState inputSampler : register(s0);
+Texture2D<float4> inputTexture : register(t0);
+Texture1D<float4> IniParams : register(t120);
+
+float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET
+{
+    float4 value = inputTexture.Sample(inputSampler, uv);
+    // Explicit IEEE-754 bit test: legacy /O3 may optimize isnan() away.
+    uint3 magnitude = asuint(value.rgb) & 0x7fffffffu;
+    value.rgb = float3(magnitude.r > 0x7f800000u ? 0 : value.r,
+                       magnitude.g > 0x7f800000u ? 0 : value.g,
+                       magnitude.b > 0x7f800000u ? 0 : value.b);
+    if (IniParams.Load(int2(0, 0)).x > 0.5) {
+        float3 noise = 0;
+        #if DitherMode == 1
+        noise = ScreenSpaceDither(position.xy);
+        #elif DitherMode == 2
+        noise = SweetFXFastDither3(position.xy);
+        #elif DitherMode == 3
+        noise = ScreenSpaceDitherTri(position.xy);
+        #elif DitherMode == 4
+        noise = ign3(position.xy);
+        noise.y = ign3(position.xy + 0.5).x;
+        noise *= 2;
+        #elif DitherMode == 5
+        noise = r2_intensity3(position.xy);
+        noise.y = r2_intensity3(position.xy + 0.5).x;
+        noise *= 2;
+        #endif
+        #if DitherMode > 0
+        // Center the legacy noise; its positive offset otherwise darkens blacks
+        // with the old negative grain multiplier. Preserve alpha and HDR values.
+        #if DitherMode >= 4
+        noise -= 1.0 / 255.0;
+        #else
+        noise -= 0.5 / 255.0;
+        #endif
+        noise = clamp(noise, -1.0 / 255.0, 1.0 / 255.0);
+        float3 edgeFade = min(saturate(value.rgb * 255), saturate((1 - value.rgb) * 255));
+        value.rgb += noise * edgeFade;
+        #endif
+    }
+    return value;
+}

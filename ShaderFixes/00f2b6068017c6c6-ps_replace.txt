@@ -1,0 +1,47 @@
+// International 2026.09.15: /gpose near/far aperture blur.
+// Preserve the current CoC weights and viewport mapping. Add angular samples
+// around each supplied tap to soften the sparse aperture pattern (48 taps).
+cbuffer Viewport : register(b0) { float4 viewport[2]; }
+SamplerState inputSampler : register(s0);
+Texture2D<float4> inputTexture : register(t0);
+
+float4 main(float4 position : SV_POSITION,
+    float4 uv0 : TEXCOORD0, float4 uv1 : TEXCOORD1,
+    float4 uv2 : TEXCOORD2, float4 uv3 : TEXCOORD3,
+    float4 uv4 : TEXCOORD4, float4 uv5 : TEXCOORD5,
+    float4 uv6 : TEXCOORD6, float4 uv7 : TEXCOORD7) : SV_TARGET
+{
+    float4 taps[8] = {uv0, uv1, uv2, uv3, uv4, uv5, uv6, uv7};
+    static const float4 weights[4] = {
+        float4(3.771236, 3, 4, 0.25),
+        float4(10, 2, 4.5, 0.222222),
+        float4(10.917875, 2.5, 5.5, 0.181818),
+        float4(10.917875, 2.5, 5.5, 0.181818)
+    };
+    float2 center = 0;
+    [unroll] for (int i = 0; i < 8; ++i)
+        center += (taps[i].xy + taps[i].zw) / 16;
+    uint width, height;
+    inputTexture.GetDimensions(width, height);
+    float2 size = max(float2(width, height) * viewport[0].xy, 1);
+    float4 total = 0;
+    float totalWeight = 0.001;
+    [loop] for (uint tap = 0; tap < 16; ++tap) {
+        float2 uv = (tap & 1) ? taps[tap / 2].zw : taps[tap / 2].xy;
+        float2 offset = (uv - center) * size;
+        float4 curve = weights[tap / 4];
+        [unroll] for (int angle = -1; angle <= 1; ++angle) {
+            // +/- 10 degrees in pixel space; correct on ultrawide viewports too.
+            float cosine = angle == 0 ? 1 : 0.984807753;
+            float sine = angle * 0.173648178;
+            float2 rotated = float2(cosine * offset.x - sine * offset.y,
+                                    sine * offset.x + cosine * offset.y);
+            float2 sampleUV = min(saturate(center + rotated / size) * viewport[0].xy, viewport[0].zw);
+            float4 sampleValue = inputTexture.SampleLevel(inputSampler, sampleUV, 0);
+            float weight = saturate((rcp(1.0001 - sampleValue.a) + curve.z - curve.x) * curve.w) * curve.y / 3;
+            total += sampleValue * weight;
+            totalWeight += weight;
+        }
+    }
+    return total / totalWeight;
+}

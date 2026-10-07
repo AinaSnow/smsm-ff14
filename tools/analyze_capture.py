@@ -21,6 +21,23 @@ def main():
     records = {s["Hash"]: s for s in manifest["Shaders"]}
     bound = set(re.findall(r"PSSetShader\([^\n]*hash=([0-9a-f]{16})", log))
     rendered = defaultdict(set)
+    executed = defaultdict(set)
+    active_ps = None
+    armed = False
+    output_gate = []
+    for line in log.splitlines():
+        if "PSSetShader(" in line:
+            match = re.search(r"hash=([0-9a-f]{16})", line)
+            active_ps = match[1] if match else None
+        match = re.match(r"(\d+) Draw", line)
+        if match and active_ps:
+            draw = int(match[1])
+            executed[active_ps].add(draw)
+            if active_ps == "72a656dfd52149ad":
+                armed = True
+            if active_ps == "23d27700572e0c4d":
+                output_gate.append({"draw": draw, "dither_would_run": armed})
+                armed = False
     timeline = []
     for path in sorted(args.capture.glob("*.jpg")):
         match = re.match(r"(\d+)-.*-ps=([0-9a-f]{16})\.jpg$", path.name)
@@ -34,13 +51,15 @@ def main():
     for shader in package["shaders"]:
         hash_value = shader["hash"]
         row = {"hash": hash_value, "effect": shader["effect"], "bound_in_frame": hash_value in bound,
+               "draws_in_log": sorted(executed[hash_value]),
                "draws_with_output": sorted(rendered[hash_value])}
         rows.append(row)
-        print(f"{hash_value} {shader['effect']}: {row['draws_with_output'] or 'not observed'}")
+        print(f"{hash_value} {shader['effect']}: draws={row['draws_in_log']}, images={row['draws_with_output']}")
     report = {"client_build": manifest["ClientBuild"], "capture": str(args.capture.resolve()),
               "log_sha256": hashlib.sha256(log_path.read_bytes()).hexdigest(),
               "note": "Observed original shader hashes identify stages; this is not a GPU timing or all-settings correctness test.",
-              "preview_shaders": rows, "standalone_shader_timeline": timeline}
+              "preview_shaders": rows, "standalone_shader_timeline": timeline,
+              "predicted_output_dither_gate": output_gate}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
 

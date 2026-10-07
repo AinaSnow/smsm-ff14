@@ -47,11 +47,13 @@ def signature(text, title):
     return result
 
 
-def verify_interface(original, replacement):
+def verify_interface(original, replacement, allow_ini_params=False):
     original_bindings, new_bindings = bindings(original), bindings(replacement)
     if not original_bindings or not new_bindings:
         raise ValueError("Cannot parse resource bindings")
     for key, value in new_bindings.items():
+        if allow_ini_params and key == ("texture", 120) and value == ("float4", "1d", 1):
+            continue
         if original_bindings.get(key) != value:
             raise ValueError(f"Resource mismatch at {key}: {value} vs {original_bindings.get(key)}")
     old_inputs, new_inputs = signature(original, "Input signature"), signature(replacement, "Input signature")
@@ -74,6 +76,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("capture", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--extended", action="store_true", help="Include capture-reviewed DoF, reflection, shadow and output experiments")
+    parser.add_argument("--decompiler", type=Path, help="Official cmd_Decompiler 1.3.16, required for --extended")
     args = parser.parse_args()
     manifest = json.loads((args.capture / "manifest.json").read_text())
     if manifest["ClientBuild"] != BUILD:
@@ -83,7 +87,14 @@ def main():
     compiler = Compiler(ROOT / "d3dcompiler_46.dll")
     records = {s["Hash"]: s for s in manifest["Shaders"] if s["Profile"] == "ps_5_0"}
     compiled = []
-    for hash_value, effect in SHADERS.items():
+    shaders = dict(SHADERS)
+    if args.extended:
+        from patch_shader_asm import PATCHES, build_patch
+        if not args.decompiler or not args.decompiler.is_file():
+            raise ValueError("--extended requires --decompiler pointing to cmd_Decompiler 1.3.16")
+        shaders.update({"00f2b6068017c6c6": "gpose depth-weighted aperture blur", "23d27700572e0c4d": "post-tonemap output dithering"})
+        shaders.update(PATCHES)
+    for hash_value, effect in shaders.items():
         record = records[hash_value]
         original = (args.capture / record["File"]).read_bytes()
         if hashlib.sha256(original).hexdigest() != record["Sha256"]:
@@ -94,10 +105,14 @@ def main():
         if f"{fnv:016x}" != hash_value:
             raise ValueError(f"Wrong original hash: {hash_value}")
         source = ROOT / "ShaderFixes" / f"{hash_value}-ps_replace.txt"
-        data, diagnostics = compiler.compile(source)
+        if args.extended and hash_value in PATCHES:
+            source, data = build_patch(hash_value, original, args.output / "build-audit", compiler, args.decompiler.resolve(), ROOT)
+            diagnostics = "Original instruction stream roundtrip verified; bounded ASM insertion"
+        else:
+            data, diagnostics = compiler.compile(source)
         original_asm, patched_asm = compiler.disassemble(original), compiler.disassemble(data)
         try:
-            verify_interface(original_asm, patched_asm)
+            verify_interface(original_asm, patched_asm, allow_ini_params=hash_value == "23d27700572e0c4d")
         except ValueError as ex:
             raise ValueError(f"{hash_value} ({effect}): {ex}") from ex
         compiled.append((hash_value, effect, source, data, diagnostics))
@@ -108,7 +123,7 @@ def main():
     rows = []
     for hash_value, effect, source, data, diagnostics in compiled:
         shutil.copy2(source, fixes / source.name)
-        (fixes / f"{hash_value}-ps_replace.bin").write_bytes(data)
+        (fixes / source.with_suffix(".bin").name).write_bytes(data)
         rows.append({"hash": hash_value, "effect": effect, "original_sha256": records[hash_value]["Sha256"],
                      "compiled_sha256": hashlib.sha256(data).hexdigest(), "compiler_diagnostics": diagnostics})
     for name in ("d3d11.dll", "nvapi64.dll", "d3dcompiler_46.dll", "LICENSE", "COPYING"):
@@ -126,8 +141,17 @@ def main():
         if count != 1:
             raise ValueError(f"Unexpected configuration template: {old}")
     (args.output / "d3dx.ini").write_text(config, encoding="utf-8")
+    if args.extended:
+        # x is reserved by this independent preview. Reset on frame boundary and
+        # consume only after tone mapping, because the copy shader also runs early.
+        config = config.replace("ini_params = -1", "ini_params = 120")
+        config = config.replace("[Constants]", "[Constants]\nx = 0")
+        config = config.replace("[Present]", "[Present]\npost x = 0")
+        config += "\n[ShaderOverrideSMSMOutputArm]\nhash = 72a656dfd52149ad\nx = 1\n"
+        config += "\n[ShaderOverrideSMSMOutputConsume]\nhash = 23d27700572e0c4d\npost x = 0\n"
+        (args.output / "d3dx.ini").write_text(config, encoding="utf-8")
     files = {p.relative_to(args.output).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-             for p in sorted(args.output.rglob("*")) if p.is_file()}
+             for p in sorted(args.output.rglob("*")) if p.is_file() and "build-audit" not in p.relative_to(args.output).parts}
     (args.output / "SMSM-preview.json").write_text(json.dumps({
         "client_build": BUILD, "runtime_verified": False, "shaders": rows, "files": files
     }, indent=2), encoding="utf-8")
