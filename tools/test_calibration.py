@@ -5,7 +5,7 @@ import shutil
 import uuid
 from shader_compile import Compiler
 from patch_shader_asm import instructions
-from build_preview import insert_section
+from build_preview import bindings, insert_section
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,6 +56,10 @@ def main():
     assert zero == vanilla, "0% must preserve the vanilla shader's instruction bytes"
     assert full == instructions((ROOT / f"ShaderFixes/{tone}-ps_replace.bin").read_bytes()), "100% must retain the shipped SMSM curve"
     assert quarter not in (zero, full), "25% must not collapse to either endpoint"
+    quarter_bindings = bindings(compiler.disassemble((output / "quarter/shader.bin").read_bytes()))
+    assert ("texture", 120) not in quarter_bindings, "Static blend must not depend on runtime IniParams"
+    assert quarter_bindings[("texture", 1)] == ("float4", "2d", 1), "Static blend must retain the game tone LUT"
+    assert ("sampler", 1) in quarter_bindings, "Game tone LUT sampler must remain bound"
     bloom = "a617dec7fe8f1603"
     enabled = compile_case("bloom-on", bloom, {"UseOriginalWhitening": 1})
     disabled = compile_case("bloom-off", bloom, {"UseOriginalWhitening": 0})

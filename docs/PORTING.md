@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-2026-10-08：r5 安装后用户报告按键无可见变化及游戏无响应，现已暂停测试；用户确认回退 r4 后正常，安装凭据与 r4 一致。r4 的人物偏白和台灯光晕减弱仍未通过画面验收。新的单项候选 `artifacts/preview-2026.09.15-r6-game-bloom-final` 只恢复游戏 Bloom，保留的 9 个 shader 二进制与 r4 完全一致；默认关闭 F8 抓帧，尚待游戏内对比。r5 实现与排查记录、r6 验证步骤见文末。
+2026-10-08：r5 出现按键无可见变化及无响应，已暂停测试。用户回退 r4 后正常，随后安装 r6 并确认辉光正常；客户端安装清单已核对为 r6。这是该场景的反馈，不代表全部效果或长期稳定性通过。新的颜色候选 `artifacts/preview-2026.09.15-r7-static25` 仅修改色调映射，固定混合 75% 游戏输出与 25% SMSM 输出；其余 8 个 shader、INI 和运行时 DLL 与 r6 完全一致，待实际颜色对比。r5 排查记录、r6/r7 验证步骤见文末。
 
 首批代码已提交为 `1378a15`。第二批 `artifacts/preview-2026.09.15-r4` 已构建，共 13 个替换，覆盖当前捕获到的景深、反射、主光照法线阴影和输出抖动路径。新增效果通过离线检查，尚待实际安装后的画面和性能测试；不能将旧包抓帧中的阶段命中当作新效果已经验证。下表“首批测试包”及首次抓帧结果是历史记录，第二批处理见文末。
 
@@ -201,6 +201,28 @@ python tools/validate_d3d11.py artifacts/preview-bloom-only
 ./tools/Test-Preview.ps1 -Package artifacts/preview-bloom-only
 ```
 
-已通过：原始 hash 与接口检查、ASM 原指令往返、9 个 shader 的 WARP 创建、安装/卸载和文件保护测试。额外核对删除的恰好是四个 Bloom hash、保留 shader 与 r4 二进制一致、运行时 DLL 不变、F8 和 F6/F7 均无绑定。摘要位于 `artifacts/r6-baseline-validation.json`。尚未在游戏中验证 r6；失败构建 `preview-2026.09.15-r6-game-bloom` 没有完整清单，不可安装。
+已通过：原始 hash 与接口检查、ASM 原指令往返、9 个 shader 的 WARP 创建、安装/卸载和文件保护测试。额外核对删除的恰好是四个 Bloom hash、保留 shader 与 r4 二进制一致、运行时 DLL 不变、F8 和 F6/F7 均无绑定。摘要位于 `artifacts/r6-baseline-validation.json`。用户现已确认 r6 辉光正常；失败构建 `preview-2026.09.15-r6-game-bloom` 没有完整清单，不可安装。
 
 安装顺序：退出游戏，用 r4 包卸载，再安装 r6 final；回退则反向操作。游戏目录需管理员权限。不要覆盖已安装文件，也不要在游戏运行时热换 DLL。进入半室内台灯场景，先确认能正常操作，再开启 hunting、按住和松开 F9 比较灯芯周围光晕。F9 按住是原版、松开是 SMSM；其他保留效果仍会产生差异。只需普通截图，暂不抓帧。待确认光晕和稳定性后，再单独验证静态色调混合，避免同时引入动态按键控制。
+
+## r7：颜色路径检查与固定色调混合
+
+代码检查结论：
+
+- `COLORTONE=0`、`PSATURATION=0`、`CUBICCONTRAST=0`，目前没有启用旧配置中的去绿偏色、全局饱和度和附加对比度。不能因为头文件中存在这些参数就认为它们正在影响画面。
+- `TONEMAP_EVILS=1` 的实际主函数是对 R/G/B 分别调用 `genericTonemap`，再除以公共白点；`EVILS(color)` 调用仍在注释中。它并没有执行头文件里的完整 EVILS 颜色重建。非线性逐通道映射会改变通道比例，有产生色相/饱和度偏移的条件，尤其在高光压缩区域。
+- 100% SMSM 路径绕过原版 `cCommonTexParam.y` 曝光乘法和本阶段的 t1 tone LUT。后续游戏颜色处理仍保留，不能把这一点描述为移除了游戏全部 LUT。原版路径已与当前客户端反汇编逐步核对。
+- 暗角 shader 沿用游戏提供的暗角 RGB，只对 alpha 加抖动；当前输出抖动有每通道 ±1/255 限幅和端点渐隐，并不等于全局色温滤镜。景深/反射/法线阴影仍会间接改变局部亮度，本次不修改它们。
+
+这些是代码层面的原因和风险，不能仅凭旧截图断言每个像素的偏色来源。r7 使用现有 `GameToneMap` 与 SMSM 输出的固定混合：75% 游戏 + 25% SMSM，不新增饱和度、白平衡或色相旋转。数学上是在该 shader 输出处将相对游戏输出的 RGB 差值缩小为 1/4；不能声称最终感知色差或色相误差也精确降低 75%，更不能声称完全保色相。
+
+```powershell
+python tools/build_preview.py artifacts/client-2026.09.15 artifacts/preview-color-static --extended --look calibrated-static --tonemap-percent 25 --decompiler artifacts/decompiler/1.3.16/cmd_Decompiler.exe
+python tools/test_calibration.py
+python tools/validate_d3d11.py artifacts/preview-color-static
+./tools/Test-Preview.ps1 -Package artifacts/preview-color-static
+```
+
+实际候选 `artifacts/preview-2026.09.15-r7-static25` 通过 9 个 shader 的接口和 WARP 创建检查，以及安装/卸载保护测试。测试验证 0% 与原版转写函数的编译指令一致、100% 与原 SMSM 编译指令一致；25% 保留 t1/s1 游戏 tone LUT，编译结果不读取 t120 参数。保留的另外 8 个 shader、d3dx.ini 和三个运行时 DLL 与 r6 逐字节一致；`artifacts/r7-color-validation.json` 保存检查摘要。F6/F7 和 F8 仍关闭，输出抖动原有的 t120.x 阶段标记继续保留。这不代表已解决 r5 无响应根因。
+
+退出游戏，用 r6 final 卸载后安装 r7 static25；回退时使用相反顺序及各自清单。以普通截图对比白衣褶皱、肤色红润程度、浅蓝头发/衣料、草木绿与暖灯场景。保持 HDR 关闭、标准滤镜、固定镜头和曝光，不同时修改显示器或游戏亮度。按住 F9 显示全原版、松开显示候选；F9 同时绕过其他效果，不是严格仅隔离色调映射。先观察是否比此前 SMSM 的平白感减轻，并确认 r6 已恢复的辉光仍正常。25% 尚无实际视觉验收；若仍需更接近原版，可独立构建更低比例，避免一次改变多个颜色参数。

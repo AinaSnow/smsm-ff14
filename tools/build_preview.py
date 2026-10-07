@@ -88,13 +88,16 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--extended", action="store_true", help="Include capture-reviewed DoF, reflection, shadow and output experiments")
     parser.add_argument("--decompiler", type=Path, help="Official cmd_Decompiler 1.3.16, required for --extended")
-    parser.add_argument("--look", choices=("legacy", "game-bloom", "calibrated"), default="legacy",
-                        help="game-bloom only restores Bloom; calibrated also blends the tone curve (suspended r5 experiment)")
+    parser.add_argument("--look", choices=("legacy", "game-bloom", "calibrated-static", "calibrated"), default="legacy",
+                        help="game-bloom restores Bloom; calibrated-static blends tone without keys; calibrated is the suspended r5 runtime experiment")
     parser.add_argument("--capture", dest="frame_capture", action="store_true", help="Explicitly enable F8 frame capture; disabled by default")
     parser.add_argument("--tonemap-percent", type=int, default=25, help="SMSM curve contribution for calibrated look (0-100)")
     args = parser.parse_args()
     if not 0 <= args.tonemap_percent <= 100:
         parser.error("--tonemap-percent must be between 0 and 100")
+    blends_tone = args.look in ("calibrated-static", "calibrated")
+    runtime_tone = args.look == "calibrated"
+    game_bloom = args.look != "legacy"
     manifest = json.loads((args.capture / "manifest.json").read_text())
     if manifest["ClientBuild"] != BUILD:
         raise ValueError("Unreviewed client build; extract and review before updating the whitelist")
@@ -111,18 +114,18 @@ def main():
         shaders.update({"00f2b6068017c6c6": "gpose depth-weighted aperture blur", "23d27700572e0c4d": "post-tonemap output dithering"})
         shaders.update(PATCHES)
     source_root = ROOT / "ShaderFixes"
-    if args.look in ("game-bloom", "calibrated"):
+    if game_bloom:
         # Use the full game Bloom chain, not just the merge: both old blur
         # replacements change radius and energy. Do not synthesize light halos.
         for shader in BLOOM_SHADERS:
             shaders.pop(shader)
-    if args.look == "calibrated":
+    if blends_tone:
         source_root = args.output / "build-audit" / "hlsl"
         source_root.mkdir(parents=True)
         for header in (ROOT / "ShaderFixes").glob("*.h"):
             shutil.copy2(header, source_root / header.name)
         settings = (source_root / "Configuration.h").read_text()
-        for name, value in (("TONEMAP_SMSM_PERCENT", args.tonemap_percent), ("UseOriginalWhitening", 1), ("TONEMAP_RUNTIME_CONTROL", 1)):
+        for name, value in (("TONEMAP_SMSM_PERCENT", args.tonemap_percent), ("UseOriginalWhitening", 1), ("TONEMAP_RUNTIME_CONTROL", int(runtime_tone))):
             settings, count = re.subn(r"(#define\s+" + name + r"\s+)\d+", lambda m: m[1] + str(value), settings)
             if count != 1:
                 raise ValueError(f"Expected one configuration definition: {name}")
@@ -150,7 +153,7 @@ def main():
         original_asm, patched_asm = compiler.disassemble(original), compiler.disassemble(data)
         try:
             verify_interface(original_asm, patched_asm, allow_ini_params=(hash_value == "23d27700572e0c4d" or
-                             (args.look == "calibrated" and hash_value == "72a656dfd52149ad")))
+                             (runtime_tone and hash_value == "72a656dfd52149ad")))
         except ValueError as ex:
             raise ValueError(f"{hash_value} ({effect}): {ex}") from ex
         compiled.append((hash_value, effect, source, data, diagnostics))
@@ -189,7 +192,7 @@ def main():
         config += "\n[ShaderOverrideSMSMOutputArm]\nhash = 72a656dfd52149ad\nx = 1\n"
         config += "\n[ShaderOverrideSMSMOutputConsume]\nhash = 23d27700572e0c4d\npost x = 0\n"
         (args.output / "d3dx.ini").write_text(config, encoding="utf-8")
-    if args.look == "calibrated":
+    if runtime_tone:
         config = config.replace("ini_params = -1", "ini_params = 120")
         config = insert_section(config, "Constants", "y = 1")
         # These keys isolate tone mapping, unlike F9 which bypasses every fix.
@@ -200,10 +203,10 @@ def main():
              for p in sorted(args.output.rglob("*")) if p.is_file() and "build-audit" not in p.relative_to(args.output).parts}
     (args.output / "SMSM-preview.json").write_text(json.dumps({
         "client_build": BUILD, "runtime_verified": False,
-        "look": args.look, "tonemap_smsm_percent": args.tonemap_percent if args.look == "calibrated" else 100,
-        "bloom": "game" if args.look in ("game-bloom", "calibrated") else "smsm",
+        "look": args.look, "tonemap_smsm_percent": args.tonemap_percent if blends_tone else 100,
+        "bloom": "game" if game_bloom else "smsm",
         "frame_capture": args.frame_capture,
-        "runtime_tone_control": args.look == "calibrated",
+        "runtime_tone_control": runtime_tone,
         "shaders": rows, "files": files
     }, indent=2), encoding="utf-8")
     print(f"Built {len(rows)} shaders; original hash, compilation and interface checks passed: {args.output}")
