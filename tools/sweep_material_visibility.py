@@ -29,7 +29,7 @@ PRESETS={
 
 def run(output,extraction):
     output.mkdir(parents=True,exist_ok=False);compiler=Compiler(ROOT/'d3dcompiler_46.dll');shaders={}
-    for filename in ('material_light.hlsl','material_visibility.hlsl'):
+    for filename in ('material_light.hlsl','material_visibility.hlsl','visibility_march.hlsl'):
         shutil.copy2(ROOT/'tools/patches'/filename,output/filename)
     for audit in (0,1):
         source=output/f'pass-{audit}.hlsl'
@@ -103,7 +103,7 @@ def run(output,extraction):
         all_motion_metrics_nonregressing=all(temporal[s][selected][metric]<=temporal[s]['baseline'][metric]
             for s in temporal for metric in temporal[s]['baseline']),
         eligible_for_default=False,game_package_created=False,game_runtime_verified=False,performance_verified=False,
-        source_sha256={n:digest((output/n).read_bytes()) for n in ('material_light.hlsl','material_visibility.hlsl')},
+        source_sha256={n:digest((output/n).read_bytes()) for n in ('material_light.hlsl','material_visibility.hlsl','visibility_march.hlsl')},
         limits=['Fixed synthetic geometry family; held-out views do not establish real-world generalization',
                 'No temporal filter or stabilizer; hard shadow rasterization still aliases',
                 'Step counts bound iterations but do not measure GPU cost',

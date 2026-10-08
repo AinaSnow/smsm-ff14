@@ -39,7 +39,7 @@ def cpu_style(f,position,color=(1,1,1),intensity=18,radius=9,strength=.5,bounded
 
 def run(output,extraction,decompiler):
     output.mkdir(parents=True,exist_ok=False);compiler=Compiler(ROOT/'d3dcompiler_46.dll')
-    for name in ('diffuse_response.hlsl','material_light.hlsl','material_visibility.hlsl'):
+    for name in ('diffuse_response.hlsl','material_light.hlsl','material_visibility.hlsl','visibility_march.hlsl'):
         shutil.copy2(ROOT/'tools/patches'/name,output/name)
     checks=[];headroom=[];previews=[]
     def check(name,passed,**metrics):

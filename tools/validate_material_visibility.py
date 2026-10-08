@@ -29,7 +29,7 @@ def run(output,extraction,bias=.025,thickness=.35,steps=96,fused=False):
     if not np.isfinite([bias,thickness]).all() or not 0<=bias<thickness or not isinstance(steps,int) or not 1<=steps<=128:
         raise ValueError('Finite 0 <= bias < thickness and 1..128 integer steps required')
     output.mkdir(parents=True,exist_ok=False);compiler=Compiler(ROOT/'d3dcompiler_46.dll')
-    for name in ('material_light.hlsl','material_visibility.hlsl'):
+    for name in ('material_light.hlsl','material_visibility.hlsl','visibility_march.hlsl'):
         shutil.copy2(ROOT/'tools/patches'/name,output/name)
     shaders={}
     for mode in (0,1):
@@ -211,7 +211,7 @@ def run(output,extraction,bias=.025,thickness=.35,steps=96,fused=False):
               maximum_error=float(error.max()),maximum_ulp_error=float((error/ulp).max()))
     report=dict(check_count=len(checks),all_passed=True,checks=checks,geometry=rows,aggregate_error=totals,temporal=temporal,
         settings=dict(bias=bias,assumed_thickness=thickness,max_steps=steps),
-        source_sha256={n:digest((output/n).read_bytes()) for n in ('material_light.hlsl','material_visibility.hlsl')},
+        source_sha256={n:digest((output/n).read_bytes()) for n in ('material_light.hlsl','material_visibility.hlsl','visibility_march.hlsl')},
         game_package_created=False,game_runtime_verified=False,performance_verified=False,
         single_draw_fused=bool(fused),fused_sha256={str(mode):digest(path.read_bytes()) for mode,path in fused_shaders.items()},
         limits=['Actual separate GPU passes with CPU readback/upload between; no game runtime resource binding',
