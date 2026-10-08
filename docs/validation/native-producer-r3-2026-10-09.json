@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-09",
+  "candidate": "r3",
+  "addon_sha256": "5213076168bd87676c3166360deb89817ccac16a589546d3b6a5d0a45ea7bbb6",
+  "default_enabled": false,
+  "shader_replacement": false,
+  "warp_capture_reports": 10,
+  "real_draw_alpha_only_write_mask_check": true,
+  "producer_copy_reset_and_epoch_checks": true,
+  "official_runtime_callback_wiring": true,
+  "host_vertices": 0,
+  "synthetic_original_producer_draw_checks": [
+    {
+      "name": "synthetic",
+      "passed": true,
+      "max_abs_error": 0.0019501784595945537
+    },
+    {
+      "name": "changed-depth",
+      "passed": true,
+      "max_abs_error": 0.0019321956105864402
+    },
+    {
+      "name": "depth_changes_actual_output",
+      "passed": true
+    }
+  ],
+  "captured_input_replay_summary": {
+    "finite_pixels": 2073600,
+    "fraction_xyz_exact": 0.998356963734568,
+    "fraction_xyz_within_one_fp16_ulp": 0.9994791666666667,
+    "max_abs_error": 0.0078125
+  },
+  "current_game_producer_verified": false,
+  "independent_position_evidence": false,
+  "upgrade_and_restore": {
+    "simulated_client": true,
+    "real_client_written": false,
+    "r10_roundtrip_exact": true,
+    "native_interruption_recovered": true,
+    "collision_modified_and_running_guards": true,
+    "old_to_new_addon_update": true,
+    "interrupted_update_restores_previous_addon": true,
+    "runtime_and_user_settings_retained_on_update": true,
+    "atomic_command_publication_and_duplicate_rejection": true
+  },
+  "historical_parser_checks_passed": 4,
+  "public_payload_policy": "code identifiers, booleans and aggregate statistics only; raw data, pointers, sampled-payload fingerprints and paths remain local"
+}
