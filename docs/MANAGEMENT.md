@@ -127,6 +127,8 @@ C:\Python314\python.exe 'E:\SapphireServer\Dalamud Dev\smsm-ff14\tools\record_va
 
 ## 本轮离线验证记录
 
+另有 2026-10-08 首次实机重载反馈：用户报告色调 F10 对照有变化、无卡顿和错误。只读检查确认 r10 包 SHA-256 为 `8fc10d0b0ab4bf8bb3dccccf4f62b4bd684dca57e8425aa010324a7b90a211ae`，完整性通过，当前仅选择 `tone`。人工观察已存入 `artifacts/validation`；没有帧时间数据。磁盘状态中的 `pending-restart-or-F10` 保持原样，因为管理器无法检测游戏是否完成应用；本次反馈独立记录，不提升其他效果的验证状态。
+
 2026-10-08：管理工具 15 个测试中 14 个通过，1 个因 Windows 符号链接创建权限缺失跳过；实际 Windows 目录联接拒绝测试通过。3 个帧时间统计测试全部通过。管理测试覆盖旧包升级/精确回退、每项隔离、运行进程拦截、只变更 shader 的 live 模式、文件修改和冲突保护、事务中断恢复、备份损坏及备份期间的并发修改。
 
 8 个 shader 通过 WARP 创建检查；二进制、INI、DLL 与 r9 相同，3 份 ASM TXT 仅生成时间注释不同。旧安装器的版本、碰撞、修改保护和安装/卸载测试通过。审计工具已对当前提取清单运行，匹配结果仍明确标为“不证明执行”。这些结果保存在工作区 `artifacts/r10-management-validation.json` 及工具输出中；未填写虚构的实机验收或性能数据。

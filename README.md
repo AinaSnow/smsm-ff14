@@ -15,7 +15,8 @@
 > New r10 management foundation: independently select/isolate effects, upgrade from
 > old receipts in one operation, and preserve recoverable backups. Defaults to
 > tone only; other effects remain experimental. Shader-only F10 switching has
-> been source-reviewed, but still needs an in-game validation cycle.
+> been source-reviewed; the user reported visible tone changes with no stutter or
+> errors in the first F10 switching check. Other effects and performance remain unverified.
 > See [approved roadmap and acceptance criteria](docs/ROADMAP.md) and
 > [installation, effect selection and rollback](docs/MANAGEMENT.md).
 
