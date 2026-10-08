@@ -405,7 +405,8 @@ def main():
     backup = transition(game, before, after, args.backup_root)
     print(f"Files updated. Backup: {backup}")
     if args.action in ("install", "select") and manifest.get("diagnostic") and effects == ["reflection"]:
-        print("DIAGNOSTIC ONLY: reflection output is forced magenta, including alpha. This tests visible contribution, not quality. Restore the baseline package after testing.")
+        kind = manifest["diagnostic"]["kind"]
+        print(f"DIAGNOSTIC ONLY: {kind}. Magenta marking tests the reflection path, not quality. Restore the baseline package after testing.")
     if args.action == "select" and running:
         print("Game application NOT confirmed. Return to game and press F10 once. If uncertain, restart. F9 is all active effects; isolate selects one.")
     else:
