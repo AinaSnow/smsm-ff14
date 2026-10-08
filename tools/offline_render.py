@@ -32,21 +32,38 @@ def build_renderer():
     return exe
 
 
+def unpack_r11(words):
+    """DXGI R11G11B10_FLOAT: unsigned 5-bit exponents, 6/6/5-bit mantissas.
+
+    Alpha 1 is a readback convenience only; this target stores NO alpha.
+    """
+    channels=[]
+    for shift,bits in ((0,6),(11,6),(22,5)):
+        field=(words>>shift)&((1<<(bits+5))-1)
+        exponent=(field>>bits).astype(np.int32); mantissa=(field&((1<<bits)-1)).astype(np.float32)
+        value=np.where(exponent==0,np.ldexp(mantissa,-14-bits),np.ldexp(1+mantissa/(1<<bits),exponent-15))
+        value=np.where(exponent==31,np.where(mantissa==0,np.inf,np.nan),value)
+        channels.append(value)
+    return np.stack([*channels,np.ones(words.shape,dtype=np.float32)],-1).astype(np.float32)
+
+
 def render(shader, output, width, height, textures=None, constants=None, structured=None,
-           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite"):
+           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f"):
     """Inputs and every raw float32 output remain on disk for replay/diff.
 
     animation is (constant slot, frames x vectors x float4); updated on the SAME
     D3D11 device before each draw. Synthetic input samplers are point/clamp.
     draws repeats the pass without clearing; blend is an explicit synthetic OM
     mode (overwrite/add/source-alpha), with alpha overwritten in all modes.
+    r11g11b10 retains packed .r11 readbacks; returned alpha=1 is synthesized.
     """
     if not isinstance(draws, int) or not 1 <= draws <= 64 or blend not in ("overwrite", "add", "source-alpha"):
         raise ValueError("Invalid draw count or blend mode")
+    if target_format not in ("rgba32f","r11g11b10"): raise ValueError("Invalid target format")
     output.mkdir(parents=True, exist_ok=False)
     quote = lambda p: json.dumps(str(Path(p).resolve()).replace("\\", "/"), ensure_ascii=False)
     lines = [f"size {width} {height} {targets}", "shader " + quote(shader), "output " + quote(output / "pixels")]
-    lines.extend([f"draws {draws}", f"blend {blend}"])
+    lines.extend([f"draws {draws}", f"blend {blend}",f"format {target_format}"])
     if vertex:
         lines.append("vertex " + quote(vertex))
     if viewport:
@@ -77,7 +94,11 @@ def render(shader, output, width, height, textures=None, constants=None, structu
     (output / "render.log").write_text(result.stdout + result.stderr, encoding="utf-8")
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
-    return np.stack([np.stack([np.fromfile(output / f"pixels-f{frame}-rt{rt}.f32", dtype="<f4").reshape(height, width, 4)
+    def readback(frame,rt):
+        if target_format=="rgba32f":
+            return np.fromfile(output/f"pixels-f{frame}-rt{rt}.f32",dtype="<f4").reshape(height,width,4)
+        return unpack_r11(np.fromfile(output/f"pixels-f{frame}-rt{rt}.r11",dtype="<u4").reshape(height,width))
+    return np.stack([np.stack([readback(frame,rt)
                                for rt in range(targets)]) for frame in range(frames)])
 
 

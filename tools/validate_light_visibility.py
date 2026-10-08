@@ -11,16 +11,24 @@ from shader_compile import Compiler
 from validate_single_light import fixture
 
 
-def scene(**settings):
-    f=fixture(width=128,height=80,**settings)
+def scene(width=128,height=80,angle=0,half_size=(.45,.65),**settings):
+    f=fixture(width=width,height=height,**settings)
     p=f["position"].copy(); sign=np.sign(p[0,0,2])
-    plate=p*(3/5)
-    hit=(np.abs(plate[...,0])<=.45)&(np.abs(plate[...,1])<=.65)
+    theta=np.deg2rad(angle)
+    normal=np.array([np.sin(theta),0,-sign*np.cos(theta)])
+    tangent=np.array([np.cos(theta),0,sign*np.sin(theta)])
+    center=np.array([0,0,3*sign])
+    distance=np.divide(normal@center,p@normal)
+    plate=p*distance[...,None]
+    local=plate-center
+    hit=(distance>0)&(distance<1)&(np.abs(local@tangent)<=half_size[0])&(np.abs(local[...,1])<=half_size[1])
     p[hit]=plate[hit]; f["position"]=p
+    f["normal"][hit]=normal
+    f["textures"][3][hit,:3]=(normal@f["constants"][1][:3,:3])*.5+.5
     projection=np.linalg.inv(f["constants"][1][14:18].astype(float))
     h=np.concatenate((p,np.ones((*p.shape[:2],1))),-1)@projection.T
     f["textures"][0][...,0]=h[...,2]/h[...,3]
-    f.update(plate=hit,sign=sign)
+    f.update(plate=hit,sign=sign,plate_center=center,plate_normal=normal,plate_tangent=tangent,half_size=half_size)
     return f
 
 
@@ -30,9 +38,11 @@ def exact_shadow(f, lamp):
     Uses known scene geometry, not the depth marcher or sampled depth texture.
     """
     p=f["position"]; delta=np.array(lamp)-p
-    t=np.divide(3*f["sign"]-p[...,2],delta[...,2],out=np.full(p.shape[:2],-1.),where=np.abs(delta[...,2])>1e-8)
+    denom=delta@f["plate_normal"]
+    t=np.divide((f["plate_center"]-p)@f["plate_normal"],denom,out=np.full(p.shape[:2],-1.),where=np.abs(denom)>1e-8)
     cross=p+t[...,None]*delta
-    return (t>0)&(t<1)&(np.abs(cross[...,0])<=.45)&(np.abs(cross[...,1])<=.65)&~f["plate"]
+    local=cross-f["plate_center"]
+    return (t>0)&(t<1)&(np.abs(local@f["plate_tangent"])<=f["half_size"][0])&(np.abs(local[...,1])<=f["half_size"][1])&~f["plate"]
 
 
 def interior(mask, radius=2):
@@ -41,14 +51,14 @@ def interior(mask, radius=2):
                                   for y in range(2*radius+1) for x in range(2*radius+1)])
 
 
-def run(output):
+def run(output, refine=False):
     output.mkdir(parents=True,exist_ok=False)
     compiler=Compiler(ROOT/"d3dcompiler_46.dll")
     for name in ("single_light.hlsl","single_light_visibility.hlsl"):
         shutil.copy2(ROOT/"tools/patches"/name,output/name)
     shaders={}
     for name,source in (("plain","single_light.hlsl"),("shadow","single_light_visibility.hlsl"),("audit","single_light_visibility.hlsl")):
-        path=output/(name+".hlsl"); path.write_text(("#define VISIBILITY_AUDIT 1\n" if name=="audit" else "")+f'#include "{source}"\n')
+        path=output/(name+".hlsl"); path.write_text(f"#define VISIBILITY_PLANE_REFINE {int(refine)}\n"+("#define VISIBILITY_AUDIT 1\n" if name=="audit" else "")+f'#include "{source}"\n')
         binary,diagnostics=compiler.compile(path)
         if diagnostics: raise ValueError(diagnostics)
         shaders[name]=output/(name+".bin"); shaders[name].write_bytes(binary)
@@ -128,6 +138,7 @@ def run(output):
     sheet.save(output/"visibility.png")
     movie[0].save(output/"visibility-motion.gif",save_all=True,append_images=movie[1:]+movie[-2:0:-1],duration=180,loop=0)
     report=dict(backend="D3D11 WARP actual Draw/CopyResource/Map",synthetic_inputs=True,checks=checks,
+                plane_refinement=refine,
                 check_count=len(checks),all_passed=True,geometry_statistics=statistics,
                 source_sha256={name:digest((output/name).read_bytes()) for name in ("single_light.hlsl","single_light_visibility.hlsl")},
                 game_package_created=False,game_runtime_verified=False,real_gpu_performance_measured=False,
@@ -149,4 +160,5 @@ def preview(rgb):
 
 if __name__=="__main__":
     p=argparse.ArgumentParser(description=__doc__); p.add_argument("output",type=Path)
-    run(p.parse_args().output)
+    p.add_argument("--refine",action="store_true",help="Experimental tangent-plane hit verification; default off")
+    a=p.parse_args(); run(a.output,a.refine)

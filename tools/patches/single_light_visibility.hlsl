@@ -43,8 +43,34 @@ float screenVisibility(float3 position, out float supported)
             // The depth buffer describes the closest surface only. Thickness
             // is a tunable assumption, not recovered back-face geometry.
             float gap=abs(q.z)-abs(scene.z);
-            if (sceneValid>0 && gap>max(visibilitySettings.y,0) && gap<max(visibilitySettings.z,0))
+            if (sceneValid>0 && gap>max(visibilitySettings.y,0) && gap<max(visibilitySettings.z,0)) {
+#if VISIBILITY_PLANE_REFINE
+                // Candidate thickness only finds a neighborhood. Re-test the
+                // ray against its local tangent plane instead of shadowing an
+                // entire artificial slab. Then verify depth at the hit itself.
+                float nValid;
+                float3 n=reconstructNormal(pixel,nValid);
+                float3 segment=lampPositionRange.xyz-position;
+                float denom=dot(n,segment);
+                float hitT=dot(n,scene-position)/(abs(denom)>1e-8?denom:1);
+                float3 hit=position+hitT*segment;
+                float4 hitH=(ca*hit.x+cb*hit.y+cc*hit.z+cd)/determinant;
+                bool hitValid=abs(hitH.w)>1e-8 && all(abs(hitH)<1e20);
+                float3 hitNdc=hitH.xyz/(hitValid?hitH.w:1);
+                float2 hitPixel=(hitNdc.xy-common[1].zw)/common[1].xy;
+                float2 hitUV=hitPixel*common[0].xy+common[0].zw;
+                hitValid=hitValid && all(abs(hitNdc.xy)<1) && hitNdc.z>0 && hitNdc.z<1 && all(hitUV>0) && all(hitUV<1);
+                if (nValid>0 && abs(denom)>1e-8 && hitT>0 && hitT<1 &&
+                    length(hit-position)>max(visibilitySettings.y,0.0001) && hitValid) {
+                    float verifyValid;
+                    float3 verify=reconstructPosition(hitPixel,verifyValid);
+                    if (verifyValid>0 && abs(verify.z-hit.z)<=max(visibilitySettings.y,0.0001))
+                        visibility=0;
+                }
+#else
                 visibility=0;
+#endif
+            }
         }
     }
     // A confirmed hit terminates the ray before any offscreen fallback.

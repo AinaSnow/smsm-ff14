@@ -27,7 +27,7 @@ struct Input { std::string kind, path; unsigned slot=0, width=0, height=0, strid
 int wmain(int argc, wchar_t** argv) try {
     if (argc != 2) throw std::runtime_error("Usage: render_ps.exe <UTF-8 job.txt>");
     std::ifstream job{fs::path(argv[1])}; if (!job) throw std::runtime_error("Cannot open job");
-    unsigned width=0,height=0,targets=1,frames=1,draws=1; std::string shader,vertex,output,key,blend="overwrite";
+    unsigned width=0,height=0,targets=1,frames=1,draws=1; std::string shader,vertex,output,key,blend="overwrite",format="rgba32f";
     float vx=0,vy=0,vw=0,vh=0; std::vector<Input> inputs;
     while (job >> key) {
         if (key == "size") job >> width >> height >> targets;
@@ -38,6 +38,7 @@ int wmain(int argc, wchar_t** argv) try {
         else if (key == "frames") job >> frames;
         else if (key == "draws") job >> draws;
         else if (key == "blend") job >> blend;
+        else if (key == "format") job >> format;
         else {
             Input item; item.kind=key;
             if (key == "texture") job >> item.slot >> item.width >> item.height >> std::quoted(item.path);
@@ -52,6 +53,7 @@ int wmain(int argc, wchar_t** argv) try {
         throw std::runtime_error("Invalid dimensions, shader or output");
     if (!draws || draws>64 || (blend!="overwrite" && blend!="add" && blend!="source-alpha"))
         throw std::runtime_error("Invalid draw count or blend mode");
+    if (format!="rgba32f" && format!="r11g11b10") throw std::runtime_error("Invalid target format");
     if (!vw) { vw=float(width); vh=float(height); }
     if (vx<0 || vy<0 || vw<=0 || vh<=0 || vx+vw>width || vy+vh>height) throw std::runtime_error("Invalid viewport");
     wchar_t system[MAX_PATH]; GetSystemDirectoryW(system, MAX_PATH);
@@ -127,7 +129,8 @@ int wmain(int argc, wchar_t** argv) try {
     }
     std::vector<ComPtr<ID3D11Texture2D>> renderTargets,staging; std::vector<ComPtr<ID3D11RenderTargetView>> rtvs; ID3D11RenderTargetView* rawRT[8]{};
     for (unsigned i=0;i<targets;++i) {
-        D3D11_TEXTURE2D_DESC td{}; td.Width=width; td.Height=height; td.MipLevels=td.ArraySize=1; td.Format=DXGI_FORMAT_R32G32B32A32_FLOAT; td.SampleDesc.Count=1;
+        D3D11_TEXTURE2D_DESC td{}; td.Width=width; td.Height=height; td.MipLevels=td.ArraySize=1;
+        td.Format=format=="rgba32f"?DXGI_FORMAT_R32G32B32A32_FLOAT:DXGI_FORMAT_R11G11B10_FLOAT; td.SampleDesc.Count=1;
         td.Usage=D3D11_USAGE_DEFAULT; td.BindFlags=D3D11_BIND_RENDER_TARGET;
         ComPtr<ID3D11Texture2D> tex,stage; ComPtr<ID3D11RenderTargetView> rtv;
         check(device->CreateTexture2D(&td,nullptr,&tex),"render target"); check(device->CreateRenderTargetView(tex.Get(),nullptr,&rtv),"RTV");
@@ -142,10 +145,10 @@ int wmain(int argc, wchar_t** argv) try {
         for (unsigned i=0;i<targets;++i) {
             context->CopyResource(staging[i].Get(),renderTargets[i].Get()); D3D11_MAPPED_SUBRESOURCE mapped{};
             check(context->Map(staging[i].Get(),0,D3D11_MAP_READ,0,&mapped),"readback Map");
-            auto path=fs::u8path(output+"-f"+std::to_string(frame)+"-rt"+std::to_string(i)+".f32");
+            auto path=fs::u8path(output+"-f"+std::to_string(frame)+"-rt"+std::to_string(i)+(format=="rgba32f"?".f32":".r11"));
             if (fs::exists(path)) { context->Unmap(staging[i].Get(),0); throw std::runtime_error("Refusing to overwrite readback"); }
             std::ofstream out(path,std::ios::binary);
-            for (unsigned y=0;y<height;++y) out.write(static_cast<char*>(mapped.pData)+size_t(y)*mapped.RowPitch,size_t(width)*16);
+            for (unsigned y=0;y<height;++y) out.write(static_cast<char*>(mapped.pData)+size_t(y)*mapped.RowPitch,size_t(width)*(format=="rgba32f"?16:4));
             context->Unmap(staging[i].Get(),0); if (!out) throw std::runtime_error("Readback write failed");
         }
     }

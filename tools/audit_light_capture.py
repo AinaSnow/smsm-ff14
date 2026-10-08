@@ -7,13 +7,18 @@ from build_single_light import TARGETS
 from manage_preview import digest, encoded
 
 
-def audit(raw):
+def log_blocks(raw):
     blocks=[]
     for number,line in enumerate(raw.decode("utf-8",errors="replace").splitlines(),1):
         if re.match(r"^\d+ \w+\(",line):
             blocks.append([number,[line]])
         elif blocks:
             blocks[-1][1].append(line)
+    return blocks
+
+
+def audit(raw):
+    blocks=log_blocks(raw)
     shader=None; state={}; draws=[]; uncertainty=[]
     fields={"OMSetBlendState":"blend_binding", "OMSetDepthStencilState":"depth_stencil_binding",
             "OMSetRenderTargets":"render_targets", "OMSetRenderTargetsAndUnorderedAccessViews":"render_targets",
