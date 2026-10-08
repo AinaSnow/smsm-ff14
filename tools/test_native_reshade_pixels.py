@@ -13,7 +13,7 @@ from validate_forward_light import fixture
 from offline_render import render
 
 
-def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predicated=False):
+def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predicated=False,reject=None):
     output=output.resolve();output.mkdir(parents=True,exist_ok=False)
     meta=json.loads((package/'SMSM-native-package.json').read_bytes())
     addon=package/'SMSM.NativeLighting.addon64'
@@ -23,7 +23,8 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     with zipfile.ZipFile(setup) as z:runtime=z.read('ReShade64.dll')
     (output/'d3d11.dll').write_bytes(runtime)
     (output/'ReShade.ini').write_text('[GENERAL]\nNoDebugInfo=1\nNoReloadOnInit=1\n')
-    f,inputs=fixture(Compiler(),output/'geometry',width=32,height=24)
+    settings={'alpha':0} if reject=='alpha' else {'depth':.4} if reject=='sampled-depth' else {}
+    f,inputs=fixture(Compiler(),output/'geometry',width=32,height=24,**settings)
     original=ROOT/'artifacts/client-2026.09.15/dxbc/980154264a89fba1-ps.bin'
     reference=render(original,output/'warp-reference',f['width'],f['height'],**inputs)[0,0]
     job=(output/'warp-reference/job.txt').read_text()
@@ -46,6 +47,7 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     expected=np.zeros_like(reference);expected[...,:3]=(1,0,1);expected[...,3]=reference[...,3]
     if zero_mask:reference=np.zeros_like(reference);expected=np.zeros_like(expected)
     if predicated:expected=np.zeros_like(expected)
+    if reject:expected=np.zeros_like(expected)
     errors={'baseline_vs_warp':float(np.max(np.abs(pixels[0]-reference))),
             'coverage_vs_magenta':float(np.max(np.abs(pixels[1]-expected))),
             'off_restores_baseline':float(np.max(np.abs(pixels[2]-pixels[0])))}
@@ -73,9 +75,11 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
         end_expected=np.empty_like(raw[2]);end_expected[...]=(.125,.125,.125,1)
         assert np.array_equal(raw[2],end_expected if later_clear else raw[1])
         assert np.array_equal(raw[0],np.zeros_like(raw[0]))
-        assert bool(np.any(raw[1]!=raw[0]))==(not zero_mask and not predicated)
+        changed=not zero_mask and not predicated and not reject
+        assert bool(np.any(raw[1]!=raw[0]))==bool(changed)
         result['output_audit']={'passed':True,'write_mask':draw['outputs'][0]['write_mask'],
-                                'occlusion_samples':draw['occlusion_samples'],'color_changed':not zero_mask and not predicated,
+                                'occlusion_samples':draw['occlusion_samples'],'color_changed':bool(changed),
+                                'native_shader_rejection':reject,
                                 'predication_restored':predicated,
                                 'later_overwrite_verified':later_clear,'before_after_end_readback_verified':True}
         (output/'report.json').write_text(json.dumps(result,indent=2)+'\n')
@@ -88,4 +92,5 @@ if __name__=='__main__':
     p.add_argument('--audit',action='store_true');p.add_argument('--zero-mask',action='store_true')
     p.add_argument('--later-clear',action='store_true')
     p.add_argument('--predicated',action='store_true')
-    a=p.parse_args();run(a.output,a.package,a.setup,a.audit,a.zero_mask,a.later_clear,a.predicated)
+    p.add_argument('--reject',choices=['alpha','sampled-depth'])
+    a=p.parse_args();run(a.output,a.package,a.setup,a.audit,a.zero_mask,a.later_clear,a.predicated,a.reject)

@@ -1,0 +1,60 @@
+{
+  "client_build": "2026.09.15.0000.0000",
+  "addon_sha256": "46caad31d372974dfa4a2accb70b6271dae235cf4a0de9a0d8b764489f12ec51",
+  "raw_bytes_verified": 207360000,
+  "observed_target_draws": 8,
+  "color_snapshot_draws": 4,
+  "occlusion_samples": [
+    119,
+    199,
+    767,
+    0,
+    2,
+    2629,
+    0,
+    0
+  ],
+  "sampled_draw_rgb_changed_pixels": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "all_draws_rgb_write_enabled": true,
+  "blend": "SRC_ALPHA / INV_SRC_ALPHA; ADD; RGB writes only",
+  "hardware_depth": "GREATER_EQUAL; depth writes off",
+  "stencil_enabled": false,
+  "predication_bound": false,
+  "scissor_enabled": false,
+  "native_shader": "forceEarlyDepthStencil; sampled-depth discard; alpha discard; original output alpha retained",
+  "shader_rejection_reproductions": [
+    {
+      "passed": true,
+      "write_mask": 15,
+      "occlusion_samples": 768,
+      "color_changed": false,
+      "native_shader_rejection": "alpha",
+      "predication_restored": false,
+      "later_overwrite_verified": false,
+      "before_after_end_readback_verified": true
+    },
+    {
+      "passed": true,
+      "write_mask": 15,
+      "occlusion_samples": 768,
+      "color_changed": false,
+      "native_shader_rejection": "sampled-depth",
+      "predication_restored": false,
+      "later_overwrite_verified": false,
+      "before_after_end_readback_verified": true
+    }
+  ],
+  "interpretation": "First four exact-target draws produced no byte change in sampled color target. No final-visible/player coverage established.",
+  "unresolved": [
+    "No before/after color snapshots for remaining four draws",
+    "Cannot attribute in-game rejection to a specific discard or alpha value",
+    "No association with the player or opaque hair/skin/clothing passes"
+  ],
+  "marker_disabled_after_capture": true,
+  "ambient_disabled": true
+}
