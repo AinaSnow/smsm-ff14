@@ -27,6 +27,8 @@ r3 SHA-256：`5213076168bd87676c3166360deb89817ccac16a589546d3b6a5d0a45ea7bbb6`�
 
 验证摘要见 [native-producer-r3-2026-10-09.json](validation/native-producer-r3-2026-10-09.json)。
 
+00:22（2026-10-09，上海时间）已完成停机更新，安装后的 add-on 摘要与上述候选一致，默认关闭，配置保留，旧版另有备份。本机检查点为本地 `artifacts/native-deployment/r3-deployment.json`。当前帧生产者核对尚待下一次游戏启动；安装成功不计作该验收。
+
 - 实际 WARP 绘制/读回，10 份报告通过。新增用一个 pass 写资源、另一个 pass 读资源，核对记录对应的早先绘制与真实输出。
 - 仅写 alpha 的绘制保留了早先 RGB；记录的写掩码为 8，验证“末次绘制不等于 RGB 来源”。复制后旧记录清除，启停 epoch 不将旧写入当当前帧。
 - 官方 ReShade 6.8.0 硬件零顶点 host 验证实际回调：精确位置生产者、t0 复制来源、CB 范围、视口、sampler 和后续目标关联通过。这项只证明回调连接，实际像素输出由 WARP 测试另行验证。
