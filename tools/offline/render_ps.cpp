@@ -196,10 +196,18 @@ int wmain(int argc, wchar_t** argv) try {
 #endif
     for (unsigned frame=0;frame<frames;++frame) {
 #ifdef SMSM_RESHADE_PIXEL_TEST
+#ifdef SMSM_MATERIAL_CENSUS
+        send(frame==1?"census":"off");
+#elif defined(SMSM_MATERIAL_SAMPLE)
+        send(frame==1?"sample 980154264a89fba1 0":"off");
+#elif defined(SMSM_MATERIAL_SKIP)
+        send(frame==1?"sample 980154264a89fba1 1":"off");
+#else
 #ifdef SMSM_RESHADE_OUTPUT_TEST
         send(frame==1?"audit":"off");
 #else
         send(frame==1?"coverage":"off");
+#endif
 #endif
 #endif
         if (animation) context->UpdateSubresource(animation.Get(),0,nullptr,animationBytes.data()+size_t(frame)*animationStride,0,0);

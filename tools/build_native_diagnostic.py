@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SDK_COMMIT = "18deaa52de0c425a78b329e9cb3c497281cd00ec"
@@ -49,9 +50,11 @@ def main():
     p.add_argument("--sdk", type=Path, default=ROOT / "artifacts/reshade-sdk-v6.8.0")
     p.add_argument("--ambient-shader", type=Path, help="Embed the explicitly experimental diffuse-only shader; default off")
     p.add_argument("--coverage-shader", type=Path, help="Optional exact hair coverage marker, requires ambient package; default off")
+    p.add_argument('--material-roster',type=Path,help='Verified named-package identity roster for original material census/sample')
     args = p.parse_args()
     if args.coverage_shader and not args.ambient_shader:
         raise ValueError('Coverage control requires the experimental package command channel')
+    if args.material_roster and not args.coverage_shader:raise ValueError('Material census requires output-audit package')
     commit = subprocess.check_output(["git", "-C", str(args.sdk), "rev-parse", "HEAD"], text=True).strip()
     if commit != SDK_COMMIT or subprocess.check_output(["git", "-C", str(args.sdk), "status", "--porcelain"]):
         raise ValueError("SDK must be the unmodified locked ReShade v6.8.0 commit")
@@ -74,6 +77,24 @@ def main():
         (output/'native_coverage_bytecode.hpp').write_text('inline const unsigned char native_coverage_bytecode[] = {'+','.join(str(b) for b in data)+'};\n')
         extra.append('/DSMSM_NATIVE_COVERAGE')
         coverage_sha=hashlib.sha256(data).hexdigest()
+    roster_sha=None;roster_count=0
+    if args.material_roster:
+        raw=args.material_roster.read_bytes();roster=json.loads(raw)
+        if roster.get('schema')!=1 or roster.get('client_build')!='2026.09.15.0000.0000' or roster.get('verified_package_reads') is not True:
+            raise ValueError('Expected verified material roster for this client build')
+        lines=[];seen=set();hashes=set()
+        for item in roster['shaders']:
+            sha,hash_,packages=item['sha256'],item['hash'],item['packages']
+            if not re.fullmatch('[0-9a-f]{64}',sha) or not re.fullmatch('[0-9a-f]{16}',hash_) or sha in seen or hash_ in hashes:
+                raise ValueError('Invalid/duplicate material shader identity')
+            if not packages or any(p not in ['hair','skin','character','characterlegacy','characterglass','characterstockings'] for p in packages):
+                raise ValueError('Unexpected material package')
+            seen.add(sha);hashes.add(hash_)
+            lines.append('{"'+sha+'",{"'+hash_+'","'+'|'.join(packages)+'"}}')
+        if not 1<=len(lines)<=10000:raise ValueError('Unexpected roster size')
+        header='struct MaterialIdentity {std::string hash,packages;};\ninline const std::map<std::string,MaterialIdentity> native_material_roster = {\n'+',\n'.join(lines)+'\n};\n'
+        (output/'native_material_roster.hpp').write_text(header)
+        extra.append('/DSMSM_MATERIAL_ROSTER');roster_sha=hashlib.sha256(raw).hexdigest();roster_count=len(lines)
     versions = compile_cpp(ROOT / "addons/native_lighting/addon.cpp", addon, args.sdk / "include", dll=True, extra_args=extra)
     manifest = {"schema": 1, "reshade_version": SDK_VERSION, "sdk_commit": SDK_COMMIT, "api_version": 20,
                 "architecture": "x64", "compiler": versions, "default_enabled": False, "runtime_verified": False,
@@ -81,6 +102,7 @@ def main():
                 "ambient_shader_sha256":ambient_sha,
                 "coverage_shader_sha256":coverage_sha,
                 "output_audit":bool(args.coverage_shader),
+                "material_roster_sha256":roster_sha,"material_shader_count":roster_count,
                 "files": {addon.name: hashlib.sha256(addon.read_bytes()).hexdigest()},
                 "sources": {str(path.relative_to(ROOT)).replace("\\", "/"): hashlib.sha256(path.read_bytes()).hexdigest()
                             for path in (ROOT / "addons/native_lighting").glob("*.*")}}

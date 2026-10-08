@@ -11,6 +11,9 @@
 #include "output_audit.hpp"
 #include "native_coverage_bytecode.hpp"
 #endif
+#ifdef SMSM_MATERIAL_ROSTER
+#include "native_material_roster.hpp"
+#endif
 
 using namespace reshade::api;
 namespace {
@@ -136,11 +139,29 @@ template<class F> bool native_draw(command_list *cmd,const char *kind,uint32_t c
         s.diagnostic.before_draw(ctx,kind,count,instances);
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
 #ifdef SMSM_NATIVE_COVERAGE
+#ifdef SMSM_MATERIAL_ROSTER
+        if(s.output_audit.collecting() && s.output_audit.read_only() && instances!=0 && count!=UINT32_MAX && ctx->GetType()==D3D11_DEVICE_CONTEXT_IMMEDIATE){
+            smsm::ComPtr<ID3D11PixelShader> ps;ctx->PSGetShader(&ps,nullptr,nullptr);
+            auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
+            if(identity!=s.diagnostic.shaders.end()){
+                auto material=native_material_roster.find(identity->second.second);
+                if(material!=native_material_roster.end() && s.output_audit.accepts(material->second.hash)){
+                    smsm::ComPtr<ID3D11VertexShader> vs;ctx->VSGetShader(&vs,nullptr,nullptr);
+                    auto vertex=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(vs.Get()));
+                    // Set the executed flag inside the callback so a later audit
+                    // error cannot cause the outer hook to repeat this draw.
+                    replaced=s.output_audit.draw(ctx,count,instances,[&]{call(ctx);replaced=true;return true;},
+                        material->second.hash,material->second.packages,vertex==s.diagnostic.shaders.end()?"unknown":vertex->second.second);
+                    return;
+                }
+            }
+        }
+#endif
         if(s.coverage.enabled()) {
             smsm::ComPtr<ID3D11PixelShader> ps;ctx->PSGetShader(&ps,nullptr,nullptr);
             auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
             if(identity!=s.diagnostic.shaders.end() && identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX && instances!=0)
-                replaced=s.output_audit.draw(ctx,count,instances,[&]{return s.coverage.draw(ctx,GetTickCount64(),[&]{call(ctx);});});
+                replaced=s.output_audit.draw(ctx,count,instances,[&]{replaced=s.coverage.draw(ctx,GetTickCount64(),[&]{call(ctx);});return replaced;},identity->second.first,"hair");
             return;
         }
 #endif
@@ -205,6 +226,20 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
             const std::string value=action;
 #ifdef SMSM_NATIVE_COVERAGE
             if(value!="status"){s.coverage.disable();s.output_audit.cancel();}
+#ifdef SMSM_MATERIAL_ROSTER
+            if(value=="census" || value.rfind("sample ",0)==0){
+                std::string hash;UINT skip=0;
+                if(value!="census"){
+                    std::istringstream params(value);std::string verb;params>>verb>>hash>>skip;
+                    if(!params || skip>4096 || hash.size()!=16 || !std::all_of(hash.begin(),hash.end(),[](char c){return c>='0' && c<='9' || c>='a' && c<='f';}))throw std::runtime_error("Invalid material sample command");
+                    params>>std::ws;if(!params.eof())throw std::runtime_error("Unexpected sample arguments");
+                    if(std::none_of(native_material_roster.begin(),native_material_roster.end(),[&](const auto &entry){return entry.second.hash==hash;}))throw std::runtime_error("Sample shader is not in verified material roster");
+                }
+                d.stop();s.ambient.disable();
+                s.output_audit.arm(d.root,value=="census"?smsm::OutputAudit::Mode::census:smsm::OutputAudit::Mode::sample,hash,skip);
+            }
+            else
+#endif
             if(value=="coverage" || value=="audit") {
                 d.stop();s.ambient.disable();s.coverage.enable(GetTickCount64());
                 if(value=="audit")s.output_audit.arm(d.root);
@@ -282,7 +317,9 @@ void execute_secondary(command_list *cmd,command_list *) {
 }
 }
 extern "C" __declspec(dllexport) const char *NAME="SMSM Native Lighting Diagnostic";
-#ifdef SMSM_NATIVE_COVERAGE
+#ifdef SMSM_MATERIAL_ROSTER
+extern "C" __declspec(dllexport) const char *DESCRIPTION="Default-off original-material census and bounded output samples, plus optional native ambient and exact hair marker experiments.";
+#elif defined(SMSM_NATIVE_COVERAGE)
 extern "C" __declspec(dllexport) const char *DESCRIPTION="Default-off native ambient experiment and 10-second exact hair-variant coverage marker. F7 stops experiments and toggles resource audit.";
 #else
 extern "C" __declspec(dllexport) const char *DESCRIPTION="Default-off read-only D3D11 native resource audit. F7 enable/stop; F8 capture one following frame.";

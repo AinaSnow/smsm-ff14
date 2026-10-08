@@ -5,6 +5,9 @@ namespace smsm {
 // One frame, exact target only. Queries do not imply color writes; raw before/
 // after/end snapshots provide separate evidence. No forced render-state changes.
 class OutputAudit {
+public:
+    enum class Mode {marker,census,sample};
+private:
     struct Image {
         Json meta;
         ComPtr<ID3D11Texture2D> source,stage;
@@ -18,6 +21,9 @@ class OutputAudit {
     fs::path directory;
     uint64_t bytes=0,observed=0,started=0;
     bool recording=false,waiting=false;
+    Mode mode=Mode::marker;
+    std::string selected_shader;
+    UINT skip_draws=0;
     Image final_image;
     uint64_t id(ID3D11Resource *r) {
         if(!r)return 0;
@@ -71,7 +77,9 @@ class OutputAudit {
     void write_report(ID3D11DeviceContext *ctx,const std::string &status) {
         Json report;report.num("schema",1);report.text("status",status);report.num("observed_target_draws",observed);
         report.num("byte_budget",budget);report.num("selected_bytes",bytes);
-        report.text("scope","exact hair PS; at most 128 draw states/queries and first four RTV0 before/after/end snapshots; queries do not prove color writes");
+        report.text("mode",mode==Mode::marker?"marker":mode==Mode::census?"census":"sample");
+        report.text("selected_shader",selected_shader);report.num("skip_draws",skip_draws);report.num("recorded_draws",entries.size());
+        report.text("scope",mode==Mode::census?"verified material packages; at most 512 original-draw states/queries; no per-draw color snapshots":"one exact PS; at most 128 draw states/queries and first four selected RTV0 before/after/end snapshots; queries do not prove color writes");
         std::vector<std::string> rows;
         for(auto &e:entries){
             if(status=="complete") {
@@ -90,19 +98,25 @@ public:
     bool internal=false;
     bool active() const {return recording || waiting;}
     bool collecting() const {return recording;}
+    bool read_only() const {return mode!=Mode::marker;}
+    bool accepts(const std::string &hash) const {return mode==Mode::census || mode==Mode::sample && hash==selected_shader;}
     const fs::path &path() const {return directory;}
     void cancel(){recording=waiting=internal=false;entries.clear();resource_ids.clear();held_resources.clear();done.Reset();final_image={};}
-    void arm(const fs::path &root) {
+    void arm(const fs::path &root,Mode requested=Mode::marker,const std::string &shader="",UINT skip=0) {
         if(active())throw std::runtime_error("output audit already active");
         cancel();bytes=observed=0;
+        mode=requested;selected_shader=shader;skip_draws=skip;
         directory=root/("output-audit-"+number(GetCurrentProcessId())+"-"+number(GetTickCount64()));
         if(!fs::create_directory(directory))throw std::runtime_error("output audit directory exists");
         recording=true;
     }
-    template<class F> bool draw(ID3D11DeviceContext *ctx,UINT count,UINT instances,F call) {
+    template<class F> bool draw(ID3D11DeviceContext *ctx,UINT count,UINT instances,F call,
+            const std::string &pixel_hash="",const std::string &packages="",const std::string &vertex_sha="") {
         if(!recording || internal || ctx->GetType()!=D3D11_DEVICE_CONTEXT_IMMEDIATE)return call();
-        ++observed;if(entries.size()>=128)return call();
+        ++observed;if(observed<=skip_draws || entries.size()>=(mode==Mode::census?512u:128u))return call();
         Entry entry;auto &j=entry.meta;j.num("ordinal",observed);j.num("elements",count);j.num("instances",instances);
+        j.text("pixel_shader",pixel_hash);j.text("packages",packages);j.text("vertex_sha256",vertex_sha);
+        j.fields["shader_replaced"]=mode==Mode::marker?"true":"false";
         ID3D11RenderTargetView *raw[8]={};ComPtr<ID3D11DepthStencilView> depth;ctx->OMGetRenderTargets(8,raw,&depth);
         ComPtr<ID3D11RenderTargetView> rt[8];for(UINT i=0;i<8;++i)rt[i].Attach(raw[i]);
         ComPtr<ID3D11BlendState> blend;FLOAT factors[4];UINT sampleMask;ctx->OMGetBlendState(&blend,factors,&sampleMask);
@@ -118,7 +132,7 @@ public:
             o.num("src_blend",b.SrcBlend);o.num("dst_blend",b.DestBlend);o.num("blend_op",b.BlendOp);
             o.num("src_alpha",b.SrcBlendAlpha);o.num("dst_alpha",b.DestBlendAlpha);o.num("alpha_op",b.BlendOpAlpha);
             outputs.push_back(o.str());
-            if(slot==0 && entries.size()<4){
+            if(slot==0 && mode!=Mode::census && entries.size()<4){
                 ComPtr<ID3D11Texture2D> tex;r.As(&tex);UINT sub=0;bool supported=false;
                 if(vd.ViewDimension==D3D11_RTV_DIMENSION_TEXTURE2D){sub=vd.Texture2D.MipSlice;supported=true;}
                 if(vd.ViewDimension==D3D11_RTV_DIMENSION_TEXTURE2DARRAY && vd.Texture2DArray.ArraySize==1 && tex){

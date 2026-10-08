@@ -96,6 +96,18 @@ def main():
             with patch('request_native_ambient.current',return_value={native.RECEIPT:json.dumps(old_receipt).encode()}):
                 rejects(lambda:ambient_request(game,'audit'))
             assert not marker_command.exists()
+        if json.loads(after[native.RECEIPT]).get('material_roster_sha256'):
+            for action in ('census','sample'):
+                ambient_request(game,action,**({'shader':'980154264a89fba1','skip':3} if action=='sample' else {}))
+                marker_command=captures/'ambient-command.txt'
+                assert marker_command.read_bytes()==(b'census\n' if action=='census' else b'sample 980154264a89fba1 3\n')
+                marker_command.unlink()
+            for hash_,skip in [('bad',0),('980154264a89fba1',-1),('980154264a89fba1',4097),('980154264a89fba1\noff',0)]:
+                rejects(lambda:ambient_request(game,'sample',hash_,skip))
+            old_receipt=json.loads(after[native.RECEIPT]);old_receipt.pop('material_roster_sha256')
+            with patch('request_native_ambient.current',return_value={native.RECEIPT:json.dumps(old_receipt).encode()}):
+                rejects(lambda:ambient_request(game,'census'))
+            assert not marker_command.exists()
         request(game, "enable")
         command = game / "SMSM-native-command.txt"
         assert command.read_bytes() == b"enable\n"

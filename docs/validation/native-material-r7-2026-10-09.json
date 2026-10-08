@@ -1,0 +1,113 @@
+{
+  "default_enabled": false,
+  "installed": true,
+  "game_material_coverage_verified": false,
+  "addon_sha256": "108761a7bb147c0a4d1c59b4c8939003f9cd8a991c46bd22dfe57605616d02e4",
+  "material_roster_sha256": "8fcffb30a0302771cf6a31f964631d8c8264ede786440d391687baba18d082ef",
+  "unique_material_pixel_shaders": 3399,
+  "packages": [
+    {
+      "name": "hair",
+      "resource_path": "shader/sm5/shpk/hair.shpk",
+      "resource_hash": "e3466a820e28089d",
+      "verified_pixel_shaders": 200
+    },
+    {
+      "name": "skin",
+      "resource_path": "shader/sm5/shpk/skin.shpk",
+      "resource_hash": "e3466a82c5690a19",
+      "verified_pixel_shaders": 384
+    },
+    {
+      "name": "character",
+      "resource_path": "shader/sm5/shpk/character.shpk",
+      "resource_hash": "e3466a82c7e4a9c8",
+      "verified_pixel_shaders": 1038
+    },
+    {
+      "name": "characterlegacy",
+      "resource_path": "shader/sm5/shpk/characterlegacy.shpk",
+      "resource_hash": "e3466a822d6f4fb6",
+      "verified_pixel_shaders": 1740
+    },
+    {
+      "name": "characterglass",
+      "resource_path": "shader/sm5/shpk/characterglass.shpk",
+      "resource_hash": "e3466a82a7422943",
+      "verified_pixel_shaders": 38
+    },
+    {
+      "name": "characterstockings",
+      "resource_path": "shader/sm5/shpk/characterstockings.shpk",
+      "resource_hash": "e3466a82a1f74aff",
+      "verified_pixel_shaders": 28
+    }
+  ],
+  "shared_identities": 13,
+  "hardware_checks": [
+    {
+      "test": "native-material-census-v1",
+      "addon_sha256": "6b801a400e18d791cc02bd3bf4f405b4b96a46cb1fdbcf02575160c35df6f7c9",
+      "errors": {
+        "baseline_vs_warp": 2.9802322387695312e-08,
+        "middle_frame_vs_original": 2.9802322387695312e-08,
+        "off_restores_baseline": 0.0
+      },
+      "result": {
+        "mode": "census",
+        "passed": true,
+        "unchanged_pixels": true,
+        "recorded_draws": 1
+      }
+    },
+    {
+      "test": "native-material-skip-v1",
+      "addon_sha256": "6b801a400e18d791cc02bd3bf4f405b4b96a46cb1fdbcf02575160c35df6f7c9",
+      "errors": {
+        "baseline_vs_warp": 2.9802322387695312e-08,
+        "middle_frame_vs_original": 2.9802322387695312e-08,
+        "off_restores_baseline": 0.0
+      },
+      "result": {
+        "mode": "skip",
+        "passed": true,
+        "unchanged_pixels": true,
+        "recorded_draws": 0
+      }
+    },
+    {
+      "test": "native-material-sample-final",
+      "addon_sha256": "108761a7bb147c0a4d1c59b4c8939003f9cd8a991c46bd22dfe57605616d02e4",
+      "errors": {
+        "baseline_vs_warp": 2.9802322387695312e-08,
+        "middle_frame_vs_original": 2.9802322387695312e-08,
+        "off_restores_baseline": 0.0
+      },
+      "result": {
+        "passed": true,
+        "write_mask": 15,
+        "original_material_sample": true,
+        "occlusion_samples": 768,
+        "color_changed": true,
+        "native_shader_rejection": null,
+        "predication_restored": false,
+        "later_overwrite_verified": false,
+        "before_after_end_readback_verified": true
+      }
+    }
+  ],
+  "installer": {
+    "simulated_client": true,
+    "real_client_written": false,
+    "r10_roundtrip_exact": true,
+    "native_interruption_recovered": true,
+    "collision_modified_and_running_guards": true,
+    "old_to_new_addon_update": true,
+    "interrupted_update_restores_previous_addon": true,
+    "runtime_and_user_settings_retained_on_update": true,
+    "atomic_command_publication_and_duplicate_rejection": true
+  },
+  "capability_and_sample_argument_gates_passed": true,
+  "limits": "Census/skip tested before final description-only update; final exact binary verified with original-material sample. Package identity and synthetic pixels do not establish player coverage.",
+  "settings_retained": true
+}

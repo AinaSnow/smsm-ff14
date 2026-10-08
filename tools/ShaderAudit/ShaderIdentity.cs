@@ -8,6 +8,47 @@ using Lumina.Data;
 // Package identity is not evidence of a named object's visible pixel coverage.
 internal static class ShaderIdentity
 {
+    public static int MaterialRoster(string client, string extraction, string report)
+    {
+        client=Path.GetFullPath(client);extraction=Path.GetFullPath(extraction);report=Path.GetFullPath(report);
+        if(File.Exists(report) || report.StartsWith(client+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Use a new report outside the client.");
+        using var manifest=JsonDocument.Parse(File.ReadAllBytes(Path.Combine(extraction,"manifest.json")));
+        var version=File.ReadAllText(Path.Combine(client,"game/ffxivgame.ver")).Trim();
+        if(manifest.RootElement.GetProperty("ClientBuild").GetString()!=version)throw new InvalidDataException("Build mismatch");
+        using var game=new GameData(Path.Combine(client,"game/sqpack"));
+        var entries=manifest.RootElement.GetProperty("Shaders").EnumerateArray().ToArray();
+        var identities=new Dictionary<string,(string Hash,SortedSet<string> Packages)>();
+        var packages=new List<object>();
+        foreach(var name in new[]{"hair","skin","character","characterlegacy","characterglass","characterstockings"})
+        {
+            var path="shader/sm5/shpk/"+name+".shpk";var key=IndexKey(path).ToString("x16");
+            var selected=entries.Where(e=>e.GetProperty("ResourceHash").GetString()==key && e.GetProperty("Profile").GetString()=="ps_5_0").ToArray();
+            var file=game.GetFile<FileResource>(path);
+            if(file==null || selected.Length==0)throw new InvalidDataException("Missing expected material package or extracted PS: "+name);
+            if(!file.Data.AsSpan(0,4).SequenceEqual("ShPk"u8))throw new InvalidDataException("Invalid ShPk: "+name);
+            foreach(var entry in selected)
+            {
+                var bytes=file.Data.AsSpan(entry.GetProperty("Offset").GetInt32(),entry.GetProperty("Length").GetInt32());
+                var sha=entry.GetProperty("Sha256").GetString()!;var hash=entry.GetProperty("Hash").GetString()!;
+                var extracted=Path.GetFullPath(Path.Combine(extraction,entry.GetProperty("File").GetString()!));
+                if(!extracted.StartsWith(extraction+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) ||
+                    !bytes.StartsWith("DXBC"u8) || Convert.ToHexStringLower(SHA256.HashData(bytes))!=sha || !bytes.SequenceEqual(File.ReadAllBytes(extracted)))
+                    throw new InvalidDataException("Material package shader mismatch: "+name);
+                if(!identities.TryGetValue(sha,out var identity))identity=(hash,new SortedSet<string>(StringComparer.Ordinal));
+                if(identity.Hash!=hash)throw new InvalidDataException("Inconsistent shader hash");
+                identity.Packages.Add(name);identities[sha]=identity;
+            }
+            packages.Add(new{name,resource_path=path,resource_hash=key,verified_pixel_shaders=selected.Select(e=>e.GetProperty("Sha256").GetString()).Distinct().Count()});
+        }
+        var rows=identities.OrderBy(e=>e.Key,StringComparer.Ordinal).Select(e=>new{sha256=e.Key,hash=e.Value.Hash,packages=e.Value.Packages.ToArray()}).ToArray();
+        Directory.CreateDirectory(Path.GetDirectoryName(report)!);
+        using var output=new FileStream(report,FileMode.CreateNew,FileAccess.Write);
+        JsonSerializer.Serialize(output,new{schema=1,client_build=version,verified_package_reads=true,packages,shaders=rows},new JsonSerializerOptions{WriteIndented=true});
+        Console.WriteLine($"Verified {packages.Count} material packages and {rows.Length} unique pixel shaders against client bytes.");
+        return 0;
+    }
+
     public static ulong IndexKey(string path)
     {
         var slash = path.LastIndexOf('/');

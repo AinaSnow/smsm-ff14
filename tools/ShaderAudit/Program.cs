@@ -5,6 +5,13 @@ using System.Text.Json;
 using Lumina;
 using Lumina.Data;
 
+if (args.Length == 4 && args[0] == "--material-roster")
+{
+    try { return ShaderIdentity.MaterialRoster(args[1], args[2], args[3]); }
+    catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException or JsonException)
+    { Console.Error.WriteLine(e.Message); return 1; }
+}
+
 if (args.Length == 6 && args[0] == "--identify")
 {
     try { return ShaderIdentity.Verify(args[1], args[2], args[3], args[4], args[5]); }
@@ -19,6 +26,7 @@ if (args.Length != 2)
 {
     Console.Error.WriteLine("Usage: ShaderAudit <client root> <new output directory>");
     Console.Error.WriteLine("   or: ShaderAudit --identify <client root> <extraction> <shader hash> <resource path> <new report.json>");
+    Console.Error.WriteLine("   or: ShaderAudit --material-roster <client root> <extraction> <new roster.json>");
     return 2;
 }
 var client = Path.GetFullPath(args[0]);

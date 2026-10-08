@@ -35,6 +35,10 @@ def main():
         entries['docs/NATIVE-OUTPUT-AUDIT.md']=ROOT/'docs/NATIVE-OUTPUT-AUDIT.md'
         entries['docs/validation/native-output-r6-2026-10-09.json']=ROOT/'docs/validation/native-output-r6-2026-10-09.json'
         entries['tools/analyze_native_output.py']=ROOT/'tools/analyze_native_output.py'
+    if manifest.get('material_roster_sha256'):
+        entries['docs/NATIVE-MATERIAL-CENSUS.md']=ROOT/'docs/NATIVE-MATERIAL-CENSUS.md'
+        entries['docs/validation/native-material-r7-2026-10-09.json']=ROOT/'docs/validation/native-material-r7-2026-10-09.json'
+        entries['tools/summarize_native_materials.py']=ROOT/'tools/summarize_native_materials.py'
     for name in ("NATIVE-DIAGNOSTIC.md", "NATIVE-DIAGNOSTIC-R2.md", "NATIVE-PRODUCERS.md", "NATIVE-LIGHTING-AUDIT.md", "NATIVE-LIGHTING-PLAN.md", "MANAGEMENT.md",
                  "validation/native-diagnostic-2026-10-08.json", "validation/native-diagnostic-r2-2026-10-08.json",
                  "validation/native-producer-r3-2026-10-09.json",
