@@ -19,6 +19,13 @@
 > errors in the first F10 switching check. Other effects and performance remain unverified.
 > See [approved roadmap and acceptance criteria](docs/ROADMAP.md) and
 > [installation, effect selection and rollback](docs/MANAGEMENT.md).
+>
+> Single-light research prototype: real offline D3D11 draws/readback now validate
+> depth/normal reconstruction, moving light parameters and two patched lighting
+> variants. The new experiment defaults off; in-game continuous control, materials,
+> occlusion and GPU cost are not yet verified. See [audit and results](docs/SINGLE-LIGHT.md).
+> DoF/reflection experiments remain active research; small visible differences
+> are not treated as evidence that an implementation is ineffective.
 
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 
