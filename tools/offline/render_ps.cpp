@@ -44,7 +44,7 @@ int wmain(int argc, wchar_t** argv) try {
             if (key == "texture") job >> item.slot >> item.width >> item.height >> std::quoted(item.path);
             else if (key == "cube") { job >> item.slot >> item.width >> std::quoted(item.path); item.height=item.width; }
             else if (key == "structured") job >> item.slot >> item.stride >> std::quoted(item.path);
-            else if (key == "constant" || key == "animation") job >> item.slot >> std::quoted(item.path);
+            else if (key == "constant" || key == "animation" || key == "region_copy") job >> item.slot >> std::quoted(item.path);
             else throw std::runtime_error("Unknown job field: " + key);
             inputs.push_back(item);
         }
@@ -101,6 +101,7 @@ int wmain(int argc, wchar_t** argv) try {
     ID3D11SamplerState* samplers[16]; for (auto& s:samplers) s=sampler.Get(); context->PSSetSamplers(0,16,samplers);
     std::vector<ComPtr<ID3D11Resource>> resources; std::vector<ComPtr<ID3D11ShaderResourceView>> views;
     std::vector<ComPtr<ID3D11Buffer>> buffers; ComPtr<ID3D11Buffer> animation; std::vector<char> animationBytes; unsigned animationStride=0;
+    ComPtr<ID3D11Buffer> regionSource,regionDestination;std::vector<char> regionBytes;unsigned regionStride=0;
     for (const auto& input:inputs) {
         auto bytes=read(input.path);
         if (input.kind=="constant" || input.kind=="animation") {
@@ -127,6 +128,17 @@ int wmain(int argc, wchar_t** argv) try {
             D3D11_SHADER_RESOURCE_VIEW_DESC sv{}; sv.Format=td.Format; sv.ViewDimension=D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
             sv.TextureCubeArray.MipLevels=1; sv.TextureCubeArray.NumCubes=1;
             check(device->CreateShaderResourceView(tex.Get(),faces==6?&sv:nullptr,&view),"texture SRV"); resources.push_back(tex);
+        } else if (input.kind=="region_copy") {
+            if(regionSource || bytes.size()%frames) throw std::runtime_error("Invalid region copy frames");
+            size_t size=bytes.size()/frames;
+            if(!size || size%16 || size>65536) throw std::runtime_error("Invalid native constant buffer size");
+            D3D11_BUFFER_DESC bd{};bd.ByteWidth=UINT(size);bd.Usage=D3D11_USAGE_DEFAULT;bd.BindFlags=D3D11_BIND_CONSTANT_BUFFER;
+            check(device->CreateBuffer(&bd,nullptr,&regionSource),"native region source CB");
+            bd.BindFlags=D3D11_BIND_SHADER_RESOURCE;bd.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;bd.StructureByteStride=16;
+            check(device->CreateBuffer(&bd,nullptr,&regionDestination),"owned region buffer");
+            D3D11_SHADER_RESOURCE_VIEW_DESC sv{};sv.Format=DXGI_FORMAT_UNKNOWN;sv.ViewDimension=D3D11_SRV_DIMENSION_BUFFER;sv.Buffer.NumElements=UINT(size/16);
+            check(device->CreateShaderResourceView(regionDestination.Get(),&sv,&view),"owned region SRV");
+            regionBytes=std::move(bytes);regionStride=UINT(size);
         } else {
             if (!input.stride || bytes.size()%input.stride || bytes.size()>16*1024*1024) throw std::runtime_error("Invalid structured buffer");
             D3D11_BUFFER_DESC bd{}; bd.ByteWidth=UINT(bytes.size()); bd.Usage=D3D11_USAGE_IMMUTABLE; bd.BindFlags=D3D11_BIND_SHADER_RESOURCE; bd.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED; bd.StructureByteStride=input.stride;
@@ -149,6 +161,10 @@ int wmain(int argc, wchar_t** argv) try {
     context->OMSetRenderTargets(targets,rawRT,nullptr);
     for (unsigned frame=0;frame<frames;++frame) {
         if (animation) context->UpdateSubresource(animation.Get(),0,nullptr,animationBytes.data()+size_t(frame)*animationStride,0,0);
+        if (regionSource) {
+            context->UpdateSubresource(regionSource.Get(),0,nullptr,regionBytes.data()+size_t(frame)*regionStride,0,0);
+            context->CopyResource(regionDestination.Get(),regionSource.Get());
+        }
         float clear[4]={0,0,0,0}; for (auto& rtv:rtvs) context->ClearRenderTargetView(rtv.Get(),clear);
         for (unsigned draw=0;draw<draws;++draw) context->Draw(3,0);
         for (unsigned i=0;i<targets;++i) {

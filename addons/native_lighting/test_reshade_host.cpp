@@ -15,7 +15,7 @@ void command(const fs::path &root,const char *text) {
 }
 int wmain(int argc,wchar_t **argv) {
     try {
-        if(argc!=3)throw std::runtime_error("host directory and extraction directory required");
+        if(argc!=3 && argc!=4)throw std::runtime_error("host directory and extraction directory required");
         fs::path root=fs::absolute(argv[1]),extraction=fs::absolute(argv[2]);
         WNDCLASSW wc={};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"SMSMHiddenDiagnosticTest";
         RegisterClassW(&wc);
@@ -81,6 +81,16 @@ int wmain(int argc,wchar_t **argv) {
         command(root,"capture");render(0);present();produce();render(0);render(1);present();
         for(int i=0;i<20;++i){render(0);present();}
         command(root,"stop");present();
+        if(argc==4) {
+            auto ambient_command=[&](const char *action){std::ofstream out(root/"SMSM-native-captures"/"ambient-command.txt");out<<action<<'\n';};
+            ambient_command("half");present();
+            for(int i=0;i<3;++i){render(0);render(1);present();}
+            ambient_command("status");present();
+            fs::copy_file(root/"SMSM-native-captures"/"ambient-status.json",root/"ambient-enabled-status.json");
+            ambient_command("off");present();render(0);render(1);present();
+            ambient_command("status");present();
+            fs::copy_file(root/"SMSM-native-captures"/"ambient-status.json",root/"ambient-disabled-status.json");
+        }
         if(FAILED(device->GetDeviceRemovedReason()))throw std::runtime_error("device removed");
         ctx->ClearState();ctx->Flush();DestroyWindow(window);
         std::cout<<"Actual ReShade hardware callback host completed (zero vertices)\n";return 0;

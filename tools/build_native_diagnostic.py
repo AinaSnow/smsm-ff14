@@ -25,7 +25,7 @@ def compiler_environment():
     return vc / "bin/Hostx64/x64/cl.exe", env, {"msvc": vc.name, "windows_sdk": version}
 
 
-def compile_cpp(source, output, include=None, dll=False):
+def compile_cpp(source, output, include=None, dll=False, extra_args=()):
     compiler, env, versions = compiler_environment()
     output.parent.mkdir(parents=True, exist_ok=True)
     args = [str(compiler), "/nologo", "/EHsc", "/std:c++17", "/O2", "/W4", "/utf-8", "/MT", "/Brepro",
@@ -34,6 +34,7 @@ def compile_cpp(source, output, include=None, dll=False):
         args += ["/I" + str(include)]
     if dll:
         args += ["/LD"]
+    args += list(extra_args)
     args += ["/link", "bcrypt.lib", "d3d11.lib", "d3dcompiler.lib", "user32.lib", "/Brepro", "/INCREMENTAL:NO"]
     result = subprocess.run(args, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
     output.with_suffix(".build.log").write_text(result.stdout + result.stderr, encoding="utf-8")
@@ -46,6 +47,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("output", type=Path)
     p.add_argument("--sdk", type=Path, default=ROOT / "artifacts/reshade-sdk-v6.8.0")
+    p.add_argument("--ambient-shader", type=Path, help="Embed the explicitly experimental diffuse-only shader; default off")
     args = p.parse_args()
     commit = subprocess.check_output(["git", "-C", str(args.sdk), "rev-parse", "HEAD"], text=True).strip()
     if commit != SDK_COMMIT or subprocess.check_output(["git", "-C", str(args.sdk), "status", "--porcelain"]):
@@ -54,10 +56,19 @@ def main():
         raise ValueError("Use a new immutable build output directory")
     output = args.output.resolve()
     addon = output / "SMSM.NativeLighting.addon64"
-    versions = compile_cpp(ROOT / "addons/native_lighting/addon.cpp", addon, args.sdk / "include", dll=True)
+    extra=[];ambient_sha=None
+    if args.ambient_shader:
+        data=args.ambient_shader.read_bytes()
+        if not data.startswith(b'DXBC'):raise ValueError('Expected validated DXBC candidate')
+        output.mkdir(parents=True)
+        (output/'native_ambient_bytecode.hpp').write_text('inline const unsigned char native_ambient_bytecode[] = {'+','.join(str(b) for b in data)+'};\n')
+        extra=['/DSMSM_NATIVE_AMBIENT_EXPERIMENT','/I'+str(output)]
+        ambient_sha=hashlib.sha256(data).hexdigest()
+    versions = compile_cpp(ROOT / "addons/native_lighting/addon.cpp", addon, args.sdk / "include", dll=True, extra_args=extra)
     manifest = {"schema": 1, "reshade_version": SDK_VERSION, "sdk_commit": SDK_COMMIT, "api_version": 20,
                 "architecture": "x64", "compiler": versions, "default_enabled": False, "runtime_verified": False,
-                "capture_budget_bytes": 256 * 1024 * 1024, "shader_replacement": False,
+                "capture_budget_bytes": 256 * 1024 * 1024, "shader_replacement": bool(args.ambient_shader),
+                "ambient_shader_sha256":ambient_sha,
                 "files": {addon.name: hashlib.sha256(addon.read_bytes()).hexdigest()},
                 "sources": {str(path.relative_to(ROOT)).replace("\\", "/"): hashlib.sha256(path.read_bytes()).hexdigest()
                             for path in (ROOT / "addons/native_lighting").glob("*.*")}}

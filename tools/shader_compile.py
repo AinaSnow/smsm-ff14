@@ -34,11 +34,11 @@ class Compiler:
             raise RuntimeError(f"D3DDisassemble failed: {hr & 0xffffffff:08x}")
         return text
 
-    def compile(self, path, profile="ps_5_0"):
+    def compile(self, path, profile="ps_5_0", *, flags=1 << 15):
         code, error = c.c_void_p(), c.c_void_p()
         # D3D_COMPILE_STANDARD_FILE_INCLUDE = 1. Resolve headers relative to source.
         hr = self.dll.D3DCompileFromFile(str(path.resolve()), None, 1, b"main", profile.encode(),
-                                       1 << 15, 0, c.byref(code), c.byref(error))
+                                       flags, 0, c.byref(code), c.byref(error))
         diagnostics = blob_bytes(error).rstrip(b"\0").decode("utf-8", errors="replace")
         data = blob_bytes(code)
         if hr < 0:

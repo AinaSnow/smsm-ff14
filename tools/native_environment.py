@@ -118,12 +118,14 @@ def transition(game, before, after, backups):
     return backup
 
 
-def read_candidate(package):
+def read_candidate(package, allow_shader_experiment=False):
     meta = json.loads((package / "SMSM-native-package.json").read_bytes())
     if (meta.get("reshade_version") != "6.8.0" or meta.get("api_version") != 20
-            or meta.get("default_enabled") is not False or meta.get("shader_replacement") is not False
+            or meta.get("default_enabled") is not False or type(meta.get("shader_replacement")) is not bool
             or meta.get("architecture") != "x64"):
         raise ValueError("Unreviewed package configuration")
+    if meta['shader_replacement'] and not allow_shader_experiment:
+        raise ValueError("Shader experiment requires explicit --allow-shader-experiment")
     addon = (package / "SMSM.NativeLighting.addon64").read_bytes()
     if digest(addon) != meta["files"]["SMSM.NativeLighting.addon64"]:
         raise ValueError("Native package integrity failure")
@@ -133,11 +135,12 @@ def read_candidate(package):
 def with_receipt(files, meta):
     data = dict(files)
     data[RECEIPT] = encoded({"schema": 1, "client_build": BUILD, "files": {n: digest(v) for n, v in files.items()},
-                            "default_enabled": False, "package_sha256": digest(encoded(meta))})
+                            "default_enabled": False, "shader_replacement": meta.get('shader_replacement',False),
+                            "package_sha256": digest(encoded(meta))})
     return data
 
 
-def updated(game, package):
+def updated(game, package, allow_shader_experiment=False):
     """Replace only an owned add-on and its receipt; retain runtime and user settings."""
     if (game / "ffxivgame.ver").read_text().strip() != BUILD:
         raise ValueError("Game version requires a new shader identity audit")
@@ -147,11 +150,11 @@ def updated(game, package):
     for name in ("dxgi.dll", "d3d9.dll", "opengl32.dll", "GShade64.dll", "SMSM-preview.json", "SMSM-state.json", "SMSM-transaction.json"):
         if (game / name).exists():
             raise ValueError(f"Conflicting environment: {name}")
-    meta, addon = read_candidate(package)
+    meta, addon = read_candidate(package, allow_shader_experiment)
     return before, with_receipt({"d3d11.dll": before["d3d11.dll"], "SMSM.NativeLighting.addon64": addon}, meta)
 
 
-def desired(game, package, runtime):
+def desired(game, package, runtime, allow_shader_experiment=False):
     if (game / "ffxivgame.ver").read_text().strip() != BUILD:
         raise ValueError("Game version requires a new shader identity audit")
     for name in ("dxgi.dll", "d3d9.dll", "opengl32.dll", "GShade64.dll", "ReShade.ini", "SMSM-preview.json", "SMSM-state.json", "SMSM-transaction.json"):
@@ -160,7 +163,7 @@ def desired(game, package, runtime):
     fixes = game / "SMSM-ShaderFixes"
     if fixes.exists() and (fixes.is_symlink() or getattr(fixes.lstat(), "st_file_attributes", 0) & 0x400 or any(fixes.iterdir())):
         raise ValueError("Existing shader environment is not empty")
-    meta, addon = read_candidate(package)
+    meta, addon = read_candidate(package, allow_shader_experiment)
     runtime_bytes = runtime.read_bytes()
     if digest(runtime_bytes) != RUNTIME_SHA256:
         raise ValueError("Requires exact official full-add-on ReShade 6.8.0 x64 runtime")
@@ -173,6 +176,7 @@ def main():
     p.add_argument("--game", required=True, type=Path)
     p.add_argument("--package", type=Path)
     p.add_argument("--runtime", type=Path)
+    p.add_argument("--allow-shader-experiment", action="store_true", help="Explicitly install a default-off material shader experiment")
     p.add_argument("--backup-root", type=Path, default=ROOT / "artifacts/native-install-backups")
     args = p.parse_args()
     game = args.game.absolute()
@@ -189,11 +193,11 @@ def main():
     if args.action == "install":
         if before or not args.package or not args.runtime:
             raise ValueError("Install requires a pristine environment, --package and --runtime")
-        after = desired(game, args.package, args.runtime)
+        after = desired(game, args.package, args.runtime, args.allow_shader_experiment)
     elif args.action == "update":
         if not args.package or args.runtime:
             raise ValueError("Update requires --package only; runtime switching is not supported")
-        before, after = updated(game, args.package)
+        before, after = updated(game, args.package, args.allow_shader_experiment)
     else:
         if not before:
             raise ValueError("No owned native installation")

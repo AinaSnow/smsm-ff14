@@ -48,7 +48,7 @@ def unpack_r11(words):
 
 
 def render(shader, output, width, height, textures=None, constants=None, structured=None,
-           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f",cubes=None):
+           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f",cubes=None,region_copy=None):
     """Inputs and every raw float32 output remain on disk for replay/diff.
 
     animation is (constant slot, frames x vectors x float4); updated on the SAME
@@ -91,6 +91,15 @@ def render(shader, output, width, height, textures=None, constants=None, structu
         path = output / f"structured{slot}.bin"; path.write_bytes(raw)
         lines.append(f"structured {slot} {stride} " + quote(path))
     frames = 1
+    if region_copy is not None:
+        slot,array=region_copy
+        array=np.ascontiguousarray(array,dtype='<f4')
+        if animation is not None or slot in (set(textures or {})|set(cubes or {})|set(structured or {})):
+            raise ValueError('Region copy conflicts with animation or an SRV binding')
+        if array.ndim!=3 or array.shape[2]!=4 or not 1<=len(array)<=256 or not 1<=array.shape[1]<=4096 or not 0<=slot<128:
+            raise ValueError('Region copy must be frames x constant-vectors x float4')
+        frames=len(array);path=output/f'region-copy-t{slot}.f32';array.tofile(path)
+        lines.extend([f'frames {frames}',f'region_copy {slot} '+quote(path)])
     if animation is not None:
         slot, array = animation
         array = np.asarray(array, dtype="<f4")

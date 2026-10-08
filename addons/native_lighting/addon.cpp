@@ -2,12 +2,19 @@
 #include <reshade.hpp>
 #include <memory>
 #include <mutex>
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+#include "ambient_bridge.hpp"
+#include "native_ambient_bytecode.hpp"
+#endif
 
 using namespace reshade::api;
 namespace {
 struct State {
     smsm::Diagnostic diagnostic;
     uint64_t swapchain = 0;
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+    smsm::AmbientBridge ambient;
+#endif
     explicit State(const smsm::fs::path &path) : diagnostic(path) {}
 };
 std::recursive_mutex mutex;
@@ -20,18 +27,29 @@ smsm::fs::path output_path() {
 template<class F> void guarded(device *dev, F &&f) noexcept {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     auto it=states.find(dev); if (it==states.end() || it->second->diagnostic.internal) return;
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+    if(it->second->ambient.internal)return;
+#endif
     try { f(*it->second); }
     catch (const std::exception &e) {
         it->second->diagnostic.set_enabled(false);
         it->second->diagnostic.recording=it->second->diagnostic.waiting=false;
         it->second->diagnostic.draws.clear();
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+        it->second->ambient.disable();
+#endif
         reshade::log::message(reshade::log::level::error,e.what());
     }
 }
 void init_device(device *dev) {
     if (dev->get_api()!=device_api::d3d11) return;
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    try { states.emplace(dev,std::make_unique<State>(output_path())); }
+    try {
+        states.emplace(dev,std::make_unique<State>(output_path()));
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+        states.at(dev)->ambient.initialize(reinterpret_cast<ID3D11Device *>(dev->get_native()),native_ambient_bytecode,sizeof(native_ambient_bytecode));
+#endif
+    }
     catch (const std::exception &e) { reshade::log::message(reshade::log::level::error,e.what()); }
 }
 void destroy_device(device *dev) {
@@ -51,8 +69,16 @@ void destroy_pipeline(device *dev,pipeline p) { guarded(dev,[&](State &s){s.diag
 void init_resource(device *dev,const resource_desc &,const subresource_data *data,resource_usage,resource r) {
     guarded(dev,[&](State &s){s.diagnostic.init_resource(r.handle,data!=nullptr);});
 }
-void destroy_resource(device *dev,resource r) { guarded(dev,[&](State &s){s.diagnostic.destroy_resource(r.handle);}); }
-void note(device *dev,resource r,const char *kind) { guarded(dev,[&](State &s){s.diagnostic.write(r.handle,kind);}); }
+void destroy_resource(device *dev,resource r) { guarded(dev,[&](State &s){s.diagnostic.destroy_resource(r.handle);
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+    s.ambient.note_write(r.handle);
+#endif
+}); }
+void note(device *dev,resource r,const char *kind) { guarded(dev,[&](State &s){s.diagnostic.write(r.handle,kind);
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+    s.ambient.note_write(r.handle);
+#endif
+}); }
 bool update_buffer(device *dev,const void *,resource r,uint64_t,uint64_t) { note(dev,r,"update_buffer_intent"); return false; }
 bool update_texture(device *dev,const subresource_data &,resource r,uint32_t,const subresource_box *) { note(dev,r,"update_texture_intent"); return false; }
 void map_buffer(device *dev,resource r,uint64_t,uint64_t,map_access access,void **) {
@@ -62,11 +88,19 @@ void map_texture(device *dev,resource r,uint32_t,const subresource_box *,map_acc
     if (access!=map_access::read_only) note(dev,r,"map_texture_write_access");
 }
 bool copy_resource(command_list *cmd,resource source,resource dest) {
-    guarded(cmd->get_device(),[&](State &s){s.diagnostic.copy_write(dest.handle,source.handle,"copy_resource_intent");}); return false;
+    guarded(cmd->get_device(),[&](State &s){s.diagnostic.copy_write(dest.handle,source.handle,"copy_resource_intent");
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+        s.ambient.note_write(dest.handle);
+#endif
+    }); return false;
 }
 bool copy_buffer(command_list *cmd,resource,uint64_t,resource r,uint64_t,uint64_t) { note(cmd->get_device(),r,"copy_buffer_intent"); return false; }
 bool copy_texture(command_list *cmd,resource source,uint32_t src_sub,const subresource_box *,resource dest,uint32_t dst_sub,const subresource_box *,filter_mode) {
-    guarded(cmd->get_device(),[&](State &s){s.diagnostic.copy_write(dest.handle,source.handle,"copy_texture_intent",src_sub,dst_sub);}); return false;
+    guarded(cmd->get_device(),[&](State &s){s.diagnostic.copy_write(dest.handle,source.handle,"copy_texture_intent",src_sub,dst_sub);
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+        s.ambient.note_write(dest.handle);
+#endif
+    }); return false;
 }
 bool resolve(command_list *cmd,resource,uint32_t,const subresource_box *,resource r,uint32_t,uint32_t,uint32_t,uint32_t,format) { note(cmd->get_device(),r,"resolve_intent"); return false; }
 bool clear_rt(command_list *cmd,resource_view view,const float[4],uint32_t,const rect *) {
@@ -75,25 +109,64 @@ bool clear_rt(command_list *cmd,resource_view view,const float[4],uint32_t,const
 bool clear_depth(command_list *cmd,resource_view view,const float *,const uint8_t *,uint32_t,const rect *) {
     note(cmd->get_device(),cmd->get_device()->get_resource_from_view(view),"clear_depth_intent"); return false;
 }
-bool draw(command_list *cmd,uint32_t count,uint32_t instances,uint32_t,uint32_t) {
-    guarded(cmd->get_device(),[&](State &s){s.diagnostic.before_draw(reinterpret_cast<ID3D11DeviceContext *>(cmd->get_native()),"draw",count,instances);});
-    return false; // The application's draw always executes, including on capture failures.
+template<class F> bool native_draw(command_list *cmd,const char *kind,uint32_t count,uint32_t instances,F call) {
+    (void)call;
+    bool replaced=false;
+    guarded(cmd->get_device(),[&](State &s){
+        auto *ctx=reinterpret_cast<ID3D11DeviceContext *>(cmd->get_native());
+        s.diagnostic.before_draw(ctx,kind,count,instances);
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+        if(!s.ambient.enabled())return;
+        smsm::ComPtr<ID3D11PixelShader> ps;ctx->PSGetShader(&ps,nullptr,nullptr);
+        auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
+        if(identity==s.diagnostic.shaders.end())return;
+        if(identity->second.first==smsm::game_targets[0].migoto)s.ambient.capture_source(ctx);
+        else if(identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX)
+            replaced=s.ambient.draw(ctx,[&]{call(ctx);});
+#endif
+    });
+    return replaced;
 }
-bool draw_indexed(command_list *cmd,uint32_t count,uint32_t instances,uint32_t,int32_t,uint32_t) {
-    guarded(cmd->get_device(),[&](State &s){s.diagnostic.before_draw(reinterpret_cast<ID3D11DeviceContext *>(cmd->get_native()),"draw_indexed",count,instances);});
-    return false;
+bool draw(command_list *cmd,uint32_t count,uint32_t instances,uint32_t first,uint32_t first_instance) {
+    return native_draw(cmd,"draw",count,instances,[&](ID3D11DeviceContext *ctx){
+        if(instances==1 && first_instance==0)ctx->Draw(count,first);else ctx->DrawInstanced(count,instances,first,first_instance);
+    });
+}
+bool draw_indexed(command_list *cmd,uint32_t count,uint32_t instances,uint32_t first,int32_t offset,uint32_t first_instance) {
+    return native_draw(cmd,"draw_indexed",count,instances,[&](ID3D11DeviceContext *ctx){
+        if(instances==1 && first_instance==0)ctx->DrawIndexed(count,first,offset);else ctx->DrawIndexedInstanced(count,instances,first,offset,first_instance);
+    });
 }
 void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32_t,const rect *) {
     guarded(queue->get_device(),[&](State &s) {
         if (!s.swapchain) s.swapchain=sc->get_native();
         if (s.swapchain!=sc->get_native()) return;
         auto &d=s.diagnostic;
-        d.present(reinterpret_cast<ID3D11DeviceContext *>(queue->get_immediate_command_list()->get_native()));
+        auto *context=reinterpret_cast<ID3D11DeviceContext *>(queue->get_immediate_command_list()->get_native());
+        d.present(context);
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+        s.ambient.reset_frame();
+        const auto ambient_command=d.root/"ambient-command.txt";
+        if(GetFileAttributesW(ambient_command.c_str())!=INVALID_FILE_ATTRIBUTES) {
+            std::ifstream input(ambient_command);char action[64]={};input.getline(action,sizeof(action));input.close();
+            if(!smsm::fs::remove(ambient_command))throw std::runtime_error("ambient_command_consume_failed");
+            const std::string value=action;
+            if(value=="on" || value=="half") {d.stop();s.ambient.set_strength(context,value=="on"?1.f:.5f);}
+            else if(value=="off")s.ambient.disable();
+            else if(value!="status")throw std::runtime_error("unknown ambient command");
+            smsm::Json report;report.fields["enabled"]=s.ambient.enabled()?"true":"false";
+            report.num("copies",s.ambient.copies);report.num("overrides",s.ambient.overrides);report.num("fallbacks",s.ambient.fallbacks);
+            std::ofstream output(d.root/"ambient-status.json");output<<report.str()<<'\n';
+        }
+#endif
         // One manually submitted command is consumed at a frame boundary. No persistent auto-capture mode.
         const auto command=d.root.parent_path()/"SMSM-native-command.txt";
         if (GetFileAttributesW(command.c_str())!=INVALID_FILE_ATTRIBUTES) {
             std::ifstream in(command); std::string action; std::getline(in,action); in.close();
             if (!smsm::fs::remove(command)) throw std::runtime_error("command_consume_failed");
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+            if(action=="enable" || action=="capture")s.ambient.disable();
+#endif
             if (action=="enable") d.set_enabled(true);
             else if (action=="stop") d.stop();
             else if (action=="capture") {
@@ -104,7 +177,11 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
 }
 void destroy_swapchain(swapchain *sc,bool) {
     guarded(sc->get_device(),[&](State &s){
-        if (s.swapchain==sc->get_native()) {s.diagnostic.stop(); s.swapchain=0;}
+        if (s.swapchain==sc->get_native()) {s.diagnostic.stop(); s.swapchain=0;
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+            s.ambient.disable();
+#endif
+        }
     });
 }
 void controls(effect_runtime *runtime) {
@@ -115,6 +192,9 @@ void controls(effect_runtime *runtime) {
         if (s.swapchain!=runtime->get_native()) return;
         auto &d=s.diagnostic;
         if (runtime->is_key_pressed(VK_F7)) {
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+            s.ambient.disable();
+#endif
             if (d.enabled) d.stop(); else d.set_enabled(true);
             reshade::log::message(reshade::log::level::info,d.enabled ? "SMSM diagnostic enabled; F8 captures next frame" : "SMSM diagnostic stopped");
         }
@@ -123,6 +203,12 @@ void controls(effect_runtime *runtime) {
             reshade::log::message(reshade::log::level::info,armed ? "SMSM capture armed" : "SMSM capture rejected: disabled or busy");
         }
     });
+}
+void execute_secondary(command_list *cmd,command_list *) {
+    (void)cmd;
+#ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+    guarded(cmd->get_device(),[](State &s){s.ambient.invalidate();});
+#endif
 }
 }
 extern "C" __declspec(dllexport) const char *NAME="SMSM Native Lighting Diagnostic";
@@ -139,6 +225,7 @@ BOOL APIENTRY DllMain(HMODULE module,DWORD reason,LPVOID) {
         EVENT(copy_resource,copy_resource); EVENT(copy_buffer_region,copy_buffer); EVENT(copy_texture_region,copy_texture);
         EVENT(resolve_texture_region,resolve); EVENT(clear_render_target_view,clear_rt); EVENT(clear_depth_stencil_view,clear_depth);
         EVENT(draw,draw); EVENT(draw_indexed,draw_indexed); EVENT(present,present);
+        EVENT(execute_secondary_command_list,execute_secondary);
         EVENT(destroy_swapchain,destroy_swapchain); EVENT(reshade_present,controls);
 #undef EVENT
     } else if (reason==DLL_PROCESS_DETACH) reshade::unregister_addon(module);

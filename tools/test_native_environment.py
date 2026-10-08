@@ -22,6 +22,7 @@ def main():
     p.add_argument("--package", required=True, type=Path)
     p.add_argument("--previous-package", type=Path, help="Exercise a real old-to-new add-on update")
     p.add_argument("--runtime", required=True, type=Path)
+    p.add_argument("--allow-shader-experiment",action='store_true')
     args = p.parse_args()
     root = args.output.absolute()
     if root.exists():
@@ -37,7 +38,9 @@ def main():
     rejects(lambda: native.desired(game, args.package, args.runtime))
     old, _, _ = managed.snapshot(game)
     r10_backup = managed.transition(game, old, {}, root / "managed-backups")
-    after = native.desired(game, args.package, args.runtime)
+    if args.allow_shader_experiment:
+        rejects(lambda:native.desired(game,args.package,args.runtime))
+    after = native.desired(game, args.package, args.runtime,args.allow_shader_experiment)
     with patch.object(native, "running_game", return_value=False):
         if args.previous_package:
             initial = native.desired(game, args.previous_package, args.runtime)
@@ -45,7 +48,8 @@ def main():
             native.transition(game, {}, initial, root / "native-backups")
             settings = game / "ReShade.ini"
             settings.write_bytes(b"[GENERAL]\nUserSettings=preserve\n")
-            before_update, next_files = native.updated(game, args.package)
+            if args.allow_shader_experiment:rejects(lambda:native.updated(game,args.package))
+            before_update, next_files = native.updated(game, args.package,args.allow_shader_experiment)
             assert next_files["d3d11.dll"] == before_update["d3d11.dll"]
             assert next_files == after
             original_update_write = native.write_atomic

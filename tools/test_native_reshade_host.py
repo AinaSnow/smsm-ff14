@@ -30,7 +30,9 @@ def main():
     (root / "ReShade.ini").write_text("[GENERAL]\nNoDebugInfo=1\nNoReloadOnInit=1\n[OVERLAY]\nShowClock=0\nShowFPS=0\nShowFrameTime=0\n", encoding="utf-8")
     exe = root / "test_reshade_host.exe"
     compile_cpp(ROOT / "addons/native_lighting/test_reshade_host.cpp", exe)
-    subprocess.run([str(exe), str(root), str(args.extraction.resolve())], cwd=root, check=True, timeout=90)
+    command=[str(exe), str(root), str(args.extraction.resolve())]
+    if manifest.get('shader_replacement'):command.append('ambient')
+    subprocess.run(command, cwd=root, check=True, timeout=90)
     captures = sorted(root.glob("SMSM-native-captures/*/manifest.json"))
     assert len(captures) == 2, "Plugin did not capture exactly two manually requested frames; inspect ReShade.log"
     hashes = []
@@ -59,12 +61,18 @@ def main():
                         assert depth["last_event_kind"] == "copy_resource_intent"
         hashes.append(report["draws"][0]["resources"][0]["sha256"])
     assert hashes[0] != hashes[1], "Old capture mixed into new frame"
+    if manifest.get('shader_replacement'):
+        enabled=json.loads((root/'ambient-enabled-status.json').read_bytes())
+        disabled=json.loads((root/'ambient-disabled-status.json').read_bytes())
+        assert enabled['enabled'] and enabled['copies']>=3 and enabled['overrides']>=3, enabled
+        assert not disabled['enabled'] and disabled['overrides']==enabled['overrides'], (enabled,disabled)
     log = (root / "ReShade.log").read_text(encoding="utf-8", errors="replace")
     assert "SMSM Native Lighting Diagnostic" in log
     result = {"source_kind": "synthetic_host", "actual_reshade_runtime": True, "driver": "hardware", "vertices": 0, "game_verified": False,
               "runtime_sha256": hashlib.sha256(runtime).hexdigest(),
               "setup_sha256": hashlib.sha256(args.setup.read_bytes()).hexdigest(),
               "addon_sha256": manifest["files"][addon.name], "captures": [str(p.relative_to(root)) for p in captures]}
+    if manifest.get('shader_replacement'):result['ambient_on']=enabled;result['ambient_off']=disabled
     (root / "report.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
 

@@ -11,9 +11,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("package", type=Path)
     p.add_argument("output", type=Path)
+    p.add_argument('--allow-shader-experiment',action='store_true')
     args = p.parse_args()
     manifest = json.loads((args.package / "SMSM-native-package.json").read_bytes())
-    if manifest["default_enabled"] is not False or manifest["shader_replacement"] is not False:
+    if manifest["default_enabled"] is not False or (manifest["shader_replacement"] is not False and not args.allow_shader_experiment):
         raise ValueError("Diagnostic package must default off and not replace shaders")
     entries = {"package/" + name: args.package / name for name in (*manifest["files"], "SMSM-native-package.json")}
     for name in manifest["files"]:
@@ -21,6 +22,10 @@ def main():
             raise ValueError("Candidate integrity failure")
     for name in ("native_environment.py", "manage_preview.py", "request_native_capture.py", "analyze_native_capture.py", "record_validation.py"):
         entries["tools/" + name] = ROOT / "tools" / name
+    if manifest['shader_replacement']:
+        entries['tools/request_native_ambient.py']=ROOT/'tools/request_native_ambient.py'
+        entries['docs/NATIVE-AMBIENT-SURFACE.md']=ROOT/'docs/NATIVE-AMBIENT-SURFACE.md'
+        entries['docs/validation/native-ambient-r4-2026-10-09.json']=ROOT/'docs/validation/native-ambient-r4-2026-10-09.json'
     for name in ("NATIVE-DIAGNOSTIC.md", "NATIVE-DIAGNOSTIC-R2.md", "NATIVE-PRODUCERS.md", "NATIVE-LIGHTING-AUDIT.md", "NATIVE-LIGHTING-PLAN.md", "MANAGEMENT.md",
                  "validation/native-diagnostic-2026-10-08.json", "validation/native-diagnostic-r2-2026-10-08.json",
                  "validation/native-producer-r3-2026-10-09.json",
