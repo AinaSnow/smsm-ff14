@@ -13,7 +13,7 @@ from validate_forward_light import fixture
 from offline_render import render
 
 
-def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predicated=False,reject=None,material_mode=None):
+def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predicated=False,reject=None,material_mode=None,visible_material=None,visible_bundle=None):
     output=output.resolve();output.mkdir(parents=True,exist_ok=False)
     meta=json.loads((package/'SMSM-native-package.json').read_bytes())
     addon=package/'SMSM.NativeLighting.addon64'
@@ -24,8 +24,22 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     (output/'d3d11.dll').write_bytes(runtime)
     (output/'ReShade.ini').write_text('[GENERAL]\nNoDebugInfo=1\nNoReloadOnInit=1\n')
     settings={'alpha':0} if reject=='alpha' else {'depth':.4} if reject=='sampled-depth' else {}
-    f,inputs=fixture(Compiler(),output/'geometry',width=32,height=24,**settings)
-    original=ROOT/'artifacts/client-2026.09.15/dxbc/980154264a89fba1-ps.bin'
+    target='980154264a89fba1';visible_expected=None
+    if visible_material:
+        if any([audit,zero_mask,later_clear,predicated,reject,material_mode]) or not visible_bundle:raise ValueError('Visible material mode requires its validated bundle only')
+        from validate_visible_ambient import fixture as material_fixture,HAIR,DRESS
+        from validate_native_ambient import table
+        target=HAIR if visible_material=='hair' else DRESS
+        f,inputs=material_fixture(Compiler(),output/'geometry',target,width=32,height=24)
+        inputs['constants'][6][:3,3]=(.06,.08,.12);inputs['constants'][6][4,2]=1
+        inputs['region_copy']=(14,table([{'color':(.3,.08,.02),'type':2,'inverse_extent':(.5,.7,1)}])[None])
+        inputs['constants'][8]=np.array([[.5,0,0,0]],np.float32)
+        bundle=json.loads(visible_bundle.read_bytes());variant=next(v for v in bundle['variants'] if v['target']==target)
+        candidate=visible_bundle.parent/variant['file']
+        assert hashlib.sha256(candidate.read_bytes()).hexdigest()==variant['candidate_sha256']
+        visible_expected=render(candidate,output/'warp-candidate',32,24,**inputs)[0,0]
+    else:f,inputs=fixture(Compiler(),output/'geometry',width=32,height=24,**settings)
+    original=ROOT/'artifacts/client-2026.09.15/dxbc'/(target+'-ps.bin')
     reference=render(original,output/'warp-reference',f['width'],f['height'],**inputs)[0,0]
     job=(output/'warp-reference/job.txt').read_text()
     # Static input fixture, no animation blocks; all three frames use identical inputs.
@@ -33,6 +47,10 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     lines=[('frames 3' if l.startswith('frames ') else
             'output '+json.dumps((output/'hardware-pixels').as_posix()) if l.startswith('output ') else l) for l in lines]
     if not any(l.startswith('frames ') for l in lines):lines.append('frames 3')
+    if visible_material:
+        regions=output/'hardware-regions.f32';np.repeat(inputs['region_copy'][1],3,axis=0).tofile(regions)
+        lines=[('region_copy 14 '+json.dumps(regions.as_posix()) if l.startswith('region_copy ') else l) for l in lines]
+        lines.append('source_shader '+json.dumps((ROOT/'artifacts/client-2026.09.15/dxbc/415a922293923fa4-ps.bin').as_posix()))
     job_path=output/'hardware-job.txt';job_path.write_text('\n'.join(lines)+'\n')
     exe=output/'test_pixels.exe'
     extra=['/DSMSM_RESHADE_PIXEL_TEST']
@@ -40,6 +58,7 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     if zero_mask:extra.append('/DSMSM_WRITE_MASK_ZERO')
     if later_clear:extra.append('/DSMSM_LATER_CLEAR')
     if predicated:extra.append('/DSMSM_PREDICATED')
+    if visible_material:extra.append('/DSMSM_VISIBLE_AMBIENT')
     if material_mode:
         if not audit or zero_mask or later_clear or predicated or reject:raise ValueError('Material mode requires plain audit fixture')
         extra.append('/DSMSM_MATERIAL_'+material_mode.upper())
@@ -52,8 +71,9 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     if predicated:expected=np.zeros_like(expected)
     if reject:expected=np.zeros_like(expected)
     if material_mode:expected=reference.copy()
+    if visible_material:expected=visible_expected
     errors={'baseline_vs_warp':float(np.max(np.abs(pixels[0]-reference))),
-            ('middle_frame_vs_original' if material_mode else 'coverage_vs_magenta'):float(np.max(np.abs(pixels[1]-expected))),
+            ('middle_frame_vs_expected' if material_mode or visible_material else 'coverage_vs_magenta'):float(np.max(np.abs(pixels[1]-expected))),
             'off_restores_baseline':float(np.max(np.abs(pixels[2]-pixels[0])))}
     result={'actual_runtime':True,'vertices_per_draw':3,'synthetic_geometry':True,'game_coverage_verified':False,
             'addon_sha256':meta['files'][addon.name],'errors':errors,'statuses':statuses}
@@ -61,8 +81,15 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     print(json.dumps(result,indent=2))
     assert all(np.isfinite(p).all() for p in pixels)
     assert max(errors.values())<1e-5,errors
-    assert not statuses[0]['coverage_enabled'] and statuses[1]['coverage_enabled']==(not audit) and not statuses[2]['coverage_enabled']
-    assert statuses[1]['coverage_draws']==(0 if material_mode else 1) and statuses[2]['coverage_draws']==statuses[1]['coverage_draws']
+    assert not statuses[0]['coverage_enabled'] and statuses[1]['coverage_enabled']==(not audit and not visible_material) and not statuses[2]['coverage_enabled']
+    assert statuses[1]['coverage_draws']==(0 if material_mode or visible_material else 1) and statuses[2]['coverage_draws']==statuses[1]['coverage_draws']
+    if visible_material:
+        assert statuses[1]['enabled'] and not statuses[2]['enabled'] and statuses[1]['copies']==1 and statuses[1]['overrides']==1
+        assert statuses[1]['ambient_variant_overrides'][variant['original_sha256']]==1
+        delta=float(np.max(np.abs(pixels[1][...,:3]-pixels[0][...,:3])))
+        assert delta>.01,'No material pixel response'
+        result['visible_ambient']={'target':target,'half_strength':True,'max_rgb_delta':delta,'per_variant_dispatch_verified':True}
+        (output/'report.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result['visible_ambient']));return
     if audit:
         directory=output/'SMSM-native-captures'/statuses[1]['output_audit_directory']
         report=json.loads((directory/'report.json').read_bytes())
@@ -111,4 +138,5 @@ if __name__=='__main__':
     p.add_argument('--predicated',action='store_true')
     p.add_argument('--reject',choices=['alpha','sampled-depth'])
     p.add_argument('--material-mode',choices=['census','sample','skip'])
-    a=p.parse_args();run(a.output,a.package,a.setup,a.audit,a.zero_mask,a.later_clear,a.predicated,a.reject,a.material_mode)
+    p.add_argument('--visible-material',choices=['hair','dress']);p.add_argument('--visible-bundle',type=Path)
+    a=p.parse_args();run(a.output,a.package,a.setup,a.audit,a.zero_mask,a.later_clear,a.predicated,a.reject,a.material_mode,a.visible_material,a.visible_bundle)

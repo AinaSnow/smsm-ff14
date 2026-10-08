@@ -8,6 +8,11 @@ from shader_compile import blob_bytes
 
 TARGET = "980154264a89fba1"
 ANCHOR = "mul r8.xyz, r8.xyzx, cb6[3].wwww"
+VARIANTS = {
+    TARGET:dict(ambient='r8',normal='r1',resource=12),
+    '1c5c89ac035f9a44':dict(ambient='r6',normal='r9',resource=14),
+    'e86f0d4916054deb':dict(ambient='r8',normal='r9',resource=14),
+}
 
 
 def strip_reflection(data):
@@ -23,9 +28,12 @@ def strip_reflection(data):
     return stripped
 
 
-def build(extraction, output, compiler, decompiler):
+def build(extraction, output, compiler, decompiler, target=TARGET):
+    if target not in VARIANTS:raise ValueError('Unreviewed ambient material target')
+    spec=VARIANTS[target];ambient,normal,slot=spec['ambient'],spec['normal'],spec['resource']
+    anchor=f'mul {ambient}.xyz, {ambient}.xyzx, cb6[3].wwww'
     output.mkdir(parents=True,exist_ok=False)
-    original=load_original(extraction,TARGET)
+    original=load_original(extraction,target)
     original_path=output/'original.bin';original_path.write_bytes(original)
     base=disassemble_exact(decompiler,original_path)
     if instructions(assemble(decompiler,original_path.with_suffix('.asm'),original_path))!=instructions(original):
@@ -40,7 +48,10 @@ def build(extraction, output, compiler, decompiler):
     resources=re.findall(r'^dcl_resource.*$',text,re.M)
     if resources!=['dcl_resource_structured t12, 16'] or re.search(r'^dcl_(?:sampler|indexableTemp)',text,re.M):
         raise ValueError('Unreviewed helper resources/indexed temps')
-    if re.search(r'\bcb8\[|\bt12\b',base): raise ValueError('Host already uses requested binding slots')
+    if re.search(r'\bcb8\[|\bt'+str(slot)+r'\b',base): raise ValueError('Host already uses requested binding slots')
+    # Explicitly anchor to the exact normal used by this original SH term.
+    expected='\n'.join(f'dp4_sat {ambient}.{c}, {normal}.xyzw, cb6[{i}].xyzw' for i,c in enumerate('xyz'))+'\n'+anchor
+    if expected not in base:raise ValueError('Native SH normal/term changed')
     inputs=re.findall(r'^dcl_input_ps linear (v\d+)\.xyz$',text,re.M)
     if inputs!=['v0','v1'] or len(re.findall(r'^dcl_input',text,re.M))!=2: raise ValueError('Unexpected helper inputs')
     lines=text.splitlines();start=max(i for i,line in enumerate(lines) if line.startswith('dcl_'))+1
@@ -51,11 +62,13 @@ def build(extraction, output, compiler, decompiler):
     result=f'r{old_temps+helper_temps}'
     body=re.sub(r'\br(\d+)\b',lambda m:f'r{old_temps+int(m[1])}',body.removesuffix('ret').rstrip())
     body=re.sub(r'\bo0\b',result,body)
-    body=re.sub(r'\bv[01]\b',lambda m:{'v0':'r1','v1':'v6'}[m[0]],body)
-    insertion='\n// NATIVE AMBIENT SURFACE BEGIN\n'+body+f'\nadd {result}.xyz, {result}.xyzx, -r8.xyzx\nmad r8.xyz, {result}.wwww, {result}.xyzx, r8.xyzx\n// NATIVE AMBIENT SURFACE END'
-    if base.count(ANCHOR)!=1: raise ValueError('Ambient replacement anchor changed')
+    body=re.sub(r'\bv[01]\b',lambda m:{'v0':normal,'v1':'v6'}[m[0]],body)
+    body=re.sub(r'\bt12\b','t'+str(slot),body)
+    insertion='\n// NATIVE AMBIENT SURFACE BEGIN\n'+body+f'\nadd {result}.xyz, {result}.xyzx, -{ambient}.xyzx\nmad {ambient}.xyz, {result}.wwww, {result}.xyzx, {ambient}.xyzx\n// NATIVE AMBIENT SURFACE END'
+    if base.count(anchor)!=1: raise ValueError('Ambient replacement anchor changed')
     added='\n'.join(line for line in declarations if line.startswith(('dcl_constantbuffer','dcl_resource')))+'\n'
-    modified=base.replace(ANCHOR,ANCHOR+insertion)
+    added=re.sub(r'\bt12\b','t'+str(slot),added)
+    modified=base.replace(anchor,anchor+insertion)
     modified=modified.replace('dcl_temps '+str(old_temps),added+'dcl_temps '+str(old_temps+helper_temps+1),1)
     restored=modified.replace(insertion,'').replace(added,'').replace('dcl_temps '+str(old_temps+helper_temps+1),'dcl_temps '+str(old_temps),1)
     if restored!=base: raise ValueError('Original code changed outside bounded insertion')
@@ -64,8 +77,9 @@ def build(extraction, output, compiler, decompiler):
     path=output/'native-ambient.bin';path.write_bytes(data)
     check=disassemble_exact(decompiler,path)
     if instructions(assemble(decompiler,path.with_suffix('.asm'),path))!=instructions(data): raise ValueError('Patched roundtrip mismatch')
-    return path, {'target':TARGET,'original_sha256':digest(original),'candidate_sha256':digest(data),
-                  'added_constants':{'b8':1},'added_structured_resources':{'t12':16},'native_region_layout_vectors':772,
+    return path, {'target':target,'original_sha256':digest(original),'candidate_sha256':digest(data),
+                  'normal_register':normal,'ambient_register':ambient,'resource_slot':slot,
+                  'added_constants':{'b8':1},'added_structured_resources':{'t'+str(slot):16},'native_region_layout_vectors':772,
                   'helper_compile_flags':0,'reflection':'RDEF removed; I/O signatures and instructions retained',
                   'scope':'replace diffuse SH only before native depth attenuation; not exact full background ambient migration',
                   'game_binding_verified':False,'default_enabled':False}

@@ -68,5 +68,21 @@ int main(){try{
     require(!coverage.draw(ctx.Get(),10100,[]{throw std::runtime_error("expired draw");}),"expired marker rendered");
     require(coverage.expire(10100) && !coverage.enabled(),"coverage did not expire after ten seconds");
     coverage.enable(20000);coverage.disable();require(!coverage.draw(ctx.Get(),20001,[]{}),"coverage off failed");
+    // Visible-material variants must use t14 without overwriting the dress's t12 reflection input.
+    auto variant=compile("StructuredBuffer<uint4> r:register(t14);StructuredBuffer<float4> old:register(t12);cbuffer C:register(b8){float4 c;}float4 main():SV_Target{return float4(r[0].x/255.0,c.x,old[0].x,1);}","ps_5_0");
+    D3D11_BUFFER_DESC vd={};vd.ByteWidth=16;vd.Usage=D3D11_USAGE_DEFAULT;vd.BindFlags=D3D11_BIND_SHADER_RESOURCE;vd.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;vd.StructureByteStride=16;
+    float preserved[4]={.4f,0,0,1};D3D11_SUBRESOURCE_DATA vi={preserved,0,0};ComPtr<ID3D11Buffer> preserved_buffer;check(device->CreateBuffer(&vd,&vi,&preserved_buffer));
+    D3D11_SHADER_RESOURCE_VIEW_DESC sv={};sv.Format=DXGI_FORMAT_UNKNOWN;sv.ViewDimension=D3D11_SRV_DIMENSION_BUFFER;sv.Buffer.NumElements=1;
+    ComPtr<ID3D11ShaderResourceView> preserved_view;check(device->CreateShaderResourceView(preserved_buffer.Get(),&sv,&preserved_view));
+    auto *pv=preserved_view.Get();ctx->PSSetShaderResources(12,1,&pv);ctx->PSSetShaderResources(14,1,&pv);
+    AmbientBridge visible;visible.initialize(device.Get(),candidate->GetBufferPointer(),candidate->GetBufferSize());
+    const std::string identity(64,'a');visible.add_variant(device.Get(),identity,variant->GetBufferPointer(),variant->GetBufferSize(),14);
+    visible.set_strength(ctx.Get(),.5f);b=camera.Get();ctx->PSSetConstantBuffers(3,1,&b);require(visible.capture_source(ctx.Get()),"variant source copy failed");
+    require(!visible.draw(ctx.Get(),[]{throw std::runtime_error("unknown variant rendered");},std::string(64,'b')),"unknown variant accepted");
+    require(visible.draw(ctx.Get(),[&]{ctx->Draw(3,0);},identity),"variant did not render");
+    ctx->CopyResource(staging.Get(),output.Get());check(ctx->Map(staging.Get(),0,D3D11_MAP_READ,0,&mapped));pixel=static_cast<float*>(mapped.pData);
+    require(std::abs(pixel[0]-2.f/255)<1e-7f && pixel[1]==.5f && pixel[2]==.4f,"variant t14 or existing t12 corrupted");ctx->Unmap(staging.Get(),0);
+    for(UINT slot:{12u,14u}){ctx->PSGetShaderResources(slot,1,&restored_view);require(restored_view.Get()==preserved_view.Get(),"variant did not preserve existing SRV");}
+    require(visible.variant_overrides.at(identity)==1,"variant count incorrect");
     std::cout<<"WARP ambient guards/restoration and coverage drawing, default-off, expiry, camera independence and exception restoration passed\n";return 0;
 }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}}

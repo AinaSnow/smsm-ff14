@@ -48,7 +48,7 @@ def unpack_r11(words):
 
 
 def render(shader, output, width, height, textures=None, constants=None, structured=None,
-           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f",cubes=None,region_copy=None):
+           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f",cubes=None,region_copy=None,arrays=None):
     """Inputs and every raw float32 output remain on disk for replay/diff.
 
     animation is (constant slot, frames x vectors x float4); updated on the SAME
@@ -64,10 +64,17 @@ def render(shader, output, width, height, textures=None, constants=None, structu
     if target_format not in ("rgba32f","r11g11b10","rgba16f"): raise ValueError("Invalid target format")
     if set(textures or {})&set(cubes or {}) or (set(textures or {})|set(cubes or {}))&set(structured or {}):
         raise ValueError("Resource slots overlap")
+    if set(arrays or {})&(set(textures or {})|set(cubes or {})|set(structured or {})):
+        raise ValueError('Array resource slots overlap')
     output.mkdir(parents=True, exist_ok=False)
     quote = lambda p: json.dumps(str(Path(p).resolve()).replace("\\", "/"), ensure_ascii=False)
     lines = [f"size {width} {height} {targets}", "shader " + quote(shader), "output " + quote(output / "pixels")]
     lines.extend([f"draws {draws}", f"blend {blend}",f"format {target_format}"])
+    for slot,values in (arrays or {}).items():
+        a=np.asarray(values,dtype='<f4')
+        if a.ndim!=4 or a.shape[-1]!=4 or not 1<=a.shape[0]<=64:raise ValueError('Expected layers x height x width x RGBA array')
+        path=output/f'array-{slot}.f32';a.tofile(path)
+        lines.append(f'array {slot} {a.shape[0]} {a.shape[2]} {a.shape[1]} '+quote(path))
     if vertex:
         lines.append("vertex " + quote(vertex))
     if viewport:
@@ -94,7 +101,7 @@ def render(shader, output, width, height, textures=None, constants=None, structu
     if region_copy is not None:
         slot,array=region_copy
         array=np.ascontiguousarray(array,dtype='<f4')
-        if animation is not None or slot in (set(textures or {})|set(cubes or {})|set(structured or {})):
+        if animation is not None or slot in (set(textures or {})|set(cubes or {})|set(structured or {})|set(arrays or {})):
             raise ValueError('Region copy conflicts with animation or an SRV binding')
         if array.ndim!=3 or array.shape[2]!=4 or not 1<=len(array)<=256 or not 1<=array.shape[1]<=4096 or not 0<=slot<128:
             raise ValueError('Region copy must be frames x constant-vectors x float4')

@@ -49,10 +49,12 @@ def main():
     p.add_argument("output", type=Path)
     p.add_argument("--sdk", type=Path, default=ROOT / "artifacts/reshade-sdk-v6.8.0")
     p.add_argument("--ambient-shader", type=Path, help="Embed the explicitly experimental diffuse-only shader; default off")
+    p.add_argument('--ambient-bundle',type=Path,help='Validated exact visible-material ambient variants')
     p.add_argument("--coverage-shader", type=Path, help="Optional exact hair coverage marker, requires ambient package; default off")
     p.add_argument('--material-roster',type=Path,help='Verified named-package identity roster for original material census/sample')
     args = p.parse_args()
-    if args.coverage_shader and not args.ambient_shader:
+    if args.ambient_bundle and args.ambient_shader:raise ValueError('Choose single shader or bundle')
+    if args.coverage_shader and not (args.ambient_shader or args.ambient_bundle):
         raise ValueError('Coverage control requires the experimental package command channel')
     if args.material_roster and not args.coverage_shader:raise ValueError('Material census requires output-audit package')
     commit = subprocess.check_output(["git", "-C", str(args.sdk), "rev-parse", "HEAD"], text=True).strip()
@@ -62,7 +64,7 @@ def main():
         raise ValueError("Use a new immutable build output directory")
     output = args.output.resolve()
     addon = output / "SMSM.NativeLighting.addon64"
-    extra=[];ambient_sha=None
+    extra=[];ambient_sha=None;ambient_variants=[]
     if args.ambient_shader:
         data=args.ambient_shader.read_bytes()
         if not data.startswith(b'DXBC'):raise ValueError('Expected validated DXBC candidate')
@@ -70,6 +72,26 @@ def main():
         (output/'native_ambient_bytecode.hpp').write_text('inline const unsigned char native_ambient_bytecode[] = {'+','.join(str(b) for b in data)+'};\n')
         extra=['/DSMSM_NATIVE_AMBIENT_EXPERIMENT','/I'+str(output)]
         ambient_sha=hashlib.sha256(data).hexdigest()
+    if args.ambient_bundle:
+        bundle=json.loads(args.ambient_bundle.read_bytes())
+        if bundle.get('all_passed') is not True or {v['target'] for v in bundle['variants']}!={'1c5c89ac035f9a44','e86f0d4916054deb'}:
+            raise ValueError('Expected both validated visible material variants')
+        output.mkdir(parents=True);lines=[];rows=[]
+        for i,meta in enumerate(bundle['variants']):
+            path=(args.ambient_bundle.parent/meta['file']).resolve()
+            if not path.is_relative_to(args.ambient_bundle.parent.resolve()):raise ValueError('Variant path escapes bundle')
+            data=path.read_bytes()
+            if not data.startswith(b'DXBC') or hashlib.sha256(data).hexdigest()!=meta['candidate_sha256'] or meta['resource_slot']!=14:
+                raise ValueError('Invalid visible candidate bytes/binding')
+            if not re.fullmatch('[0-9a-f]{64}',meta['original_sha256']):raise ValueError('Invalid original shader identity')
+            name='native_ambient_bytecode' if i==0 else 'native_ambient_bytecode_'+str(i)
+            lines.append('inline const unsigned char '+name+'[] = {'+','.join(str(b) for b in data)+'};')
+            rows.append('{"'+meta['original_sha256']+'",'+name+',sizeof('+name+'),14}')
+            ambient_variants.append({k:meta[k] for k in ('target','original_sha256','candidate_sha256','resource_slot')})
+        lines.append('struct NativeAmbientVariant {const char *sha;const unsigned char *data;size_t size;unsigned slot;};')
+        lines.append('inline const NativeAmbientVariant native_ambient_variants[] = {'+','.join(rows)+'};')
+        (output/'native_ambient_bytecode.hpp').write_text('\n'.join(lines)+'\n')
+        extra=['/DSMSM_NATIVE_AMBIENT_EXPERIMENT','/DSMSM_NATIVE_AMBIENT_BUNDLE','/I'+str(output)]
     coverage_sha=None
     if args.coverage_shader:
         data=args.coverage_shader.read_bytes()
@@ -98,8 +120,9 @@ def main():
     versions = compile_cpp(ROOT / "addons/native_lighting/addon.cpp", addon, args.sdk / "include", dll=True, extra_args=extra)
     manifest = {"schema": 1, "reshade_version": SDK_VERSION, "sdk_commit": SDK_COMMIT, "api_version": 20,
                 "architecture": "x64", "compiler": versions, "default_enabled": False, "runtime_verified": False,
-                "capture_budget_bytes": 256 * 1024 * 1024, "shader_replacement": bool(args.ambient_shader),
+                "capture_budget_bytes": 256 * 1024 * 1024, "shader_replacement": bool(args.ambient_shader or args.ambient_bundle),
                 "ambient_shader_sha256":ambient_sha,
+                "ambient_variants":ambient_variants,
                 "coverage_shader_sha256":coverage_sha,
                 "output_audit":bool(args.coverage_shader),
                 "material_roster_sha256":roster_sha,"material_shader_count":roster_count,

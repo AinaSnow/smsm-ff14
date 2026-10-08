@@ -67,6 +67,10 @@ void init_device(device *dev) {
         states.emplace(dev,std::make_unique<State>(output_path()));
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
         states.at(dev)->ambient.initialize(reinterpret_cast<ID3D11Device *>(dev->get_native()),native_ambient_bytecode,sizeof(native_ambient_bytecode));
+#ifdef SMSM_NATIVE_AMBIENT_BUNDLE
+        for(const auto &variant:native_ambient_variants)
+            states.at(dev)->ambient.add_variant(reinterpret_cast<ID3D11Device *>(dev->get_native()),variant.sha,variant.data,variant.size,variant.slot);
+#endif
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
         states.at(dev)->coverage.initialize(reinterpret_cast<ID3D11Device *>(dev->get_native()),native_coverage_bytecode,sizeof(native_coverage_bytecode));
@@ -170,8 +174,13 @@ template<class F> bool native_draw(command_list *cmd,const char *kind,uint32_t c
         auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
         if(identity==s.diagnostic.shaders.end())return;
         if(identity->second.first==smsm::game_targets[0].migoto)s.ambient.capture_source(ctx);
+#ifdef SMSM_NATIVE_AMBIENT_BUNDLE
+        else if(s.ambient.has_variant(identity->second.second) && count!=UINT32_MAX && instances!=0)
+            replaced=s.ambient.draw(ctx,[&]{call(ctx);},identity->second.second);
+#else
         else if(identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX && instances!=0)
             replaced=s.ambient.draw(ctx,[&]{call(ctx);});
+#endif
 #endif
     });
     return replaced;
@@ -198,6 +207,8 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
         auto write_status=[&] {
             smsm::Json report;report.fields["enabled"]=s.ambient.enabled()?"true":"false";
             report.num("copies",s.ambient.copies);report.num("overrides",s.ambient.overrides);report.num("fallbacks",s.ambient.fallbacks);
+            smsm::Json variant_counts;for(const auto &[sha,count]:s.ambient.variant_overrides)variant_counts.num(sha,count);
+            report.fields["ambient_variant_overrides"]=variant_counts.str();
 #ifdef SMSM_NATIVE_COVERAGE
             report.fields["coverage_enabled"]=s.coverage.enabled()?"true":"false";
             report.num("coverage_draws",s.coverage.draws);report.num("coverage_fallbacks",s.coverage.fallbacks);

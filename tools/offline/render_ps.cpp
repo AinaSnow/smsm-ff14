@@ -23,16 +23,17 @@ std::vector<char> read(const std::string& path) {
     std::vector<char> bytes(static_cast<size_t>(n)); f.seekg(0); f.read(bytes.data(), bytes.size());
     if (!f) throw std::runtime_error("Short read " + path); return bytes;
 }
-struct Input { std::string kind, path; unsigned slot=0, width=0, height=0, stride=0; };
+struct Input { std::string kind, path; unsigned slot=0, width=0, height=0, stride=0,layers=1; };
 int wmain(int argc, wchar_t** argv) try {
     if (argc != 2) throw std::runtime_error("Usage: render_ps.exe <UTF-8 job.txt>");
     std::ifstream job{fs::path(argv[1])}; if (!job) throw std::runtime_error("Cannot open job");
-    unsigned width=0,height=0,targets=1,frames=1,draws=1; std::string shader,vertex,output,key,blend="overwrite",format="rgba32f";
+    unsigned width=0,height=0,targets=1,frames=1,draws=1; std::string shader,vertex,output,key,source_shader,blend="overwrite",format="rgba32f";
     float vx=0,vy=0,vw=0,vh=0; std::vector<Input> inputs;
     while (job >> key) {
         if (key == "size") job >> width >> height >> targets;
         else if (key == "shader") job >> std::quoted(shader);
         else if (key == "vertex") job >> std::quoted(vertex);
+        else if(key=="source_shader")job>>std::quoted(source_shader);
         else if (key == "output") job >> std::quoted(output);
         else if (key == "viewport") job >> vx >> vy >> vw >> vh;
         else if (key == "frames") job >> frames;
@@ -42,6 +43,7 @@ int wmain(int argc, wchar_t** argv) try {
         else {
             Input item; item.kind=key;
             if (key == "texture") job >> item.slot >> item.width >> item.height >> std::quoted(item.path);
+            else if(key=="array")job>>item.slot>>item.layers>>item.width>>item.height>>std::quoted(item.path);
             else if (key == "cube") { job >> item.slot >> item.width >> std::quoted(item.path); item.height=item.width; }
             else if (key == "structured") job >> item.slot >> item.stride >> std::quoted(item.path);
             else if (key == "constant" || key == "animation" || key == "region_copy") job >> item.slot >> std::quoted(item.path);
@@ -92,6 +94,10 @@ int wmain(int argc, wchar_t** argv) try {
 #endif
     auto psBytes=read(shader); ComPtr<ID3D11PixelShader> ps;
     check(device->CreatePixelShader(psBytes.data(), psBytes.size(), nullptr, &ps), "pixel shader");
+#ifdef SMSM_VISIBLE_AMBIENT
+    auto sourceBytes=read(source_shader);ComPtr<ID3D11PixelShader> sourcePs;
+    check(device->CreatePixelShader(sourceBytes.data(),sourceBytes.size(),nullptr,&sourcePs),"original region source shader");
+#endif
     ComPtr<ID3DBlob> vsCode, errors; std::vector<char> vsBytes;
     if (vertex.empty()) {
         const char* source="struct O{float4 p:SV_POSITION;float2 uv:TEXCOORD0;}; O main(uint id:SV_VertexID){O o;float2 uv=float2((id<<1)&2,id&2);o.uv=uv;o.p=float4(uv*float2(2,-2)+float2(-1,1),0,1);return o;}";
@@ -143,18 +149,20 @@ int wmain(int argc, wchar_t** argv) try {
         }
         if (input.slot>=128) throw std::runtime_error("Invalid SRV slot");
         ComPtr<ID3D11ShaderResourceView> view;
-        if (input.kind=="texture" || input.kind=="cube") {
-            unsigned faces=input.kind=="cube"?6:1;
+        if (input.kind=="texture" || input.kind=="cube" || input.kind=="array") {
+            unsigned faces=input.kind=="cube"?6:input.kind=="array"?input.layers:1;
+            if(!faces || faces>64)throw std::runtime_error("Invalid array layer count");
             if (!input.width || !input.height || input.width>4096 || input.height>4096 || bytes.size()!=size_t(input.width)*input.height*16*faces) throw std::runtime_error("Invalid RGBA32F texture size");
             D3D11_TEXTURE2D_DESC td{}; td.Width=input.width; td.Height=input.height; td.MipLevels=1; td.ArraySize=faces; td.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;
             td.SampleDesc.Count=1; td.Usage=D3D11_USAGE_IMMUTABLE; td.BindFlags=D3D11_BIND_SHADER_RESOURCE;
-            if (faces==6) td.MiscFlags=D3D11_RESOURCE_MISC_TEXTURECUBE;
-            D3D11_SUBRESOURCE_DATA data[6]{};
+            if (input.kind=="cube") td.MiscFlags=D3D11_RESOURCE_MISC_TEXTURECUBE;
+            D3D11_SUBRESOURCE_DATA data[64]{};
             for (unsigned face=0;face<faces;++face) { data[face].pSysMem=bytes.data()+size_t(face)*input.width*input.height*16; data[face].SysMemPitch=input.width*16; }
             ComPtr<ID3D11Texture2D> tex; check(device->CreateTexture2D(&td,data,&tex),"input texture");
             D3D11_SHADER_RESOURCE_VIEW_DESC sv{}; sv.Format=td.Format; sv.ViewDimension=D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
             sv.TextureCubeArray.MipLevels=1; sv.TextureCubeArray.NumCubes=1;
-            check(device->CreateShaderResourceView(tex.Get(),faces==6?&sv:nullptr,&view),"texture SRV"); resources.push_back(tex);
+            if(input.kind=="array"){sv={};sv.Format=td.Format;sv.ViewDimension=D3D11_SRV_DIMENSION_TEXTURE2DARRAY;sv.Texture2DArray.MipLevels=1;sv.Texture2DArray.ArraySize=faces;}
+            check(device->CreateShaderResourceView(tex.Get(),input.kind!="texture"?&sv:nullptr,&view),"texture SRV"); resources.push_back(tex);
         } else if (input.kind=="region_copy") {
             if(regionSource || bytes.size()%frames) throw std::runtime_error("Invalid region copy frames");
             size_t size=bytes.size()/frames;
@@ -196,7 +204,9 @@ int wmain(int argc, wchar_t** argv) try {
 #endif
     for (unsigned frame=0;frame<frames;++frame) {
 #ifdef SMSM_RESHADE_PIXEL_TEST
-#ifdef SMSM_MATERIAL_CENSUS
+#ifdef SMSM_VISIBLE_AMBIENT
+        send(frame==1?"half":"off");
+#elif defined(SMSM_MATERIAL_CENSUS)
         send(frame==1?"census":"off");
 #elif defined(SMSM_MATERIAL_SAMPLE)
         send(frame==1?"sample 980154264a89fba1 0":"off");
@@ -215,6 +225,17 @@ int wmain(int argc, wchar_t** argv) try {
             context->UpdateSubresource(regionSource.Get(),0,nullptr,regionBytes.data()+size_t(frame)*regionStride,0,0);
             context->CopyResource(regionDestination.Get(),regionSource.Get());
         }
+#ifdef SMSM_VISIBLE_AMBIENT
+        if(frame==1){
+            if(!regionSource)throw std::runtime_error("Missing synthetic native region source");
+            ComPtr<ID3D11Buffer> common,pbr,camera;
+            context->PSGetConstantBuffers(1,1,&common);context->PSGetConstantBuffers(2,1,&pbr);context->PSGetConstantBuffers(3,1,&camera);
+            auto *p=camera.Get();context->PSSetConstantBuffers(1,1,&p);p=regionSource.Get();context->PSSetConstantBuffers(2,1,&p);
+            context->PSSetShader(sourcePs.Get(),nullptr,0);context->Draw(0,0);
+            p=common.Get();context->PSSetConstantBuffers(1,1,&p);p=pbr.Get();context->PSSetConstantBuffers(2,1,&p);
+            context->PSSetShader(ps.Get(),nullptr,0);
+        }
+#endif
         float clear[4]={0,0,0,0}; for (auto& rtv:rtvs) context->ClearRenderTargetView(rtv.Get(),clear);
 #ifdef SMSM_PREDICATED
         if(frame==1)context->SetPredication(testPredicate.Get(),FALSE);

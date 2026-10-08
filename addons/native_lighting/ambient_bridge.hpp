@@ -9,6 +9,8 @@ class AmbientBridge {
         UINT first=0,count=4096;
     };
     ComPtr<ID3D11PixelShader> candidate;
+    struct Variant {ComPtr<ID3D11PixelShader> shader;UINT slot;};
+    std::map<std::string,Variant> variants;
     ComPtr<ID3D11Buffer> control,region_copy;
     ComPtr<ID3D11ShaderResourceView> region_view;
     Binding camera;
@@ -25,6 +27,13 @@ class AmbientBridge {
 public:
     bool internal=false;
     uint64_t copies=0,overrides=0,fallbacks=0;
+    std::map<std::string,uint64_t> variant_overrides;
+    bool has_variant(const std::string &sha) const {return variants.count(sha)!=0;}
+    void add_variant(ID3D11Device *device,const std::string &sha,const void *bytes,size_t size,UINT slot) {
+        if(sha.size()!=64 || slot>=128 || variants.count(sha))throw std::runtime_error("Invalid ambient variant");
+        Variant v;v.slot=slot;check(device->CreatePixelShader(bytes,size,nullptr,&v.shader));variants.emplace(sha,std::move(v));
+        variant_overrides[sha]=0;
+    }
     bool enabled() const {return strength>0 && candidate;}
     void disable() {strength=0;reset_frame();}
     void initialize(ID3D11Device *device,const void *bytes,size_t size) {
@@ -67,8 +76,13 @@ public:
         ctx->CopySubresourceRegion(region_copy.Get(),0,0,0,0,source.buffer.Get(),0,&box);
         source_id=reinterpret_cast<uint64_t>(source.buffer.Get());ready=true;++copies;return true;
     }
-    template<class DrawCall> bool draw(ID3D11DeviceContext *ctx,DrawCall call) {
+    template<class DrawCall> bool draw(ID3D11DeviceContext *ctx,DrawCall call,const std::string &sha="") {
         if(!enabled() || internal || ctx->GetType()!=D3D11_DEVICE_CONTEXT_IMMEDIATE)return false;
+        auto *replacement=candidate.Get();UINT slot=12;
+        if(!variants.empty()){
+            auto it=variants.find(sha);if(it==variants.end()){++fallbacks;return false;}
+            replacement=it->second.shader.Get();slot=it->second.slot;
+        }
         auto now=binding(ctx,3);
         if(!ready || !now.buffer || now.buffer.Get()!=camera.buffer.Get() || now.first!=camera.first || now.count!=camera.count) {++fallbacks;return false;}
         ComPtr<ID3D11PixelShader> old_shader;
@@ -76,22 +90,22 @@ public:
         ctx->PSGetShader(&old_shader,instances,&classes);
         for(UINT i=0;i<classes && i<256;++i)if(instances[i])instances[i]->Release();
         if(classes) {++fallbacks;return false;}
-        ComPtr<ID3D11ShaderResourceView> old_view;ctx->PSGetShaderResources(12,1,&old_view);
+        ComPtr<ID3D11ShaderResourceView> old_view;ctx->PSGetShaderResources(slot,1,&old_view);
         auto old_control=binding(ctx,8);
         ComPtr<ID3D11DeviceContext1> ctx1;ctx->QueryInterface(IID_PPV_ARGS(&ctx1));
         auto restore=[&]() {
             ctx->PSSetShader(old_shader.Get(),nullptr,0);
-            auto *v=old_view.Get();ctx->PSSetShaderResources(12,1,&v);
+            auto *v=old_view.Get();ctx->PSSetShaderResources(slot,1,&v);
             auto *b=old_control.buffer.Get();
             if(ctx1 && b)ctx1->PSSetConstantBuffers1(8,1,&b,&old_control.first,&old_control.count);
             else ctx->PSSetConstantBuffers(8,1,&b);
             internal=false;
         };
         internal=true;
-        auto *v=region_view.Get();ctx->PSSetShaderResources(12,1,&v);
-        auto *b=control.Get();ctx->PSSetConstantBuffers(8,1,&b);ctx->PSSetShader(candidate.Get(),nullptr,0);
+        auto *v=region_view.Get();ctx->PSSetShaderResources(slot,1,&v);
+        auto *b=control.Get();ctx->PSSetConstantBuffers(8,1,&b);ctx->PSSetShader(replacement,nullptr,0);
         try {call();} catch(...) {restore();throw;}
-        restore();++overrides;return true;
+        restore();++overrides;if(!variants.empty())++variant_overrides[sha];return true;
     }
 };
 }

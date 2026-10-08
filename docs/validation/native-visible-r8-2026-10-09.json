@@ -1,0 +1,199 @@
+{
+  "addon_sha256": "815e47343043584d6acd580f84475f66bb1242ca1244f67ab5bfc4f0d1aa7034",
+  "default_enabled": false,
+  "installed": true,
+  "game_visual_benefit_verified": false,
+  "performance_verified": false,
+  "variants": [
+    {
+      "target": "1c5c89ac035f9a44",
+      "original_sha256": "1b006d5faaa6e0060f919880470a7709bfe0477e8a54390666b64bc31de084ca",
+      "candidate_sha256": "8fa99fe4904303b20a105797a8836a05d6e89d3c35a8d31ce7edca445b65a8ce",
+      "resource_slot": 14
+    },
+    {
+      "target": "e86f0d4916054deb",
+      "original_sha256": "9148a1e07d77dedfdb263f395d5c2e3d09d0cfd43efe33cb2ed3b8b1cdfeef74",
+      "candidate_sha256": "4292bf84111c02b99ad1e512f50f5fb8d38f4654cf6d7b55e6103da265ae8832",
+      "resource_slot": 14
+    }
+  ],
+  "checks": [
+    {
+      "name": "1c5c89ac035f9a44 global-only fallback",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "1c5c89ac035f9a44 region 1 full material oracle",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "name": "1c5c89ac035f9a44 region 2 full material oracle",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "name": "1c5c89ac035f9a44 disabled",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "1c5c89ac035f9a44 half strength oracle",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "name": "1c5c89ac035f9a44 native attenuation retained",
+      "passed": true,
+      "max_abs_error": 2.9802322387695312e-08
+    },
+    {
+      "name": "1c5c89ac035f9a44 FP16 output",
+      "passed": true,
+      "max_abs_error": 0.00048828125
+    },
+    {
+      "name": "1c5c89ac035f9a44 region 3 full material oracle",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "name": "1c5c89ac035f9a44 normal SH reflection and material tables retained",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "1c5c89ac035f9a44 native discard",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "1c5c89ac035f9a44 missing region fallback",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "1c5c89ac035f9a44 invalid region fallback",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "e86f0d4916054deb global-only fallback",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "e86f0d4916054deb region 1 full material oracle",
+      "passed": true,
+      "max_abs_error": 1.1920928955078125e-07
+    },
+    {
+      "name": "e86f0d4916054deb region 2 full material oracle",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "name": "e86f0d4916054deb disabled",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "e86f0d4916054deb half strength oracle",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "name": "e86f0d4916054deb native attenuation retained",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "name": "e86f0d4916054deb FP16 output",
+      "passed": true,
+      "max_abs_error": 0.00048828125
+    },
+    {
+      "name": "e86f0d4916054deb region 3 full material oracle",
+      "passed": true,
+      "max_abs_error": 1.1920928955078125e-07
+    },
+    {
+      "name": "e86f0d4916054deb normal SH reflection and material tables retained",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "e86f0d4916054deb native discard",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "e86f0d4916054deb missing region fallback",
+      "passed": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "name": "e86f0d4916054deb invalid region fallback",
+      "passed": true,
+      "max_abs_error": 0.0
+    }
+  ],
+  "draw_jobs": 38,
+  "hardware": [
+    {
+      "target": "1c5c89ac035f9a44",
+      "errors": {
+        "baseline_vs_warp": 2.9802322387695312e-08,
+        "middle_frame_vs_expected": 5.960464477539063e-08,
+        "off_restores_baseline": 0.0
+      },
+      "result": {
+        "target": "1c5c89ac035f9a44",
+        "half_strength": true,
+        "max_rgb_delta": 0.056833088397979736,
+        "per_variant_dispatch_verified": true
+      },
+      "copies": 1,
+      "overrides": 1,
+      "fallbacks": 0
+    },
+    {
+      "target": "e86f0d4916054deb",
+      "errors": {
+        "baseline_vs_warp": 5.960464477539063e-08,
+        "middle_frame_vs_expected": 5.960464477539063e-08,
+        "off_restores_baseline": 0.0
+      },
+      "result": {
+        "target": "e86f0d4916054deb",
+        "half_strength": true,
+        "max_rgb_delta": 0.051636964082717896,
+        "per_variant_dispatch_verified": true
+      },
+      "copies": 1,
+      "overrides": 1,
+      "fallbacks": 0
+    }
+  ],
+  "bridge_t14_selection_t12_preservation_and_restore": true,
+  "legacy_candidate_byte_identical": true,
+  "installer": {
+    "simulated_client": true,
+    "real_client_written": false,
+    "r10_roundtrip_exact": true,
+    "native_interruption_recovered": true,
+    "collision_modified_and_running_guards": true,
+    "old_to_new_addon_update": true,
+    "interrupted_update_restores_previous_addon": true,
+    "runtime_and_user_settings_retained_on_update": true,
+    "atomic_command_publication_and_duplicate_rejection": true
+  },
+  "vs_static_audit": {
+    "hair": "972493e7d05b8002",
+    "dress": "8ac278fab6687209",
+    "finding": "o6.xyz uses same r22.xyz as main-view projection; full skinning/world-space replay not established"
+  },
+  "settings_retained": true
+}
