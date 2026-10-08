@@ -33,14 +33,18 @@ def main():
                     assert len(raw) == item["selected_bytes"]
                     assert hashlib.sha256(raw).hexdigest() == item["sha256"]
                     if item["label"].startswith("ps-t"):
-                        expected = struct.pack("<612f", *(i / 1024 for i in range(612)))
+                        if item.get("resource_format") == 87:
+                            expected = bytes(channel % 256 for y in range(9) for x in range(17)
+                                             for channel in (x * 3 + y, x + y * 7, x * 11 + y * 17, (x ^ y) ^ 128))
+                        else:
+                            expected = struct.pack("<612f", *(i / 1024 for i in range(612)))
                         assert raw == expected, "row padding or float bits changed"
                     elif item["label"] == "om-depth":
                         assert raw == struct.pack("<153f", *([0.625] * 153))
                     elif item["label"].endswith("b0") or "-b" in item["label"]:
                         assert raw in (struct.pack("<256f", *(i + 0.25 for i in range(256))), struct.pack("<256f", *([3.5] * 256)))
         reports.append({"path": str(path.relative_to(root)), "status": report["status"], "raw_bytes": report["selected_raw_bytes"]})
-    assert len(reports) == 8, reports
+    assert len(reports) == 9, reports
     normal = sorted((root / "captures/normal").rglob("manifest.json"))
     assert json.loads(normal[0].read_text())["draws"][0]["resources"][0]["sha256"] != json.loads(normal[1].read_text())["draws"][0]["resources"][0]["sha256"], "old constants reused"
     (root / "report.json").write_text(json.dumps({"source_kind": "synthetic", "actual_d3d11_draws": True,

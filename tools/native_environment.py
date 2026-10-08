@@ -118,6 +118,39 @@ def transition(game, before, after, backups):
     return backup
 
 
+def read_candidate(package):
+    meta = json.loads((package / "SMSM-native-package.json").read_bytes())
+    if (meta.get("reshade_version") != "6.8.0" or meta.get("api_version") != 20
+            or meta.get("default_enabled") is not False or meta.get("shader_replacement") is not False
+            or meta.get("architecture") != "x64"):
+        raise ValueError("Unreviewed package configuration")
+    addon = (package / "SMSM.NativeLighting.addon64").read_bytes()
+    if digest(addon) != meta["files"]["SMSM.NativeLighting.addon64"]:
+        raise ValueError("Native package integrity failure")
+    return meta, addon
+
+
+def with_receipt(files, meta):
+    data = dict(files)
+    data[RECEIPT] = encoded({"schema": 1, "client_build": BUILD, "files": {n: digest(v) for n, v in files.items()},
+                            "default_enabled": False, "package_sha256": digest(encoded(meta))})
+    return data
+
+
+def updated(game, package):
+    """Replace only an owned add-on and its receipt; retain runtime and user settings."""
+    if (game / "ffxivgame.ver").read_text().strip() != BUILD:
+        raise ValueError("Game version requires a new shader identity audit")
+    before = current(game)
+    if not before or digest(before["d3d11.dll"]) != RUNTIME_SHA256:
+        raise ValueError("Update requires the verified fixed diagnostic runtime")
+    for name in ("dxgi.dll", "d3d9.dll", "opengl32.dll", "GShade64.dll", "SMSM-preview.json", "SMSM-state.json", "SMSM-transaction.json"):
+        if (game / name).exists():
+            raise ValueError(f"Conflicting environment: {name}")
+    meta, addon = read_candidate(package)
+    return before, with_receipt({"d3d11.dll": before["d3d11.dll"], "SMSM.NativeLighting.addon64": addon}, meta)
+
+
 def desired(game, package, runtime):
     if (game / "ffxivgame.ver").read_text().strip() != BUILD:
         raise ValueError("Game version requires a new shader identity audit")
@@ -127,24 +160,16 @@ def desired(game, package, runtime):
     fixes = game / "SMSM-ShaderFixes"
     if fixes.exists() and (fixes.is_symlink() or getattr(fixes.lstat(), "st_file_attributes", 0) & 0x400 or any(fixes.iterdir())):
         raise ValueError("Existing shader environment is not empty")
-    meta = json.loads((package / "SMSM-native-package.json").read_bytes())
-    if meta.get("reshade_version") != "6.8.0" or meta.get("api_version") != 20 or meta.get("default_enabled") is not False:
-        raise ValueError("Unreviewed package configuration")
-    addon = (package / "SMSM.NativeLighting.addon64").read_bytes()
-    if digest(addon) != meta["files"]["SMSM.NativeLighting.addon64"]:
-        raise ValueError("Native package integrity failure")
+    meta, addon = read_candidate(package)
     runtime_bytes = runtime.read_bytes()
     if digest(runtime_bytes) != RUNTIME_SHA256:
         raise ValueError("Requires exact official full-add-on ReShade 6.8.0 x64 runtime")
-    data = {"d3d11.dll": runtime_bytes, "SMSM.NativeLighting.addon64": addon}
-    data[RECEIPT] = encoded({"schema": 1, "client_build": BUILD, "files": {n: digest(v) for n, v in data.items()},
-                            "default_enabled": False, "package_sha256": digest(encoded(meta))})
-    return data
+    return with_receipt({"d3d11.dll": runtime_bytes, "SMSM.NativeLighting.addon64": addon}, meta)
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=["install", "status", "uninstall", "recover"])
+    p.add_argument("action", choices=["install", "update", "status", "uninstall", "recover"])
     p.add_argument("--game", required=True, type=Path)
     p.add_argument("--package", type=Path)
     p.add_argument("--runtime", type=Path)
@@ -165,6 +190,10 @@ def main():
         if before or not args.package or not args.runtime:
             raise ValueError("Install requires a pristine environment, --package and --runtime")
         after = desired(game, args.package, args.runtime)
+    elif args.action == "update":
+        if not args.package or args.runtime:
+            raise ValueError("Update requires --package only; runtime switching is not supported")
+        before, after = updated(game, args.package)
     else:
         if not before:
             raise ValueError("No owned native installation")

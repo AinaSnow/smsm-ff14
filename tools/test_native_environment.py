@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 import manage_preview as managed
 import native_environment as native
+from request_native_capture import request
 
 
 def rejects(fn):
@@ -19,6 +20,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("output", type=Path)
     p.add_argument("--package", required=True, type=Path)
+    p.add_argument("--previous-package", type=Path, help="Exercise a real old-to-new add-on update")
     p.add_argument("--runtime", required=True, type=Path)
     args = p.parse_args()
     root = args.output.absolute()
@@ -37,8 +39,48 @@ def main():
     r10_backup = managed.transition(game, old, {}, root / "managed-backups")
     after = native.desired(game, args.package, args.runtime)
     with patch.object(native, "running_game", return_value=False):
+        if args.previous_package:
+            initial = native.desired(game, args.previous_package, args.runtime)
+            assert initial["SMSM.NativeLighting.addon64"] != after["SMSM.NativeLighting.addon64"]
+            native.transition(game, {}, initial, root / "native-backups")
+            settings = game / "ReShade.ini"
+            settings.write_bytes(b"[GENERAL]\nUserSettings=preserve\n")
+            before_update, next_files = native.updated(game, args.package)
+            assert next_files["d3d11.dll"] == before_update["d3d11.dll"]
+            assert next_files == after
+            original_update_write = native.write_atomic
+            def fail_update(path, value):
+                if path == game / "SMSM.NativeLighting.addon64":
+                    raise OSError("simulated interrupted add-on update")
+                original_update_write(path, value)
+            try:
+                with patch.object(native, "write_atomic", side_effect=fail_update):
+                    native.transition(game, before_update, next_files, root / "native-backups")
+            except OSError:
+                pass
+            assert (game / native.JOURNAL).exists()
+            native.recover(game)
+            assert native.current(game) == initial
+            native.transition(game, initial, next_files, root / "native-backups")
+            assert native.current(game) == after
+            assert settings.read_bytes() == b"[GENERAL]\nUserSettings=preserve\n"
+            native.transition(game, after, {}, root / "native-backups")
+            settings.unlink()
         native.transition(game, {}, after, root / "native-backups")
         assert native.current(game) == after
+        captures = game / "SMSM-native-captures"
+        captures.mkdir()
+        request(game, "enable")
+        command = game / "SMSM-native-command.txt"
+        assert command.read_bytes() == b"enable\n"
+        try:
+            request(game, "capture")
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("Pending command replaced")
+        assert command.read_bytes() == b"enable\n" and not list(captures.glob(".SMSM-native-command-*.tmp"))
+        command.unlink()
         rejects(lambda: native.transition(game, {}, after, root / "native-backups"))
         addon = game / "SMSM.NativeLighting.addon64"
         addon.write_bytes(b"edited")
@@ -68,7 +110,10 @@ def main():
     with patch.object(native, "running_game", return_value=True):
         rejects(lambda: native.transition(game, {}, after, root / "native-backups"))
     (root / "report.json").write_text(json.dumps({"simulated_client": True, "real_client_written": False,
-        "r10_roundtrip_exact": True, "native_interruption_recovered": True, "collision_modified_and_running_guards": True}, indent=2) + "\n")
+        "r10_roundtrip_exact": True, "native_interruption_recovered": True, "collision_modified_and_running_guards": True,
+        "old_to_new_addon_update": bool(args.previous_package), "interrupted_update_restores_previous_addon": bool(args.previous_package),
+        "runtime_and_user_settings_retained_on_update": bool(args.previous_package),
+        "atomic_command_publication_and_duplicate_rejection": True}, indent=2) + "\n")
     print("Simulated r10 roundtrip, interrupted recovery and ownership/process guards passed")
 
 

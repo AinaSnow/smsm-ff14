@@ -21,7 +21,10 @@ def main():
             raise ValueError("Candidate integrity failure")
     for name in ("native_environment.py", "manage_preview.py", "request_native_capture.py", "analyze_native_capture.py", "record_validation.py"):
         entries["tools/" + name] = ROOT / "tools" / name
-    for name in ("NATIVE-DIAGNOSTIC.md", "NATIVE-LIGHTING-PLAN.md", "MANAGEMENT.md", "validation/native-diagnostic-2026-10-08.json"):
+    for name in ("NATIVE-DIAGNOSTIC.md", "NATIVE-DIAGNOSTIC-R2.md", "NATIVE-LIGHTING-AUDIT.md", "NATIVE-LIGHTING-PLAN.md", "MANAGEMENT.md",
+                 "validation/native-diagnostic-2026-10-08.json", "validation/native-diagnostic-r2-2026-10-08.json",
+                 "validation/native-live-first-capture-2026-10-08.json", "validation/native-live-camera-comparison-2026-10-08.json",
+                 "validation/native-live-scene-switch-2026-10-08.json"):
         entries["docs/" + name] = ROOT / "docs" / name
     entries["LICENSE"] = ROOT / "LICENSE"
     hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name,path in entries.items()}

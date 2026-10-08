@@ -89,6 +89,25 @@ int wmain(int argc,wchar_t **argv) {
         D3D11_MAPPED_SUBRESOURCE m;check(f.ctx->Map(read.Get(),0,D3D11_MAP_READ,0,&m));
         const float *p=reinterpret_cast<const float *>(static_cast<unsigned char *>(m.pData)+m.RowPitch*2)+4*3;
         require(p[0]==float((2*17+3)*4)/1024,"capture changed application output");f.ctx->Unmap(read.Get(),0);
+        // Actual game r1 reported DXGI 87 normals. Verify exact BGRA bytes, padded
+        // staging rows, and the GPU's independent logical RGBA interpretation.
+        std::vector<unsigned char> bgra(17*9*4);
+        for(unsigned y=0;y<9;++y)for(unsigned x=0;x<17;++x){
+            auto i=(y*17+x)*4;bgra[i]=static_cast<unsigned char>(x*3+y);bgra[i+1]=static_cast<unsigned char>(x+y*7);
+            bgra[i+2]=static_cast<unsigned char>(x*11+y*17);bgra[i+3]=static_cast<unsigned char>((x^y)^128);
+        }
+        D3D11_TEXTURE2D_DESC bd={};bd.Width=17;bd.Height=9;bd.MipLevels=bd.ArraySize=1;
+        bd.Format=DXGI_FORMAT_B8G8R8A8_UNORM;bd.SampleDesc.Count=1;bd.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+        D3D11_SUBRESOURCE_DATA bi={bgra.data(),17*4,0};ComPtr<ID3D11Texture2D> bt;ComPtr<ID3D11ShaderResourceView> bv;
+        check(f.device->CreateTexture2D(&bd,&bi,&bt));check(f.device->CreateShaderResourceView(bt.Get(),nullptr,&bv));
+        auto *bound=bv.Get();f.ctx->PSSetShaderResources(5,1,&bound);f.ctx->PSSetShaderResources(10,1,&bound);
+        Diagnostic bg(root/"bgra8");f.identify(bg);bg.init_resource(reinterpret_cast<uint64_t>(bt.Get()),true);
+        bg.enabled=true;bg.arm();f.draw(bg,0);f.finish(bg);require(bg.status=="partial_targets","BGRA target capture missing");
+        f.ctx->CopyResource(read.Get(),f.out.Get());check(f.ctx->Map(read.Get(),0,D3D11_MAP_READ,0,&m));
+        p=reinterpret_cast<const float *>(static_cast<unsigned char *>(m.pData)+m.RowPitch*2)+4*3;
+        const unsigned i=(2*17+3)*4;const unsigned channel[]={2,1,0,3};
+        for(unsigned c=0;c<4;++c)require(std::abs(p[c]-float(bgra[i+channel[c]])/255)<1e-7f,"BGRA logical channel order or output changed");
+        f.ctx->Unmap(read.Get(),0);
         std::cout<<"Actual WARP draws, bounded staging readback and lifecycle checks passed\n";return 0;
     } catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}
 }
