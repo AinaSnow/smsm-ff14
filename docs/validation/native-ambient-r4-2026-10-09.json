@@ -1,0 +1,318 @@
+{
+  "date": "2026-10-09",
+  "candidate": "r4 native ambient diffuse surface experiment",
+  "default_enabled": false,
+  "addon_sha256": "f3c9f01671cae18dd00abc80cf532e254227c38ca0dad28bc34ef942f9f4de81",
+  "shader_sha256": "47bd23612a5b0fda513578c81ca0acb3e2f23313c1d08ceab9165c7c89f938b3",
+  "material_checks": [
+    {
+      "name": "white global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "white disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "skin global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "skin disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "metal global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "metal disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "wet global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "wet disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "tilted global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "tilted disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "alpha global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "alpha disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "discard global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "discard disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "depth-reject global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "depth-reject disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "type1 global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "type1 disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "type2 global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "type2 disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "type3 global-only native identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "type3 disabled identity",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "region geometry 1",
+      "passed": true,
+      "max_abs_error": 1.0513963322189568e-07,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "region alpha retained 1",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 0
+    },
+    {
+      "name": "region geometry 2",
+      "passed": true,
+      "max_abs_error": 6.905220056863115e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "region alpha retained 2",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 0
+    },
+    {
+      "name": "region geometry 3",
+      "passed": true,
+      "max_abs_error": 6.905220056863115e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "region alpha retained 3",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 0
+    },
+    {
+      "name": "linear ambient strength",
+      "passed": true,
+      "max_abs_error": 5.960464477539063e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "count-zero falls back",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "count-oversized falls back",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "unknown-type falls back",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "missing-global falls back",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "missing region SRV falls back",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "global-only differing object light retained",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "directional full-region native identity 0",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "directional full-region native identity 1",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "directional full-region native identity 2",
+      "passed": true,
+      "max_abs_error": 0.0,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "three overlap ordering",
+      "passed": true,
+      "max_abs_error": 6.462792190298217e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "FP16 output storage",
+      "passed": true,
+      "max_abs_error": 0.9952392578125,
+      "tolerance": 1.001
+    },
+    {
+      "name": "moving native region 0",
+      "passed": true,
+      "max_abs_error": 5.790119628201751e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "moving native region 1",
+      "passed": true,
+      "max_abs_error": 5.790119628201751e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "moving native region 2",
+      "passed": true,
+      "max_abs_error": 5.790119628201751e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "moving native region 3",
+      "passed": true,
+      "max_abs_error": 6.905220056863115e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "moving native region 4",
+      "passed": true,
+      "max_abs_error": 9.691268587630475e-08,
+      "tolerance": 4e-06
+    },
+    {
+      "name": "captured native parameters real draw finite",
+      "passed": true
+    },
+    {
+      "name": "captured region crossing changes native material output",
+      "passed": true,
+      "max_abs_rgb_delta": 0.0036559998989105225
+    }
+  ],
+  "all_material_checks_passed": true,
+  "actual_draw_jobs": 56,
+  "original_io_signatures_preserved": true,
+  "stale_reflection_removed": true,
+  "bridge_warp_state_restoration_and_camera_frame_guards": true,
+  "official_runtime_zero_vertex_on_off_test": {
+    "on": {
+      "copies": 3,
+      "enabled": true,
+      "fallbacks": 0,
+      "overrides": 3
+    },
+    "off": {
+      "copies": 3,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 3
+    }
+  },
+  "install_state": "r4_ambient_installed_default_off",
+  "settings_retained": true,
+  "game_visual_benefit_verified": false,
+  "performance_verified": false,
+  "scope": "diffuse SH surface sampling only; geometry ordering with native SH; native mesh attenuation/AO/reflection retained",
+  "limits": [
+    "Synthetic geometry and material swatches; no player object association",
+    "Geometric region selection plus native SH only; background sky/AO weighting is not copied",
+    "Original mesh attenuation/reflection/AO logic remains intact",
+    "Captured regions are frozen inputs here; GPU CB-to-owned-SRV copy tested, live bridge not yet implemented"
+  ]
+}
