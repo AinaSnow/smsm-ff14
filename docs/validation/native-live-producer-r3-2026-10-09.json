@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-09",
+  "candidate": "r3",
+  "capture_status": "snapshots_complete",
+  "raw_data_integrity_verified": true,
+  "raw_bytes": 91258656,
+  "known_depth_reconstruction_ps_matches": true,
+  "known_passthrough_vs_matches": true,
+  "producer_same_capture_frame_and_epoch": true,
+  "producer_viewport_matches_consumer": true,
+  "producer_sampler": {
+    "address_u": 3,
+    "address_v": 3,
+    "address_w": 3,
+    "filter": 0
+  },
+  "camera_same_resource_and_generation": true,
+  "camera_same_last_observed_update": true,
+  "camera_range_equal": true,
+  "common_buffer_same_resource": false,
+  "depth_copy_source_matches_consumer_attachment": true,
+  "depth_source_same_last_observed_event": false,
+  "copy_subresources": [
+    0,
+    0
+  ],
+  "normals": [
+    {
+      "target": "415a922293923fa4",
+      "observed_draw_count": 2090,
+      "retained_shader_count": 16,
+      "writer_set_truncated": true,
+      "last_shader_matches_historical_candidate": true
+    },
+    {
+      "target": "980154264a89fba1",
+      "observed_draw_count": 28,
+      "retained_shader_count": 9,
+      "writer_set_truncated": false,
+      "last_shader_matches_historical_candidate": true
+    }
+  ],
+  "world_region_comparison": {
+    "region_counts": [
+      4,
+      4
+    ],
+    "entries": [
+      {
+        "entry": 0,
+        "types": [
+          3,
+          3
+        ],
+        "status": "local_region_compared",
+        "view_matrix_max_delta": 2.167429506778717,
+        "world_reference_max_delta": 1.0327764119466565e-06,
+        "color_max_delta": 0.0005309334956109524,
+        "sh_payload_max_delta": 0.003399318316951394
+      },
+      {
+        "entry": 1,
+        "types": [
+          3,
+          3
+        ],
+        "status": "local_region_compared",
+        "view_matrix_max_delta": 1.4449536204338074,
+        "world_reference_max_delta": 5.519136507814437e-07,
+        "color_max_delta": 0.0005309334956109524,
+        "sh_payload_max_delta": 0.003399318316951394
+      },
+      {
+        "entry": 2,
+        "types": [
+          2,
+          2
+        ],
+        "status": "local_region_compared",
+        "view_matrix_max_delta": 1.0905652046203613,
+        "world_reference_max_delta": 5.88366736664625e-07,
+        "color_max_delta": 0.0005309334956109524,
+        "sh_payload_max_delta": 0.003399318316951394
+      },
+      {
+        "entry": 3,
+        "types": [
+          0,
+          0
+        ],
+        "status": "global_region_matrix_unused_by_shader",
+        "color_max_delta": 0.27369493804872036,
+        "sh_payload_max_delta": 0.2246347228065133
+      }
+    ],
+    "pairing": "same array index and unchanged type/env-index/interpolation-range/priority; no best-match search",
+    "producer_and_world_semantics_independently_verified": false,
+    "status": "compared",
+    "limits": [
+      "Type zero skips the spatial matrix in the original shader",
+      "SH/color may change with time, weather and camera; this is not a frozen-light comparison",
+      "Camera field interpretation and per-pixel/object coverage still require corroboration"
+    ]
+  },
+  "diagnostic_stopped": true,
+  "independent_geometry_evidence": false,
+  "complete_write_history_verified": false,
+  "lighting_modified": false,
+  "limits": [
+    "Depth source has later observed draw intents; copied contents are not proven identical to consumer-stage attachment",
+    "Producer common buffer differs from consumer; its bytes were not separately captured",
+    "Normal writer sets can truncate and do not establish pixel coverage; geometry/stencil/blend need separate interpretation",
+    "Raw addresses, matrices, capture identifiers and payload fingerprints remain local"
+  ]
+}
