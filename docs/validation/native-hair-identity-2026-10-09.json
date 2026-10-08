@@ -1,0 +1,38 @@
+{
+  "client_build": "2026.09.15.0000.0000",
+  "target": "980154264a89fba1",
+  "resource_path": "shader/sm5/shpk/hair.shpk",
+  "resource_hash": "e3466a820e28089d",
+  "named_package_read": true,
+  "exact_dxbc_match": true,
+  "shader_sha256": "f8face0fb530f3b884c2a6b2af289fa1a8bb3ed0e4301b03efd34afadf7c76f7",
+  "matching_manifest_entries": 1,
+  "unique_package_pixel_shaders": 200,
+  "visible_player_coverage_verified": false,
+  "limits": [
+    "Exact package membership does not identify a player or NPC draw.",
+    "One shader variant does not establish coverage of all hair, skin or clothing.",
+    "No new frame capture or game rendering modification was performed."
+  ],
+  "verification_checks": [
+    {
+      "name": "exact",
+      "passed": true,
+      "expected_success": true,
+      "exit_code": 0
+    },
+    {
+      "name": "wrong-package",
+      "passed": true,
+      "expected_success": false,
+      "exit_code": 1
+    },
+    {
+      "name": "changed-bytecode",
+      "passed": true,
+      "expected_success": false,
+      "exit_code": 1
+    }
+  ],
+  "visual_result": "User reported no discernible improvement; effect remains off."
+}

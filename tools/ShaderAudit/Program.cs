@@ -5,9 +5,20 @@ using System.Text.Json;
 using Lumina;
 using Lumina.Data;
 
+if (args.Length == 6 && args[0] == "--identify")
+{
+    try { return ShaderIdentity.Verify(args[1], args[2], args[3], args[4], args[5]); }
+    catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException or JsonException)
+    {
+        Console.Error.WriteLine(e.Message);
+        return 1;
+    }
+}
+
 if (args.Length != 2)
 {
     Console.Error.WriteLine("Usage: ShaderAudit <client root> <new output directory>");
+    Console.Error.WriteLine("   or: ShaderAudit --identify <client root> <extraction> <shader hash> <resource path> <new report.json>");
     return 2;
 }
 var client = Path.GetFullPath(args[0]);
@@ -29,7 +40,12 @@ foreach (var name in new[] { "tonemapping", "brightpassfilter", "mergetextures2"
 foreach (var folder in new[] { "shader/sm5/", "shader/sm5/shcd/" })
 {
     var path = folder + name + ".shcd";
-    names[GameData.GetFileHash(path)] = path;
+    names[ShaderIdentity.IndexKey(path)] = path;
+}
+foreach (var name in new[] { "character", "characterlegacy", "characterglass", "characterstockings", "skin", "hair", "iris", "bg", "bgcolorchange", "bguvscroll", "bguvscrollb", "bgcrestchange" })
+{
+    var path = "shader/sm5/shpk/" + name + ".shpk";
+    names[ShaderIdentity.IndexKey(path)] = path;
 }
 foreach (var repo in game.Repositories.OrderBy(r => r.Key))
 {
