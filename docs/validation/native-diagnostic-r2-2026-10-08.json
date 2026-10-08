@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-08",
+  "candidate": "native diagnostic r2",
+  "package": {
+    "schema": 1,
+    "reshade_version": "6.8.0",
+    "sdk_commit": "18deaa52de0c425a78b329e9cb3c497281cd00ec",
+    "api_version": 20,
+    "architecture": "x64",
+    "compiler": {
+      "msvc": "14.51.36231",
+      "windows_sdk": "10.0.26100.0"
+    },
+    "default_enabled": false,
+    "runtime_verified": false,
+    "capture_budget_bytes": 268435456,
+    "shader_replacement": false,
+    "files": {
+      "SMSM.NativeLighting.addon64": "35ce17db352c3937620e3d191b08f3f10967fbd757d6b0a3be9d7a08e7c0c6f5"
+    },
+    "sources": {
+      "addons/native_lighting/addon.cpp": "2ac4b4152742e11d3c980da11264d6c349372efd0d02c5487d48718f785c15cc",
+      "addons/native_lighting/diagnostic.hpp": "72eba9462be626a1811d549dec8084a310b20a6c57e828b9482cbd104420bc0b",
+      "addons/native_lighting/test_diagnostic.cpp": "1d1c9edddc55cdf10982fe24a97fe87620b6eca124dd6bc312af6bcda9fef010",
+      "addons/native_lighting/test_reshade_host.cpp": "780920c261a8cdbf56e7ebdf4fc28c9e2a1b182149f1f7fe68b97595a1287c48"
+    }
+  },
+  "reproducible_addon_bytes": true,
+  "warp": {
+    "source_kind": "synthetic",
+    "actual_d3d11_draws": true,
+    "game_verified": false,
+    "captures": [
+      {
+        "path": "captures\\absent\\capture-42976-85224968-0\\manifest.json",
+        "status": "missing_targets",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\bgra8\\capture-42976-85225031-0\\manifest.json",
+        "status": "partial_targets",
+        "raw_bytes": 13276
+      },
+      {
+        "path": "captures\\budget\\capture-42976-85224968-0\\manifest.json",
+        "status": "budget_exceeded",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\cancel\\capture-42976-85224984-0\\manifest.json",
+        "status": "cancelled",
+        "raw_bytes": 16948
+      },
+      {
+        "path": "captures\\deferred\\capture-42976-85225000-0\\manifest.json",
+        "status": "missing_targets",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\lost_shader\\capture-42976-85224984-0\\manifest.json",
+        "status": "missing_targets",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\normal\\capture-42976-85224921-0\\manifest.json",
+        "status": "snapshots_complete",
+        "raw_bytes": 36968
+      },
+      {
+        "path": "captures\\normal\\capture-42976-85224953-0\\manifest.json",
+        "status": "partial_targets",
+        "raw_bytes": 16948
+      },
+      {
+        "path": "captures\\recreated\\capture-42976-85225015-0\\manifest.json",
+        "status": "partial_targets",
+        "raw_bytes": 16948
+      }
+    ]
+  },
+  "official_runtime_callback_host": {
+    "source_kind": "synthetic_host",
+    "actual_reshade_runtime": true,
+    "driver": "hardware",
+    "vertices": 0,
+    "game_verified": false,
+    "runtime_sha256": "0cee63f9c9f13f3ac909c5b4903f4dbb4b719a7ab3b4f13b0deaf83c814b94f7",
+    "setup_sha256": "afe4c8f13048306307983b8b3d41d5bf00a86820440b0e57dea10950e1176445",
+    "addon_sha256": "35ce17db352c3937620e3d191b08f3f10967fbd757d6b0a3be9d7a08e7c0c6f5",
+    "captures": [
+      "SMSM-native-captures\\capture-34160-85236078-0\\manifest.json",
+      "SMSM-native-captures\\capture-34160-85236421-0\\manifest.json"
+    ]
+  },
+  "simulated_update_and_restoration": {
+    "simulated_client": true,
+    "real_client_written": false,
+    "r10_roundtrip_exact": true,
+    "native_interruption_recovered": true,
+    "collision_modified_and_running_guards": true,
+    "old_to_new_addon_update": true,
+    "interrupted_update_restores_previous_addon": true,
+    "runtime_and_user_settings_retained_on_update": true,
+    "atomic_command_publication_and_duplicate_rejection": true
+  },
+  "deployment": {
+    "status": "r2_installed_default_off",
+    "runtime_sha256": "0cee63f9c9f13f3ac909c5b4903f4dbb4b719a7ab3b4f13b0deaf83c814b94f7",
+    "previous_addon_sha256": "02af645ff762b1ea31f0daddd81de9f2e8167f164390376aaf692fb4ead36518",
+    "new_addon_sha256": "35ce17db352c3937620e3d191b08f3f10967fbd757d6b0a3be9d7a08e7c0c6f5",
+    "settings_retained": true
+  },
+  "stopped_client_install_time_shanghai": "22:44",
+  "game_acceptance": false,
+  "visual_lighting_changed": false,
+  "m2_route_decision": "needs_additional_interfaces; partial audit",
+  "same_player_object_verified": false
+}

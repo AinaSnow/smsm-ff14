@@ -1,0 +1,282 @@
+{
+  "source_kind": "game",
+  "user_condition": "teleported to another unspecified map then stationary",
+  "source_frames": [
+    108775,
+    171059
+  ],
+  "capture_status": "snapshots_complete",
+  "raw_bytes_sha_verified": 74669856,
+  "resource_comparison": [
+    {
+      "key": "415a922293923fa4:ps-b0",
+      "status": "captured",
+      "generation_before": 42,
+      "generation_after": 42,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-b1",
+      "status": "captured",
+      "generation_before": 101,
+      "generation_after": 102,
+      "same_native_resource": false,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-b2",
+      "status": "captured",
+      "generation_before": 169,
+      "generation_after": 169,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-b3",
+      "status": "captured",
+      "generation_before": 17,
+      "generation_after": 16,
+      "same_native_resource": false,
+      "payload_changed": false,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-t10",
+      "status": "captured",
+      "generation_before": 567,
+      "generation_after": 567,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-t5",
+      "status": "unsupported_format",
+      "generation_before": 548,
+      "generation_after": 548,
+      "same_native_resource": true,
+      "payload_changed": null,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-t3",
+      "status": "captured",
+      "generation_before": 561,
+      "generation_after": 561,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-t4",
+      "status": "captured",
+      "generation_before": 563,
+      "generation_after": 563,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:ps-t0",
+      "status": "unsupported_view_dimension",
+      "generation_before": 16410,
+      "generation_after": 145140,
+      "same_native_resource": false,
+      "payload_changed": null,
+      "last_observed_event_frame": 161707,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "415a922293923fa4:om-depth",
+      "status": "captured",
+      "generation_before": 572,
+      "generation_after": 572,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-b1",
+      "status": "captured",
+      "generation_before": 42,
+      "generation_after": 42,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-b2",
+      "status": "captured",
+      "generation_before": 61,
+      "generation_after": 61,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-b3",
+      "status": "captured",
+      "generation_before": 101,
+      "generation_after": 102,
+      "same_native_resource": false,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-b4",
+      "status": "captured",
+      "generation_before": 79,
+      "generation_after": 78,
+      "same_native_resource": false,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-b6",
+      "status": "captured",
+      "generation_before": 77,
+      "generation_after": 77,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:vs-b0",
+      "status": "captured",
+      "generation_before": 91,
+      "generation_after": 102,
+      "same_native_resource": false,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:vs-b2",
+      "status": "captured",
+      "generation_before": 101,
+      "generation_after": 18,
+      "same_native_resource": false,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-t2",
+      "status": "captured",
+      "generation_before": 571,
+      "generation_after": 571,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-t4",
+      "status": "unsupported_format",
+      "generation_before": 549,
+      "generation_after": 549,
+      "same_native_resource": true,
+      "payload_changed": null,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-t0",
+      "status": "captured",
+      "generation_before": 562,
+      "generation_after": 562,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-t1",
+      "status": "captured",
+      "generation_before": 564,
+      "generation_after": 564,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:ps-t7",
+      "status": "unsupported_view_dimension",
+      "generation_before": 16410,
+      "generation_after": 145140,
+      "same_native_resource": false,
+      "payload_changed": null,
+      "last_observed_event_frame": 161707,
+      "snapshot_frame": 171059
+    },
+    {
+      "key": "980154264a89fba1:om-depth",
+      "status": "captured",
+      "generation_before": 572,
+      "generation_after": 572,
+      "same_native_resource": true,
+      "payload_changed": true,
+      "last_observed_event_frame": 171059,
+      "snapshot_frame": 171059
+    }
+  ],
+  "conclusion": "Render buffers retain resource lifetimes but position/depth/light payloads update in the new snapshot; reflection-array binding has a different native resource and generation. This demonstrates this observed transition only; complete destruction tracking, world-light semantics and player association are not established.",
+  "old_snapshot_reused_detected": false,
+  "target_draws": [
+    {
+      "target": "415a922293923fa4",
+      "draw": 3536,
+      "element_count": 3,
+      "viewports": [
+        [
+          0.5,
+          0.5,
+          1920,
+          1080,
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "target": "980154264a89fba1",
+      "draw": 3583,
+      "element_count": 804,
+      "viewports": [
+        [
+          0.5,
+          0.5,
+          1920,
+          1080,
+          0,
+          1
+        ]
+      ]
+    }
+  ],
+  "trigger_cpu_cost": {
+    "copy_enqueue_ms": 4.7314,
+    "readback_and_io_ms": 89.8596,
+    "readback_presents": 3
+  },
+  "diagnostic_stopped_after_capture": true
+}
