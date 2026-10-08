@@ -29,6 +29,12 @@
 > missing-depth leaks remain documented; this research is not installed in game.
 > DoF/reflection experiments remain active research; small visible differences
 > are not treated as evidence that an implementation is ineffective.
+>
+> r10 managed preview is now [published](https://github.com/AinaSnow/smsm-ff14/releases/tag/r10).
+> The native-lighting branch adds a default-off, read-only ReShade diagnostic candidate.
+> Actual WARP readback and isolated official-runtime callback tests pass; FF14 scene
+> data, migration feasibility and visual gains remain pending. See
+> [native diagnostic status and reversible testing](docs/NATIVE-DIAGNOSTIC.md).
 
 ![Preview Image](https://user-images.githubusercontent.com/16026653/129494572-8f3d45e8-4edd-4421-b7eb-ffc21b47f349.jpg)
 

@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-08",
+  "branch": "feature/native-lighting-reshade-diagnostics",
+  "base": "r10 / 7ec7432",
+  "candidate": {
+    "schema": 1,
+    "reshade_version": "6.8.0",
+    "sdk_commit": "18deaa52de0c425a78b329e9cb3c497281cd00ec",
+    "api_version": 20,
+    "architecture": "x64",
+    "compiler": {
+      "msvc": "14.51.36231",
+      "windows_sdk": "10.0.26100.0"
+    },
+    "default_enabled": false,
+    "runtime_verified": false,
+    "capture_budget_bytes": 268435456,
+    "shader_replacement": false,
+    "files": {
+      "SMSM.NativeLighting.addon64": "02af645ff762b1ea31f0daddd81de9f2e8167f164390376aaf692fb4ead36518"
+    },
+    "sources": {
+      "addons/native_lighting/addon.cpp": "2ac4b4152742e11d3c980da11264d6c349372efd0d02c5487d48718f785c15cc",
+      "addons/native_lighting/diagnostic.hpp": "2604e51522efce7aa9a86df4b4db8dd4b53a33c3159cfdf2c53ece0877fc1a5b",
+      "addons/native_lighting/test_diagnostic.cpp": "e20a6db78fcacc91ed495937bf0d2e059325b515686dcddf91b16b86c93af461",
+      "addons/native_lighting/test_reshade_host.cpp": "780920c261a8cdbf56e7ebdf4fc28c9e2a1b182149f1f7fe68b97595a1287c48"
+    }
+  },
+  "reproducible_addon_bytes": true,
+  "warp": {
+    "source_kind": "synthetic",
+    "actual_d3d11_draws": true,
+    "game_verified": false,
+    "captures": [
+      {
+        "path": "captures\\absent\\capture-15480-82518328-0\\manifest.json",
+        "status": "missing_targets",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\budget\\capture-15480-82518328-0\\manifest.json",
+        "status": "budget_exceeded",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\cancel\\capture-15480-82518343-0\\manifest.json",
+        "status": "cancelled",
+        "raw_bytes": 16948
+      },
+      {
+        "path": "captures\\deferred\\capture-15480-82518359-0\\manifest.json",
+        "status": "missing_targets",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\lost_shader\\capture-15480-82518343-0\\manifest.json",
+        "status": "missing_targets",
+        "raw_bytes": 0
+      },
+      {
+        "path": "captures\\normal\\capture-15480-82518296-0\\manifest.json",
+        "status": "snapshots_complete",
+        "raw_bytes": 36968
+      },
+      {
+        "path": "captures\\normal\\capture-15480-82518312-0\\manifest.json",
+        "status": "partial_targets",
+        "raw_bytes": 16948
+      },
+      {
+        "path": "captures\\recreated\\capture-15480-82518375-0\\manifest.json",
+        "status": "partial_targets",
+        "raw_bytes": 16948
+      }
+    ]
+  },
+  "official_runtime_callback_host": {
+    "source_kind": "synthetic_host",
+    "actual_reshade_runtime": true,
+    "driver": "hardware",
+    "vertices": 0,
+    "game_verified": false,
+    "runtime_sha256": "0cee63f9c9f13f3ac909c5b4903f4dbb4b719a7ab3b4f13b0deaf83c814b94f7",
+    "setup_sha256": "afe4c8f13048306307983b8b3d41d5bf00a86820440b0e57dea10950e1176445",
+    "addon_sha256": "02af645ff762b1ea31f0daddd81de9f2e8167f164390376aaf692fb4ead36518",
+    "captures": [
+      "SMSM-native-captures\\capture-34252-82521218-0\\manifest.json",
+      "SMSM-native-captures\\capture-34252-82521578-0\\manifest.json"
+    ]
+  },
+  "host_capture_metrics": [
+    {
+      "status": "snapshots_complete",
+      "selected_raw_bytes": 372736,
+      "copy_enqueue_ms": 1.7091,
+      "readback_and_io_ms": 14.3961,
+      "readback_presents": 3
+    },
+    {
+      "status": "snapshots_complete",
+      "selected_raw_bytes": 372736,
+      "copy_enqueue_ms": 0.6447,
+      "readback_and_io_ms": 13.6034,
+      "readback_presents": 3
+    }
+  ],
+  "simulated_environment": {
+    "simulated_client": true,
+    "real_client_written": false,
+    "r10_roundtrip_exact": true,
+    "native_interruption_recovered": true,
+    "collision_modified_and_running_guards": true
+  },
+  "camera_candidate_decode": "exact PS identity and reflected offsets with CB1 ranges verified",
+  "r10_release_checks": {
+    "warp_shader_creation": 8,
+    "management_passed": 19,
+    "management_skipped": 1,
+    "skip_reason": "Windows symlink privilege unavailable",
+    "frame_time_tests_passed": 3
+  },
+  "m1_game_acceptance": false,
+  "m2_migration_decision": "pending_live_data_audit",
+  "m3_visual_change": false,
+  "real_client_written": false
+}
