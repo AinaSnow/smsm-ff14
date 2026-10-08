@@ -1,5 +1,6 @@
 """Audited single-target diffuse-sample injection, retaining native material logic."""
 import json
+import math
 import re
 from pathlib import Path
 from build_preview import BUILD, bindings, verify_interface
@@ -23,14 +24,23 @@ def load_original(extraction,target=TARGET,profile="ps_5_0"):
     return data
 
 
-def compile_helper(work,compiler,position=(0,0,0),color=(1,1,1),intensity=2,radius=8):
+def diffuse_prefix(work,softness,profile='bounded'):
+    if not math.isfinite(softness) or not 0 <= softness <= 1:
+        raise ValueError('Diffuse softness must be finite and within 0..1')
+    if profile not in ('bounded','balanced'): raise ValueError('Unknown diffuse profile')
+    if softness == 0: return ''
+    (work/'diffuse_response.hlsl').write_bytes((ROOT/'tools/patches/diffuse_response.hlsl').read_bytes())
+    return '#define SMSM_DIFFUSE_SOFTNESS '+format(float(softness),'.9g')+'\n#define SMSM_DIFFUSE_BOUNDED '+str(int(profile=='bounded'))+'\n'
+
+
+def compile_helper(work,compiler,position=(0,0,0),color=(1,1,1),intensity=2,radius=8,*,softness=0,soft_profile='bounded'):
     validate_settings(position,color,intensity,radius); work.mkdir(parents=True,exist_ok=True)
     fmt=lambda values:", ".join(format(float(v),".9g") for v in values)
     (work/"single_light_parameters.h").write_text(
         "static const float4 lampPositionRange=float4("+fmt([*position,radius])+");\n"+
         "static const float4 lampColorIntensity=float4("+fmt([*color,intensity])+");\n")
     source=work/"material_light.hlsl"
-    source.write_text("#define SINGLE_LIGHT_BAKED 1\n"+(ROOT/"tools/patches/material_light.hlsl").read_text())
+    source.write_text(diffuse_prefix(work,softness,soft_profile)+"#define SINGLE_LIGHT_BAKED 1\n"+(ROOT/"tools/patches/material_light.hlsl").read_text())
     data,warnings=compiler.compile(source)
     if warnings: raise ValueError(warnings)
     return data

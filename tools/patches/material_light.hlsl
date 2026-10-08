@@ -1,5 +1,8 @@
 // 415a922293923fa4: use the host's view-position and encoded world-normal
 // inputs; add diffuse light before native AO/material/ambient/output encoding.
+#ifdef SMSM_DIFFUSE_SOFTNESS
+#include "diffuse_response.hlsl"
+#endif
 cbuffer Common : register(b0) { float4 common[1]; }
 cbuffer Camera : register(b1) { float4 camera[3]; }
 Texture2D<float4> viewPositionTexture : register(t10);
@@ -26,7 +29,11 @@ float4 main(float4 pixel : SV_POSITION) : SV_TARGET
     float3 direction=delta*rsqrt(max(distanceSquared,1e-8));
     float cutoff=saturate(1-distanceSquared/max(lampPositionRange.w*lampPositionRange.w,1e-8));
     float attenuation=cutoff*cutoff/(1+distanceSquared);
+#ifdef SMSM_DIFFUSE_SOFTNESS
+    float diffuse=smsmDiffuseResponse(dot(normal,direction),SMSM_DIFFUSE_SOFTNESS);
+#else
     float diffuse=saturate(dot(normal,direction))/3.141592653589793;
+#endif
     float3 rgb=max(lampColorIntensity.xyz,0)*max(lampColorIntensity.w,0)*diffuse*attenuation;
     // Zero view position is treated as invalid background in this prototype;
     // actual host coverage/stencil still needs in-game evidence.
