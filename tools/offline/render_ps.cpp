@@ -27,7 +27,7 @@ struct Input { std::string kind, path; unsigned slot=0, width=0, height=0, strid
 int wmain(int argc, wchar_t** argv) try {
     if (argc != 2) throw std::runtime_error("Usage: render_ps.exe <UTF-8 job.txt>");
     std::ifstream job{fs::path(argv[1])}; if (!job) throw std::runtime_error("Cannot open job");
-    unsigned width=0,height=0,targets=1,frames=1; std::string shader,vertex,output,key;
+    unsigned width=0,height=0,targets=1,frames=1,draws=1; std::string shader,vertex,output,key,blend="overwrite";
     float vx=0,vy=0,vw=0,vh=0; std::vector<Input> inputs;
     while (job >> key) {
         if (key == "size") job >> width >> height >> targets;
@@ -36,6 +36,8 @@ int wmain(int argc, wchar_t** argv) try {
         else if (key == "output") job >> std::quoted(output);
         else if (key == "viewport") job >> vx >> vy >> vw >> vh;
         else if (key == "frames") job >> frames;
+        else if (key == "draws") job >> draws;
+        else if (key == "blend") job >> blend;
         else {
             Input item; item.kind=key;
             if (key == "texture") job >> item.slot >> item.width >> item.height >> std::quoted(item.path);
@@ -48,6 +50,8 @@ int wmain(int argc, wchar_t** argv) try {
     }
     if (!width || !height || width>4096 || height>4096 || targets<1 || targets>8 || !frames || frames>256 || shader.empty() || output.empty())
         throw std::runtime_error("Invalid dimensions, shader or output");
+    if (!draws || draws>64 || (blend!="overwrite" && blend!="add" && blend!="source-alpha"))
+        throw std::runtime_error("Invalid draw count or blend mode");
     if (!vw) { vw=float(width); vh=float(height); }
     if (vx<0 || vy<0 || vw<=0 || vh<=0 || vx+vw>width || vy+vh>height) throw std::runtime_error("Invalid viewport");
     wchar_t system[MAX_PATH]; GetSystemDirectoryW(system, MAX_PATH);
@@ -75,6 +79,17 @@ int wmain(int argc, wchar_t** argv) try {
     D3D11_VIEWPORT viewport{vx,vy,vw,vh,0,1}; context->RSSetViewports(1,&viewport);
     D3D11_DEPTH_STENCIL_DESC dd{}; dd.DepthEnable=FALSE; dd.DepthFunc=D3D11_COMPARISON_ALWAYS;
     ComPtr<ID3D11DepthStencilState> depthState; check(device->CreateDepthStencilState(&dd,&depthState),"depth state"); context->OMSetDepthStencilState(depthState.Get(),0);
+    // Explicit synthetic states, NOT a claim about the game's OM state. Apply
+    // identical blending to all MRTs; alpha always takes the latest source.
+    D3D11_BLEND_DESC bd{}; auto& rt=bd.RenderTarget[0];
+    rt.RenderTargetWriteMask=D3D11_COLOR_WRITE_ENABLE_ALL;
+    rt.BlendEnable=blend!="overwrite";
+    rt.SrcBlend=blend=="source-alpha" ? D3D11_BLEND_SRC_ALPHA : D3D11_BLEND_ONE;
+    rt.DestBlend=blend=="source-alpha" ? D3D11_BLEND_INV_SRC_ALPHA : D3D11_BLEND_ONE;
+    rt.BlendOp=rt.BlendOpAlpha=D3D11_BLEND_OP_ADD;
+    rt.SrcBlendAlpha=D3D11_BLEND_ONE; rt.DestBlendAlpha=D3D11_BLEND_ZERO;
+    ComPtr<ID3D11BlendState> blendState; check(device->CreateBlendState(&bd,&blendState),"blend state");
+    context->OMSetBlendState(blendState.Get(),nullptr,0xffffffff);
     D3D11_SAMPLER_DESC sd{}; sd.Filter=D3D11_FILTER_MIN_MAG_MIP_POINT; sd.AddressU=sd.AddressV=sd.AddressW=D3D11_TEXTURE_ADDRESS_CLAMP;
     sd.MaxLOD=D3D11_FLOAT32_MAX; sd.ComparisonFunc=D3D11_COMPARISON_NEVER;
     ComPtr<ID3D11SamplerState> sampler; check(device->CreateSamplerState(&sd,&sampler),"sampler");
@@ -123,7 +138,7 @@ int wmain(int argc, wchar_t** argv) try {
     for (unsigned frame=0;frame<frames;++frame) {
         if (animation) context->UpdateSubresource(animation.Get(),0,nullptr,animationBytes.data()+size_t(frame)*animationStride,0,0);
         float clear[4]={0,0,0,0}; for (auto& rtv:rtvs) context->ClearRenderTargetView(rtv.Get(),clear);
-        context->Draw(3,0);
+        for (unsigned draw=0;draw<draws;++draw) context->Draw(3,0);
         for (unsigned i=0;i<targets;++i) {
             context->CopyResource(staging[i].Get(),renderTargets[i].Get()); D3D11_MAPPED_SUBRESOURCE mapped{};
             check(context->Map(staging[i].Get(),0,D3D11_MAP_READ,0,&mapped),"readback Map");
@@ -134,6 +149,6 @@ int wmain(int argc, wchar_t** argv) try {
             context->Unmap(staging[i].Get(),0); if (!out) throw std::runtime_error("Readback write failed");
         }
     }
-    std::cout << "WARP Draw/CopyResource/Map complete: " << frames << " frames, " << targets << " MRTs, " << width << "x" << height << "\n";
+    std::cout << "WARP Draw/CopyResource/Map complete: " << frames << " frames, " << draws << " draws/frame, blend=" << blend << ", " << targets << " MRTs, " << width << "x" << height << "\n";
     return 0;
 } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

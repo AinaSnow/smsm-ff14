@@ -33,15 +33,20 @@ def build_renderer():
 
 
 def render(shader, output, width, height, textures=None, constants=None, structured=None,
-           targets=1, animation=None, viewport=None, vertex=None):
+           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite"):
     """Inputs and every raw float32 output remain on disk for replay/diff.
 
     animation is (constant slot, frames x vectors x float4); updated on the SAME
     D3D11 device before each draw. Synthetic input samplers are point/clamp.
+    draws repeats the pass without clearing; blend is an explicit synthetic OM
+    mode (overwrite/add/source-alpha), with alpha overwritten in all modes.
     """
+    if not isinstance(draws, int) or not 1 <= draws <= 64 or blend not in ("overwrite", "add", "source-alpha"):
+        raise ValueError("Invalid draw count or blend mode")
     output.mkdir(parents=True, exist_ok=False)
     quote = lambda p: json.dumps(str(Path(p).resolve()).replace("\\", "/"), ensure_ascii=False)
     lines = [f"size {width} {height} {targets}", "shader " + quote(shader), "output " + quote(output / "pixels")]
+    lines.extend([f"draws {draws}", f"blend {blend}"])
     if vertex:
         lines.append("vertex " + quote(vertex))
     if viewport:

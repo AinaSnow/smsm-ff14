@@ -24,6 +24,9 @@
 > depth/normal reconstruction, moving light parameters and two patched lighting
 > variants. The new experiment defaults off; in-game continuous control, materials,
 > occlusion and GPU cost are not yet verified. See [audit and results](docs/SINGLE-LIGHT.md).
+> Offline-only screen-space occlusion now has geometry-reference comparisons;
+> repeat-draw tests expose blend-dependent energy accumulation. Edge errors and
+> missing-depth leaks remain documented; this research is not installed in game.
 > DoF/reflection experiments remain active research; small visible differences
 > are not treated as evidence that an implementation is ineffective.
 
