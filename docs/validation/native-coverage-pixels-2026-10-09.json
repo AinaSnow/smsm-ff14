@@ -1,0 +1,42 @@
+{
+  "actual_runtime": true,
+  "vertices_per_draw": 3,
+  "synthetic_geometry": true,
+  "game_coverage_verified": false,
+  "addon_sha256": "a325b24b1c230b2b9672f3240163c99f3bee2b2827244e050c5dbd305ba8282a",
+  "errors": {
+    "baseline_vs_warp": 2.9802322387695312e-08,
+    "coverage_vs_magenta": 0.0,
+    "off_restores_baseline": 0.0
+  },
+  "statuses": [
+    {
+      "copies": 0,
+      "coverage_draws": 0,
+      "coverage_enabled": false,
+      "coverage_fallbacks": 0,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 0
+    },
+    {
+      "copies": 0,
+      "coverage_draws": 1,
+      "coverage_enabled": true,
+      "coverage_fallbacks": 0,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 0
+    },
+    {
+      "copies": 0,
+      "coverage_draws": 1,
+      "coverage_enabled": false,
+      "coverage_fallbacks": 0,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 0
+    }
+  ],
+  "live_observation": "No visible magenta reported in ten-second or sustained test; renewal stopped and marker verified off."
+}

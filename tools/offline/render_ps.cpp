@@ -59,6 +59,29 @@ int wmain(int argc, wchar_t** argv) try {
     std::string extension=format=="rgba32f"?".f32":(format=="rgba16f"?".f16":".r11");
     if (!vw) { vw=float(width); vh=float(height); }
     if (vx<0 || vy<0 || vw<=0 || vh<=0 || vx+vw>width || vy+vh>height) throw std::runtime_error("Invalid viewport");
+#ifdef SMSM_RESHADE_PIXEL_TEST
+    if(frames!=3)throw std::runtime_error("ReShade pixel test requires exactly off/on/off frames");
+    wchar_t executable[32768];GetModuleFileNameW(nullptr,executable,32768);
+    const auto hostRoot=fs::path(executable).parent_path();
+    auto library=LoadLibraryW((hostRoot/L"d3d11.dll").c_str());
+    if(!library)throw std::runtime_error("ReShade runtime missing");
+    auto create=reinterpret_cast<decltype(&D3D11CreateDeviceAndSwapChain)>(GetProcAddress(library,"D3D11CreateDeviceAndSwapChain"));
+    WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"SMSMActualPixelHost";
+    RegisterClassW(&wc);
+    auto window=CreateWindowW(wc.lpszClassName,L"SMSM hidden pixel test",WS_POPUP,0,0,width,height,nullptr,nullptr,wc.hInstance,nullptr);
+    if(!window || !create)throw std::runtime_error("Cannot initialize hidden hardware host");
+    DXGI_SWAP_CHAIN_DESC swapDesc{};swapDesc.BufferDesc.Width=width;swapDesc.BufferDesc.Height=height;
+    swapDesc.BufferDesc.Format=DXGI_FORMAT_R8G8B8A8_UNORM;swapDesc.SampleDesc.Count=1;
+    swapDesc.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT;swapDesc.BufferCount=2;swapDesc.OutputWindow=window;swapDesc.Windowed=TRUE;
+    ComPtr<ID3D11Device> device;ComPtr<ID3D11DeviceContext> context;ComPtr<IDXGISwapChain> swap;D3D_FEATURE_LEVEL level;
+    check(create(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&swapDesc,&swap,&device,&level,&context),"ReShade hardware device");
+    fs::create_directories(hostRoot/"SMSM-native-captures");
+    auto send=[&](const char *command){
+        {std::ofstream f(hostRoot/"SMSM-native-captures"/"ambient-command.txt");f<<command<<'\n';}
+        check(swap->Present(0,0),"command Present");
+        if(fs::exists(hostRoot/"SMSM-native-captures"/"ambient-command.txt"))throw std::runtime_error("Command not consumed by addon");
+    };
+#else
     wchar_t system[MAX_PATH]; GetSystemDirectoryW(system, MAX_PATH);
     auto library = LoadLibraryExW((fs::path(system)/L"d3d11.dll").c_str(), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     if (!library) throw std::runtime_error("Cannot load system D3D11");
@@ -66,6 +89,7 @@ int wmain(int argc, wchar_t** argv) try {
     if (!create) throw std::runtime_error("Missing D3D11CreateDevice");
     ComPtr<ID3D11Device> device; ComPtr<ID3D11DeviceContext> context; D3D_FEATURE_LEVEL level;
     check(create(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0, nullptr, 0, D3D11_SDK_VERSION, &device, &level, &context), "WARP device");
+#endif
     auto psBytes=read(shader); ComPtr<ID3D11PixelShader> ps;
     check(device->CreatePixelShader(psBytes.data(), psBytes.size(), nullptr, &ps), "pixel shader");
     ComPtr<ID3DBlob> vsCode, errors; std::vector<char> vsBytes;
@@ -160,6 +184,9 @@ int wmain(int argc, wchar_t** argv) try {
     }
     context->OMSetRenderTargets(targets,rawRT,nullptr);
     for (unsigned frame=0;frame<frames;++frame) {
+#ifdef SMSM_RESHADE_PIXEL_TEST
+        send(frame==1?"coverage":"off");
+#endif
         if (animation) context->UpdateSubresource(animation.Get(),0,nullptr,animationBytes.data()+size_t(frame)*animationStride,0,0);
         if (regionSource) {
             context->UpdateSubresource(regionSource.Get(),0,nullptr,regionBytes.data()+size_t(frame)*regionStride,0,0);
@@ -176,7 +203,16 @@ int wmain(int argc, wchar_t** argv) try {
             for (unsigned y=0;y<height;++y) out.write(static_cast<char*>(mapped.pData)+size_t(y)*mapped.RowPitch,size_t(width)*pixelBytes);
             context->Unmap(staging[i].Get(),0); if (!out) throw std::runtime_error("Readback write failed");
         }
+#ifdef SMSM_RESHADE_PIXEL_TEST
+        send("status");
+        fs::copy_file(hostRoot/"SMSM-native-captures"/"ambient-status.json",hostRoot/("frame-"+std::to_string(frame)+"-status.json"));
+#endif
     }
+#ifdef SMSM_RESHADE_PIXEL_TEST
+    check(device->GetDeviceRemovedReason(),"hardware device status");DestroyWindow(window);
+    std::cout<<"Actual ReShade hardware Draw/CopyResource/Map complete: off/coverage/off, three vertices per frame\n";
+#else
     std::cout << "WARP Draw/CopyResource/Map complete: " << frames << " frames, " << draws << " draws/frame, blend=" << blend << ", " << targets << " MRTs, " << width << "x" << height << "\n";
+#endif
     return 0;
 } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }
