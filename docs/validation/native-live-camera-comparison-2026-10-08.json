@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-08",
+  "source_kind": "game",
+  "condition": "user reports character unchanged, camera rotated then stopped",
+  "capture_status": "snapshots_complete",
+  "raw_bytes_sha_verified": 74670352,
+  "source_frames": [
+    69308,
+    108775
+  ],
+  "viewports_equal": true,
+  "camera_matrix_deltas": [
+    {
+      "reflected_name": "m_ViewMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 196.93846893310547
+    },
+    {
+      "reflected_name": "m_InverseViewMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 17.339462280273438
+    },
+    {
+      "reflected_name": "m_ViewProjectionMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 196.93846893310547
+    },
+    {
+      "reflected_name": "m_InverseViewProjectionMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 173.39453125
+    },
+    {
+      "reflected_name": "m_InverseProjectionMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 0.0002641049577505328
+    },
+    {
+      "reflected_name": "m_ProjectionMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 0.0003614091983763501
+    },
+    {
+      "reflected_name": "m_MainViewToProjectionMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 0.0003614091983763501
+    },
+    {
+      "reflected_name": "m_MainViewToWorldMatrix",
+      "status_before": "candidate_only",
+      "status_after": "candidate_only",
+      "max_abs_delta": 17.339462280273438
+    }
+  ],
+  "first_mesh_geometry": [
+    {
+      "draw_index": 2905,
+      "element_count": 3687,
+      "vertex_sha256": "fdcddbbd19c8b99091fb9e9a8197cbe83970719afa10849154de49880ce91f5d"
+    },
+    {
+      "draw_index": 4777,
+      "element_count": 2652,
+      "vertex_sha256": "e513c2563b6c482750284c2f3276a10e757a03698de9dc36064ca09331d8764b"
+    }
+  ],
+  "same_mesh_geometry_signature": false,
+  "same_object_verified": false,
+  "ambient_candidate_payload_changed": {
+    "415a922293923fa4:ps-b2": true,
+    "415a922293923fa4:ps-b3": false,
+    "980154264a89fba1:ps-b6": true
+  },
+  "trigger_cpu_cost": {
+    "copy_enqueue_ms": 3.2403,
+    "readback_and_io_ms": 90.9272,
+    "readback_presents": 2
+  },
+  "performance_note": "triggered capture only; no idle or GPU-effect performance conclusion",
+  "diagnostic_stopped_after_capture": true,
+  "lighting_semantics_verified": false,
+  "conclusion": "Camera candidates changed. First selected mesh draw has different geometry signature; ambient payload differences cannot be attributed to the same character or camera rotation alone.",
+  "next_live_step": "one scene switch to inspect resource reuse and new content"
+}
