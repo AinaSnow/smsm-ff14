@@ -14,6 +14,8 @@
 
 22:44（上海时间）用户确认游戏关闭后，已停机更新诊断 r2；固定 ReShade 运行库、用户配置、r10 备份保留，r1 另有升级前备份。r2 补 BGRA8 原始位读回，实际游戏验证仍待下一次启动，见 [r2 更新与验证](NATIVE-DIAGNOSTIC-R2.md)。此前关于 r1 不支持 BGRA8 的记录保留为历史实机事实。
 
+23:04 r2 单帧复核完成，两条路径的 BGRA8 数据均成功读取、SHA 和布局核对通过，诊断自动关闭。位置/深度的固定候选约定在量化误差边界内数值相容，源 shader 与独立性仍未知；下一项集中追踪输入生产者，不继续要求用户重复场景动作。见 [r2 实机摘要](validation/native-live-r2-bgra-2026-10-08.json)。本轮已能写入正常 ReShade 启动日志，注册记录确认 API 20；是否仍显示旧配置横幅未通过 UI 观察，不补填为已解决。
+
 ## 固定环境与目标表
 
 运行库固定为官方 ReShade **6.8.0，完整 Add-on 支持，x64**。源码提交 `18deaa52de0c425a78b329e9cb3c497281cd00ec`，API **20**，MSVC `14.51.36231`、Windows SDK `10.0.26100.0`、C++17 `/O2 /MT /Brepro`。官方下载见 [ReShade](https://reshade.me/)，固定 SDK 见 [v6.8.0](https://github.com/crosire/reshade/tree/v6.8.0)。运行库不加入本项目发布附件。

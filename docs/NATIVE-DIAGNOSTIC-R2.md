@@ -20,4 +20,8 @@ python tools/native_environment.py update --game '<客户端根目录>\game' --p
 
 r2 已于 22:44（上海时间）在用户确认游戏退出后安装，文件摘要核对通过；运行库与用户配置保持原样，r1 升级前备份及原 r10 备份均保留。本机部署检查点为本地 `artifacts/native-deployment/r2-deployment.json`。
 
-r2 的游戏验收尚未完成，下一次只采一个有效目标快照验证 BGRA8 是否正确读回，不重复上一轮所有场景。更完整的原生光照语义判断见 [本轮审计](NATIVE-LIGHTING-AUDIT.md)。
+23:04（上海时间）单帧实机复核完成：两个目标路径的 BGRA8 输入均 captured，资源/视图格式均为 DXGI 87，每份 1920×1080、8,294,400 字节，去 padding 行宽 7680 字节，原始位 SHA 核对通过。全轮 91,258,656 字节，在 256 MiB 预算内；采集后自动 stop，一次辅助程序也已退出。原来“不支持格式”的读回缺口已解决，尚不代表法线语义/朝向、整个 r2 的兼容矩阵或原生光照路线完成验收。证据见 [r2 实机摘要](validation/native-live-r2-bgra-2026-10-08.json)。
+
+固定使用反射的 MainViewToProjectionMatrix、row-major 行点列约定与 DSV 45 的 D24 深度解码，对每八像素的 32,400 样本做离线初筛。原始像素误差中位 0.1291、P99 0.5757；按 float16 一 ULP 的八角点构建各分量保守边界，再加既有 0.35 像素/0.00005 深度初筛容差，样本均落入边界。没有更换矩阵字段、试转置或自适应挑样本。最大深度误差约 0.00001332。这个数值相容性不能排除 t10 本身来自同一份深度重建，独立位置来源及生产者仍未确认；game_projection_verified / eligible_for_game_occlusion 继续为 false。
+
+下一项是定位位置/法线的上一写入 shader 与输入链，区分直接几何输出与深度重建，再核对世界空间和对象关联；不再重复这一轮人物/镜头/传送操作。更完整的原生光照语义判断见 [本轮审计](NATIVE-LIGHTING-AUDIT.md)。

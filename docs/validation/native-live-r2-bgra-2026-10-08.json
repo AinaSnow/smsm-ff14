@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-08",
+  "source_kind": "game",
+  "candidate": "native diagnostic r2",
+  "addon_sha256": "35ce17db352c3937620e3d191b08f3f10967fbd757d6b0a3be9d7a08e7c0c6f5",
+  "exact_scene": "not provided",
+  "capture_status": "snapshots_complete",
+  "raw_bytes_sha_verified": 91258656,
+  "bgra8_readback_verified": true,
+  "normal_resources": [
+    {
+      "target": "415a922293923fa4",
+      "label": "ps-t5",
+      "resource_format": 87,
+      "view_format": 87,
+      "width": 1920,
+      "height": 1080,
+      "row_bytes": 7680,
+      "mapped_row_pitch": 7680,
+      "selected_bytes": 8294400
+    },
+    {
+      "target": "980154264a89fba1",
+      "label": "ps-t4",
+      "resource_format": 87,
+      "view_format": 87,
+      "width": 1920,
+      "height": 1080,
+      "row_bytes": 7680,
+      "mapped_row_pitch": 7680,
+      "selected_bytes": 8294400
+    }
+  ],
+  "numeric_position_screening": {
+    "source_kind": "game_candidate_numeric_screening",
+    "sampling": "every eighth pixel in both axes; no adaptive sample selection",
+    "fixed_matrix_field": "m_MainViewToProjectionMatrix",
+    "row_major_convention": "row_dot_column_vector",
+    "position_format": "RGBA16F",
+    "depth_resource_format": 44,
+    "depth_typed_view_format": 45,
+    "depth_decode": "low 24 bits of little-endian uint32 divided by 16777215",
+    "viewport": [
+      0.5,
+      0.5,
+      1920,
+      1080,
+      0,
+      1
+    ],
+    "samples": 32400,
+    "raw_pixel_error_median": 0.1290617735197167,
+    "raw_pixel_error_p99": 0.5756554642413092,
+    "depth_abs_error_median": 2.55158995948572e-06,
+    "depth_abs_error_p99": 1.0119525472212024e-05,
+    "depth_abs_error_max": 1.3321656178025276e-05,
+    "position_quantization_bound": "eight corners at +/- one float16 ULP, independent of measured errors",
+    "base_pixel_tolerance": 0.35,
+    "base_depth_tolerance": 5e-05,
+    "within_quantization_and_base_bounds_fraction": 1.0,
+    "producer_identity_verified": false,
+    "independent_position_origin_verified": false,
+    "game_projection_verified": false,
+    "eligible_for_game_occlusion": false,
+    "conclusion": "Numeric correspondence is compatible with the fixed candidate projection and storage bounds; position producer/independence remains unverified."
+  },
+  "raw_normal_semantics_and_channel_orientation_independently_verified": false,
+  "source_producer_verified": false,
+  "diagnostic_stopped": true,
+  "cpu_capture_cost": {
+    "copy_enqueue_ms": 1.9072,
+    "readback_and_io_ms": 99.7095,
+    "readback_presents": 5
+  },
+  "lighting_modified": false,
+  "raw_payload_fingerprints": "retained locally; public report records checksum verification status only"
+}

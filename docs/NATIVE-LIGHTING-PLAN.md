@@ -1,6 +1,6 @@
 # 原生场景光照改进与 ReShade 插件验证计划
 
-日期：2026-10-08。状态：M0 工程准备、M1 诊断实现与三次真实快照已取得；M2 部分审计判断为“需要补充接口”，完整语义/成本验收及画质迁移仍待完成。r2 补 BGRA8 且已停机安装，等待单次实机复核。进度见 [NATIVE-DIAGNOSTIC.md](NATIVE-DIAGNOSTIC.md)，路线判断见 [NATIVE-LIGHTING-AUDIT.md](NATIVE-LIGHTING-AUDIT.md)。
+日期：2026-10-08。状态：M0 工程准备、M1 诊断实现与真实快照已取得；r2 的 BGRA8 单帧实机读回复核完成。M2 部分审计判断为“需要补充接口”，位置/法线生产者、独立坐标、对象/局部灯和成本验收仍缺证据，未进入画质迁移。进度见 [NATIVE-DIAGNOSTIC.md](NATIVE-DIAGNOSTIC.md)，路线判断见 [NATIVE-LIGHTING-AUDIT.md](NATIVE-LIGHTING-AUDIT.md)。
 
 本计划按用户最新目标调整后续优先级。当前仓库基线为 `ead6d5e`，已研究的客户端为 `2026.09.15.0000.0000`；进入实机前重新确认版本。本次只记录计划，不改变游戏、DLL、现有实验包或默认效果。
 
