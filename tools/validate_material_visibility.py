@@ -1,7 +1,7 @@
-"""Actual visibility pass -> readback/upload -> original material PS composition.
+"""Actual visibility and native material composition, optionally fused in one draw.
 
-No game package. Explicit CPU transfer between actual GPU passes; no claim of a
-resident game pipeline or GPU cost. Geometry oracle includes all edge pixels.
+Separate GPU passes provide the reference; --fused uses explicit offline b12/b13.
+No game package or GPU cost claim. Geometry oracle includes all edge pixels.
 """
 import argparse
 import json
@@ -25,7 +25,7 @@ def visibility_constants(f,enable=1,bias=.025,thickness=.35,steps=96):
         [vw/(2*f['width']),-vh/(2*f['height']),(vx+vw/2)/f['width'],(vy+vh/2)/f['height']])).astype(np.float32)
 
 
-def run(output,extraction,bias=.025,thickness=.35,steps=96):
+def run(output,extraction,bias=.025,thickness=.35,steps=96,fused=False):
     if not np.isfinite([bias,thickness]).all() or not 0<=bias<thickness or not isinstance(steps,int) or not 1<=steps<=128:
         raise ValueError('Finite 0 <= bias < thickness and 1..128 integer steps required')
     output.mkdir(parents=True,exist_ok=False);compiler=Compiler(ROOT/'d3dcompiler_46.dll')
@@ -40,6 +40,16 @@ def run(output,extraction,bias=.025,thickness=.35,steps=96):
             if warnings:raise ValueError(warnings)
             shaders[mode,audit]=output/(name+'.bin');shaders[mode,audit].write_bytes(data)
     original=output/'original-material.bin';original.write_bytes(load_original(extraction))
+    fused_shaders={}
+    if fused:
+        from offline.fuse_material_visibility import fuse
+        decompiler=ROOT/'artifacts/decompiler/1.3.16/cmd_Decompiler.exe'
+        for mode in (0,1):
+            source=output/f'fused-helper-{mode}.hlsl'
+            source.write_text(f'#define MATERIAL_PLANE_REFINE {mode}\n#define MATERIAL_VISIBILITY_ADD_ONLY 1\n#include "material_visibility.hlsl"\n')
+            data,warnings=compiler.compile(source)
+            if warnings:raise ValueError(warnings)
+            fused_shaders[mode]=fuse(original.read_bytes(),data,output/f'fused-{mode}',decompiler,compiler)
     checks=[];rows=[];pictures=[]
     def check(name,passed,**metrics):
         checks.append(dict(name=name,passed=bool(passed),**metrics))
@@ -73,10 +83,16 @@ def run(output,extraction,bias=.025,thickness=.35,steps=96):
         off=draw(label+'-off-input',shaders[1,0],f,off_inputs)
         off_result=compose(label+'-off-material',f,inputs,off)
         close(label+' disabled composition',off_result,unshadowed)
+        if fused:
+            close(label+' fused disabled visibility',draw(label+'-fused-off',fused_shaders[1],f,off_inputs),unshadowed)
         for mode in (0,1):
             audit=draw(f'{label}-mode{mode}-audit',shaders[mode,1],f,inputs)
             diffuse=draw(f'{label}-mode{mode}-diffuse',shaders[mode,0],f,inputs)
             final=compose(f'{label}-mode{mode}-material',f,inputs,diffuse)
+            if fused:
+                resident=draw(f'{label}-mode{mode}-fused',fused_shaders[mode],f,inputs)
+                close(f'{label} {mode} fused vs separate material',resident,final)
+                final=resident
             visibility=audit[...,0];supported=audit[...,1]>.5;shadow=visibility<.5
             predicted_input=inputs['textures'][3].copy();predicted_input[...,:3]+=cpu*visibility[...,None]
             oracle=compose(f'{label}-mode{mode}-oracle',f,inputs,predicted_input)
@@ -107,6 +123,10 @@ def run(output,extraction,bias=.025,thickness=.35,steps=96):
         audit=draw(label+'-visibility',shaders[1,1],f,inputs)
         diffuse=draw(label+'-diffuse',shaders[1,0],f,inputs)
         actual=compose(label+'-material',f,inputs,diffuse)
+        if fused:
+            resident=draw(label+'-fused',fused_shaders[1],f,inputs)
+            close(label+' fused vs separate RGBA',resident,actual)
+            actual=resident
         expected=inputs['textures'][3].copy();expected[...,:3]+=cpu_light(f,lamp,intensity=18,radius=9)*audit[...,:1]
         oracle=compose(label+'-material-oracle',f,inputs,expected)
         close(label+' material RGBA oracle',actual,oracle)
@@ -125,6 +145,11 @@ def run(output,extraction,bias=.025,thickness=.35,steps=96):
         audit=render(shaders[mode,1],output/f'motion-audit-{mode}',f['width'],f['height'],**controls,animation=(13,params))[:,0]
         textures=render(shaders[mode,0],output/f'motion-diffuse-{mode}',f['width'],f['height'],**controls,animation=(13,params))[:,0]
         finals=np.stack([compose(f'motion-material-{mode}-{i}',f,inputs,tex) for i,tex in enumerate(textures)])
+        if fused:
+            resident=render(fused_shaders[mode],output/f'motion-fused-{mode}',f['width'],f['height'],**controls,animation=(13,params))[:,0]
+            close(f'motion {mode} fused same-device sequence vs separate draws',resident,finals)
+            check(f'motion {mode} changing light changes native output',float(np.max(np.abs(resident[-1]-resident[0])))>.01)
+            finals=resident
         check(f'motion {mode} finite',np.isfinite(finals).all())
         predicted=1-audit[...,0]
         temporal[str(mode)]=dict(visibility_mae=float(np.abs(predicted-truth)[:,receiver].mean()),
@@ -139,35 +164,65 @@ def run(output,extraction,bias=.025,thickness=.35,steps=96):
     check('offscreen unsupported exposed',unknown.sum()>100,unknown_pixels=int(unknown.sum()))
     close('offscreen unshadowed fallback',tex[unknown],expected[unknown])
     check('known hit retained before offscreen',known.sum()>20 and np.all(audit[known,1]==1))
+    if fused:close('fused offscreen fallback and known hit',draw('offscreen-fused',fused_shaders[1],f,inputs),compose('offscreen-native',f,inputs,tex))
     missing=fixture(width=128,height=80);lamp=[-.65,.5,1.5];inputs=setup(missing,lamp)
     tex=draw('missing-occluder',shaders[1,0],missing,inputs)
     physical=interior(exact_shadow(f,lamp));cpu=cpu_light(missing,lamp,intensity=18,radius=9)
     expected=inputs['textures'][3].copy();expected[...,:3]+=cpu
     close('missing geometry remains unshadowed',tex,expected)
     check('missing geometry leak measured',physical.sum()>100 and np.all(tex[physical,:3]>inputs['textures'][3][physical,:3]),leaked_reference_pixels=int(physical.sum()))
+    if fused:close('fused missing geometry fallback',draw('missing-fused',fused_shaders[1],missing,inputs),compose('missing-native',missing,inputs,tex))
     inputs=setup(f,lamp);inputs['textures'][10][...,:3]=0
     audit=draw('invalid-position-audit',shaders[1,1],f,inputs)
     tex=draw('invalid-position-diffuse',shaders[1,0],f,inputs)
     check('invalid position marked unsupported',np.all(audit[...,1:3]==0))
     close('invalid position adds no light',tex,inputs['textures'][3],0)
+    if fused:close('fused invalid position adds no light',draw('invalid-fused',fused_shaders[1],f,inputs),draw('invalid-native',original,f,inputs),0)
     inputs=setup(f,lamp);inputs['constants'][12][1:5]=0
     audit=draw('singular-projection-audit',shaders[1,1],f,inputs)
     tex=draw('singular-projection-diffuse',shaders[1,0],f,inputs)
     check('singular projection marked unsupported',np.all(audit[...,1]==0))
     expected=inputs['textures'][3].copy();expected[...,:3]+=cpu_light(f,lamp,intensity=18,radius=9)
     close('singular projection uses unshadowed fallback',tex,expected)
+    if fused:close('fused singular projection fallback',draw('singular-fused',fused_shaders[1],f,inputs),compose('singular-native',f,inputs,tex))
     totals=[sum(r['total_error'] for r in rows if r['refine']==bool(mode)) for mode in (0,1)]
     check('refinement reduces aggregate error',totals[1]<totals[0],errors=totals)
+    if fused:
+        f=scene();lamp=[-.65,.5,1.5]
+        for label,position,color,intensity,radius in [
+                ('zero',lamp,[1,1,1],0,9),('red',lamp,[1,.05,.02],18,9),
+                ('cool',lamp,[.2,.4,1],18,9),('short-range',lamp,[1,1,1],18,1),
+                ('left',[-2,.5,1.5],[1,1,1],18,9),('bright',lamp,[1,1,1],36,9)]:
+            inputs=setup(f,position,enable=0);inputs['constants'][13]=[[*position,radius],[*color,intensity]]
+            expected=inputs['textures'][3].copy();expected[...,:3]+=cpu_light(f,position,color=color,intensity=intensity,radius=radius)
+            oracle=compose(label+'-control-oracle',f,inputs,expected)
+            actual=draw(label+'-control-fused',fused_shaders[1],f,inputs)
+            close(label+' fused controls vs CPU/native oracle',actual,oracle)
+            if label in ('zero','short-range'):
+                close(label+' fused exactly preserves native',actual,draw(label+'-native',original,f,inputs),0)
+        # Target-format readback tests the fused path at native scene precision.
+        inputs=setup(f,lamp);diffuse=draw('fp16-diffuse',shaders[1,0],f,inputs)
+        reference=dict(inputs);reference['textures']=dict(inputs['textures']);reference['textures'][3]=diffuse
+        expected=draw('fp16-separate',original,f,reference,target_format='rgba16f')
+        actual=draw('fp16-fused',fused_shaders[1],f,inputs,target_format='rgba16f')
+        ulp=np.spacing(np.maximum(np.abs(actual),np.abs(expected)).astype(np.float16)).astype(np.float32)
+        error=np.abs(actual-expected)
+        check('FP16 fused composition within one storage ULP',np.isfinite(actual).all() and np.all(error<=ulp),
+              maximum_error=float(error.max()),maximum_ulp_error=float((error/ulp).max()))
     report=dict(check_count=len(checks),all_passed=True,checks=checks,geometry=rows,aggregate_error=totals,temporal=temporal,
         settings=dict(bias=bias,assumed_thickness=thickness,max_steps=steps),
         source_sha256={n:digest((output/n).read_bytes()) for n in ('material_light.hlsl','material_visibility.hlsl')},
         game_package_created=False,game_runtime_verified=False,performance_verified=False,
+        single_draw_fused=bool(fused),fused_sha256={str(mode):digest(path.read_bytes()) for mode,path in fused_shaders.items()},
         limits=['Actual separate GPU passes with CPU readback/upload between; no game runtime resource binding',
                 'Synthetic projection in b12; not available in audited native material interface',
                 'Nearest visible surface only; hidden/offscreen/transparent occluders are missing',
                 'Finite sampling, tunable bias and assumed thickness; hard edges, no temporal stabilization',
                 'Visibility oracle checks implementation; full geometry metrics retain edge failures',
                 'No new DoF/reflection quality evidence or actual GPU performance claim'])
+    if fused:
+        report['limits'][0]='Candidate runs visibility + native material in one GPU draw; separate passes are only comparison references'
+        report['limits'].append('Offline b12/b13 are explicit harness resources, absent from native reflection and not game-authorized bindings')
     (output/'report.json').write_bytes(encoded(report))
     panel=Image.new('RGB',(960,230),'#181b20');draw_labels=ImageDraw.Draw(panel)
     for i,(label,pixels) in enumerate(pictures):
@@ -182,4 +237,5 @@ if __name__=='__main__':
     p.add_argument('--extraction',type=Path,default=ROOT/'artifacts/client-2026.09.15')
     p.add_argument('--bias',type=float,default=.025);p.add_argument('--thickness',type=float,default=.35)
     p.add_argument('--steps',type=int,default=96)
-    a=p.parse_args();run(a.output,a.extraction,a.bias,a.thickness,a.steps)
+    p.add_argument('--fused',action='store_true',help='Offline synthetic b12/b13; single-draw native material, never a game package')
+    a=p.parse_args();run(a.output,a.extraction,a.bias,a.thickness,a.steps,a.fused)

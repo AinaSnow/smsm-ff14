@@ -85,3 +85,44 @@ C:\Python314\python.exe tools/validate_material_visibility.py artifacts/material
 先审计游戏如何向材质阶段提供投影、视口与可用深度，再对网格路径建立遮挡合成对照，之后决定游戏包的绑定方式。未验证前不读取猜测的常量槽，不使用旧 r5 动态机制，不热换 DLL。
 
 屏幕空间方法缺少离屏、背面、隐藏和透明遮挡几何；法线贴图的着色法线也未必是几何平面法线。有限步进、假定厚度和硬边仍可能漏光、跳动。当前证据足以继续研究，尚不足以宣称完整阴影或实机可用的动态灯。
+
+## 第七轮：单次绘制与相机绑定审计
+
+2026-10-08。新增 `tools/audit_camera_bindings.py` 只读审计历史日志，产物 `artifacts/camera-binding-audit-v2/report.json`。不是运行时探针，也不修改客户端。
+
+| 观察 | 已知证据 | 尚未证明 |
+|---|---|---|
+| 全屏材质 | draw 2094/2095 的 PS b1 绑定 `0x0000020a676369e0` | 常量内容、分配长度 |
+| 网格材质 | draw 2177/2179/2181/2183/2184/2186 的 PS b3 同地址 | 当前帧与历史帧一致 |
+| 相关 VS | 前五次 VS b0、末次 VS b2 同地址，静态读取第 22–25 行 | 分支执行、数据数值及两种投影矩阵的等价性 |
+| 材质自身 | 两份原 PS 的相机声明都仅覆盖前 6 个 float4 | 不能用完整结构反射大小替代实际绑定验证 |
+| 抓帧文件 | 递归统计 6525 个 JPG、2 个 TXT；无 CB/无损浮点资源文件 | 无法从显示图片恢复完整投影/法线/位置 |
+| 视口 | 存在 RSSetViewports 调用和指针 | 日志未记录宽高、偏移、深度范围的数值 |
+
+工具维护 PS/VS 独立绑定、局部槽位更新、被省略的 null 槽、写入事件、上下文失效和 SRV/输出冲突。未解析的 D3D11.1 范围绑定会清除相关证据；计算/未知写入会切断内容时期。相同指针和“未观察到写入”只支持进一步定位，不能证明内容一致。报告固定保留 `game_projection_verified=false`、`eligible_for_game_occlusion=false`；5 项状态回归通过。
+
+`tools/offline/fuse_material_visibility.py` 在原生 t3 漫反射读取之后，插入新增灯与屏幕空间遮挡，再继续原版 AO、材质、环境光、自发光、alpha 和输出编码。候选一帧只需一次绘制；旧的独立遮挡读回/上传链路仍作为对照。没有扩大游戏 patcher 的允许绑定范围：新增 b12/b13 仅由离线 harness 显式提供。保留的原版反射不描述这两个附加缓冲，实际执行声明单独检查；这些程序不得安装到游戏。
+
+实际 D3D11 WARP 验证结果位于 `artifacts/material-visibility-fused-v3/report.json`，共 **162 项检查全部通过**：
+
+- 9 种几何/投影配置、2 种遮挡方法的融合输出与分步原生材质对照逐像素相同。
+- 肤色参考、蓝布、AO、自发光、混合金属的最终 RGBA 与分步对照相同；遮挡区域保留原有光照。
+- 每种方法 13 帧灯位更新在同一个设备、同一个融合 shader 上运行，最终材质随灯移动而变化；与逐帧分步结果相同。
+- 位置、红/冷色、强度、范围与 CPU 灯计算加原生材质对照一致；强度为零/范围够不到表面时与原生输出完全相同。
+- 屏幕外、缺失遮挡几何、无效位置、奇异投影的回退结果与分步版本一致。
+- 原生场景 FP16 输出的融合/分步差异按逐像素存储 ULP 检查通过；不把 WARP 耗时当显卡成本。
+
+本轮沿用上一轮明确指定的候选参数 0.0125 / 0.2 / 128，没有再次调参，也没有改善原先的几何或运动误差。9 场景误判仍为粗厚度 814、平面复核 277；屏幕外和隐藏几何限制仍在，尚无时域稳定器或游戏内控制器。合并绘制证明执行链路成立，不等于画质或帧率提升。
+
+另有 2 项边界检查确认游戏接口验证器和游戏 patcher **拒绝**离线附加缓冲；原有两条材质包 6 项管理/回退测试通过，合计 13 项。无新包、无客户端写入、无 DLL/INI 修改，旧不可变包不变。
+
+复现（输出目录必须不存在）：
+
+```powershell
+C:\Python314\python.exe tools/audit_camera_bindings.py "E:\SteamLibrary\steamapps\common\FINAL FANTASY XIV Online\game\FrameAnalysis-2026-10-08-021615\log.txt" artifacts/camera-binding-audit-new
+C:\Python314\python.exe tools/validate_material_visibility.py artifacts/material-visibility-fused-new --bias .0125 --thickness .2 --steps 128 --fused
+C:\Python314\python.exe -m unittest discover -s tools -p test_camera_bindings.py -v
+C:\Python314\python.exe -m unittest discover -s tools -p test_fused_visibility.py -v
+```
+
+边界测试核对本轮固定路径 `material-visibility-fused-v3` 的实际渲染产物。下一步需要：捕获指定绘制的完整相机常量与无损位置/法线、记录数值视口和纹理尺寸，将已知像素的位置重新投影并检查误差；不能只比缓冲区 hash。先准备验证器及捕获配置，再安排一次有目的的实机采样，同时继续网格路径离线遮挡研究。

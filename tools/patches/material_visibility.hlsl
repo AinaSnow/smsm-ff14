@@ -73,6 +73,9 @@ float4 main(float4 pixel:SV_POSITION):SV_TARGET
     if(visibilitySettings.x>0 && valid) visibility=materialVisibility(p,supported);
 #if MATERIAL_VISIBILITY_AUDIT
     return float4(visibility,supported,valid?1:0,0);
+#elif MATERIAL_VISIBILITY_ADD_ONLY
+    // Offline fused harness inserts this contribution at the native t3 read.
+    return float4(lamp.xyz*visibility,0);
 #else
     float4 base=diffuseInput.SampleLevel(diffuseSampler,uv,0);
     return float4(base.xyz+lamp.xyz*visibility,base.w);
