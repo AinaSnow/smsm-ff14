@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-08",
+  "capture_completed_shanghai": "22:10",
+  "source_kind": "game",
+  "user_reported_scene": "night; indoors at witch cafe",
+  "capture_status": "snapshots_complete",
+  "raw_bytes_sha_verified": 74669856,
+  "budget_bytes": 268435456,
+  "source_frame": 69308,
+  "copy_enqueue_cpu_ms": 4.5259,
+  "readback_and_io_cpu_ms": 84.4672,
+  "readback_presents": 2,
+  "performance_note": "one triggered capture only; not idle or shader GPU performance",
+  "camera_payloads_equal_between_target_draws": true,
+  "target_draws": [
+    {
+      "target": "415a922293923fa4",
+      "draw": 2679,
+      "draw_kind": "draw",
+      "element_count": 3,
+      "viewports": [
+        [
+          0.5,
+          0.5,
+          1920,
+          1080,
+          0,
+          1
+        ]
+      ],
+      "captured_labels": [
+        "ps-b0",
+        "ps-b1",
+        "ps-b2",
+        "ps-b3",
+        "ps-t10",
+        "ps-t3",
+        "ps-t4",
+        "om-depth"
+      ],
+      "unavailable": [
+        {
+          "label": "ps-t5",
+          "status": "unsupported_format",
+          "resource_format": 87
+        },
+        {
+          "label": "ps-t0",
+          "status": "unsupported_view_dimension",
+          "resource_format": 87
+        }
+      ]
+    },
+    {
+      "target": "980154264a89fba1",
+      "draw": 2905,
+      "draw_kind": "draw_indexed",
+      "element_count": 3687,
+      "viewports": [
+        [
+          0.5,
+          0.5,
+          1920,
+          1080,
+          0,
+          1
+        ]
+      ],
+      "captured_labels": [
+        "ps-b1",
+        "ps-b2",
+        "ps-b3",
+        "ps-b4",
+        "ps-b6",
+        "vs-b0",
+        "vs-b2",
+        "ps-t2",
+        "ps-t0",
+        "ps-t1",
+        "om-depth"
+      ],
+      "unavailable": [
+        {
+          "label": "ps-t4",
+          "status": "unsupported_format",
+          "resource_format": 87
+        },
+        {
+          "label": "ps-t7",
+          "status": "unsupported_view_dimension",
+          "resource_format": 87
+        }
+      ]
+    }
+  ],
+  "output_permission_fix": {
+    "only_new_capture_directory_and_new_config_log_files": true,
+    "game_directory_acl_changed": false,
+    "dll_replaced_while_running": false
+  },
+  "diagnostic_stopped_after_capture": true,
+  "m1_same_phase_camera_resource_snapshot": true,
+  "player_object_identity_verified": false,
+  "native_lighting_semantics_verified": false,
+  "m2_migration_decision": "pending camera/position/scene comparisons and producer audit"
+}
