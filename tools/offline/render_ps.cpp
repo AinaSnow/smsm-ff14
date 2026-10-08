@@ -42,6 +42,7 @@ int wmain(int argc, wchar_t** argv) try {
         else {
             Input item; item.kind=key;
             if (key == "texture") job >> item.slot >> item.width >> item.height >> std::quoted(item.path);
+            else if (key == "cube") { job >> item.slot >> item.width >> std::quoted(item.path); item.height=item.width; }
             else if (key == "structured") job >> item.slot >> item.stride >> std::quoted(item.path);
             else if (key == "constant" || key == "animation") job >> item.slot >> std::quoted(item.path);
             else throw std::runtime_error("Unknown job field: " + key);
@@ -53,7 +54,9 @@ int wmain(int argc, wchar_t** argv) try {
         throw std::runtime_error("Invalid dimensions, shader or output");
     if (!draws || draws>64 || (blend!="overwrite" && blend!="add" && blend!="source-alpha"))
         throw std::runtime_error("Invalid draw count or blend mode");
-    if (format!="rgba32f" && format!="r11g11b10") throw std::runtime_error("Invalid target format");
+    if (format!="rgba32f" && format!="r11g11b10" && format!="rgba16f") throw std::runtime_error("Invalid target format");
+    unsigned pixelBytes=format=="rgba32f"?16:(format=="rgba16f"?8:4);
+    std::string extension=format=="rgba32f"?".f32":(format=="rgba16f"?".f16":".r11");
     if (!vw) { vw=float(width); vh=float(height); }
     if (vx<0 || vy<0 || vw<=0 || vh<=0 || vx+vw>width || vy+vh>height) throw std::runtime_error("Invalid viewport");
     wchar_t system[MAX_PATH]; GetSystemDirectoryW(system, MAX_PATH);
@@ -112,12 +115,18 @@ int wmain(int argc, wchar_t** argv) try {
         }
         if (input.slot>=128) throw std::runtime_error("Invalid SRV slot");
         ComPtr<ID3D11ShaderResourceView> view;
-        if (input.kind=="texture") {
-            if (!input.width || !input.height || input.width>4096 || input.height>4096 || bytes.size()!=size_t(input.width)*input.height*16) throw std::runtime_error("Invalid RGBA32F texture size");
-            D3D11_TEXTURE2D_DESC td{}; td.Width=input.width; td.Height=input.height; td.MipLevels=td.ArraySize=1; td.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;
+        if (input.kind=="texture" || input.kind=="cube") {
+            unsigned faces=input.kind=="cube"?6:1;
+            if (!input.width || !input.height || input.width>4096 || input.height>4096 || bytes.size()!=size_t(input.width)*input.height*16*faces) throw std::runtime_error("Invalid RGBA32F texture size");
+            D3D11_TEXTURE2D_DESC td{}; td.Width=input.width; td.Height=input.height; td.MipLevels=1; td.ArraySize=faces; td.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;
             td.SampleDesc.Count=1; td.Usage=D3D11_USAGE_IMMUTABLE; td.BindFlags=D3D11_BIND_SHADER_RESOURCE;
-            D3D11_SUBRESOURCE_DATA data{bytes.data(),input.width*16,0}; ComPtr<ID3D11Texture2D> tex;
-            check(device->CreateTexture2D(&td,&data,&tex),"input texture"); check(device->CreateShaderResourceView(tex.Get(),nullptr,&view),"texture SRV"); resources.push_back(tex);
+            if (faces==6) td.MiscFlags=D3D11_RESOURCE_MISC_TEXTURECUBE;
+            D3D11_SUBRESOURCE_DATA data[6]{};
+            for (unsigned face=0;face<faces;++face) { data[face].pSysMem=bytes.data()+size_t(face)*input.width*input.height*16; data[face].SysMemPitch=input.width*16; }
+            ComPtr<ID3D11Texture2D> tex; check(device->CreateTexture2D(&td,data,&tex),"input texture");
+            D3D11_SHADER_RESOURCE_VIEW_DESC sv{}; sv.Format=td.Format; sv.ViewDimension=D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
+            sv.TextureCubeArray.MipLevels=1; sv.TextureCubeArray.NumCubes=1;
+            check(device->CreateShaderResourceView(tex.Get(),faces==6?&sv:nullptr,&view),"texture SRV"); resources.push_back(tex);
         } else {
             if (!input.stride || bytes.size()%input.stride || bytes.size()>16*1024*1024) throw std::runtime_error("Invalid structured buffer");
             D3D11_BUFFER_DESC bd{}; bd.ByteWidth=UINT(bytes.size()); bd.Usage=D3D11_USAGE_IMMUTABLE; bd.BindFlags=D3D11_BIND_SHADER_RESOURCE; bd.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED; bd.StructureByteStride=input.stride;
@@ -130,7 +139,7 @@ int wmain(int argc, wchar_t** argv) try {
     std::vector<ComPtr<ID3D11Texture2D>> renderTargets,staging; std::vector<ComPtr<ID3D11RenderTargetView>> rtvs; ID3D11RenderTargetView* rawRT[8]{};
     for (unsigned i=0;i<targets;++i) {
         D3D11_TEXTURE2D_DESC td{}; td.Width=width; td.Height=height; td.MipLevels=td.ArraySize=1;
-        td.Format=format=="rgba32f"?DXGI_FORMAT_R32G32B32A32_FLOAT:DXGI_FORMAT_R11G11B10_FLOAT; td.SampleDesc.Count=1;
+        td.Format=format=="rgba32f"?DXGI_FORMAT_R32G32B32A32_FLOAT:(format=="rgba16f"?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R11G11B10_FLOAT); td.SampleDesc.Count=1;
         td.Usage=D3D11_USAGE_DEFAULT; td.BindFlags=D3D11_BIND_RENDER_TARGET;
         ComPtr<ID3D11Texture2D> tex,stage; ComPtr<ID3D11RenderTargetView> rtv;
         check(device->CreateTexture2D(&td,nullptr,&tex),"render target"); check(device->CreateRenderTargetView(tex.Get(),nullptr,&rtv),"RTV");
@@ -145,10 +154,10 @@ int wmain(int argc, wchar_t** argv) try {
         for (unsigned i=0;i<targets;++i) {
             context->CopyResource(staging[i].Get(),renderTargets[i].Get()); D3D11_MAPPED_SUBRESOURCE mapped{};
             check(context->Map(staging[i].Get(),0,D3D11_MAP_READ,0,&mapped),"readback Map");
-            auto path=fs::u8path(output+"-f"+std::to_string(frame)+"-rt"+std::to_string(i)+(format=="rgba32f"?".f32":".r11"));
+            auto path=fs::u8path(output+"-f"+std::to_string(frame)+"-rt"+std::to_string(i)+extension);
             if (fs::exists(path)) { context->Unmap(staging[i].Get(),0); throw std::runtime_error("Refusing to overwrite readback"); }
             std::ofstream out(path,std::ios::binary);
-            for (unsigned y=0;y<height;++y) out.write(static_cast<char*>(mapped.pData)+size_t(y)*mapped.RowPitch,size_t(width)*(format=="rgba32f"?16:4));
+            for (unsigned y=0;y<height;++y) out.write(static_cast<char*>(mapped.pData)+size_t(y)*mapped.RowPitch,size_t(width)*pixelBytes);
             context->Unmap(staging[i].Get(),0); if (!out) throw std::runtime_error("Readback write failed");
         }
     }

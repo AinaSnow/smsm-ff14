@@ -48,7 +48,7 @@ def unpack_r11(words):
 
 
 def render(shader, output, width, height, textures=None, constants=None, structured=None,
-           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f"):
+           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f",cubes=None):
     """Inputs and every raw float32 output remain on disk for replay/diff.
 
     animation is (constant slot, frames x vectors x float4); updated on the SAME
@@ -56,10 +56,14 @@ def render(shader, output, width, height, textures=None, constants=None, structu
     draws repeats the pass without clearing; blend is an explicit synthetic OM
     mode (overwrite/add/source-alpha), with alpha overwritten in all modes.
     r11g11b10 retains packed .r11 readbacks; returned alpha=1 is synthesized.
+    rgba16f retains packed .f16 readbacks. cubes maps slots to 6 x H x H x RGBA
+    arrays in +X/-X/+Y/-Y/+Z/-Z order, bound as a single-cube TextureCubeArray.
     """
     if not isinstance(draws, int) or not 1 <= draws <= 64 or blend not in ("overwrite", "add", "source-alpha"):
         raise ValueError("Invalid draw count or blend mode")
-    if target_format not in ("rgba32f","r11g11b10"): raise ValueError("Invalid target format")
+    if target_format not in ("rgba32f","r11g11b10","rgba16f"): raise ValueError("Invalid target format")
+    if set(textures or {})&set(cubes or {}) or (set(textures or {})|set(cubes or {}))&set(structured or {}):
+        raise ValueError("Resource slots overlap")
     output.mkdir(parents=True, exist_ok=False)
     quote = lambda p: json.dumps(str(Path(p).resolve()).replace("\\", "/"), ensure_ascii=False)
     lines = [f"size {width} {height} {targets}", "shader " + quote(shader), "output " + quote(output / "pixels")]
@@ -74,6 +78,12 @@ def render(shader, output, width, height, textures=None, constants=None, structu
             raise ValueError("Textures must be H x W x RGBA")
         path = output / f"t{slot}.f32"; array.tofile(path)
         lines.append(f"texture {slot} {array.shape[1]} {array.shape[0]} " + quote(path))
+    for slot,array in (cubes or {}).items():
+        array=np.ascontiguousarray(array,dtype="<f4")
+        if array.ndim!=4 or array.shape[0]!=6 or array.shape[1]!=array.shape[2] or array.shape[3]!=4:
+            raise ValueError("Cube must be 6 x H x H x RGBA")
+        path=output/f"cube{slot}.f32"; array.tofile(path)
+        lines.append(f"cube {slot} {array.shape[1]} "+quote(path))
     for slot, array in (constants or {}).items():
         path = output / f"b{slot}.f32"; np.asarray(array, dtype="<f4").tofile(path)
         lines.append(f"constant {slot} " + quote(path))
@@ -97,6 +107,8 @@ def render(shader, output, width, height, textures=None, constants=None, structu
     def readback(frame,rt):
         if target_format=="rgba32f":
             return np.fromfile(output/f"pixels-f{frame}-rt{rt}.f32",dtype="<f4").reshape(height,width,4)
+        if target_format=="rgba16f":
+            return np.fromfile(output/f"pixels-f{frame}-rt{rt}.f16",dtype="<f2").astype(np.float32).reshape(height,width,4)
         return unpack_r11(np.fromfile(output/f"pixels-f{frame}-rt{rt}.r11",dtype="<u4").reshape(height,width))
     return np.stack([np.stack([readback(frame,rt)
                                for rt in range(targets)]) for frame in range(frames)])
