@@ -8,11 +8,13 @@ from native_environment import current, RECEIPT
 
 
 def request(game, action):
-    if action not in ('on','half','off','status') or os.name!='nt':
+    if action not in ('on','half','off','status','coverage') or os.name!='nt':
         raise ValueError('Unsupported ambient command/platform')
     owned=current(game)
     if not owned or json.loads(owned[RECEIPT]).get('shader_replacement') is not True:
         raise ValueError('An experimental material package must be explicitly installed first')
+    if action=='coverage' and not json.loads(owned[RECEIPT]).get('coverage_shader_sha256'):
+        raise ValueError('Installed package has no coverage marker; do not send this command to r4')
     folder=game/'SMSM-native-captures'
     if not folder.is_dir() or folder.is_symlink() or getattr(folder.lstat(),'st_file_attributes',0)&0x400:
         raise ValueError('Initialize a real writable diagnostic directory first')
@@ -28,4 +30,4 @@ def request(game, action):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('game',type=Path)
-    p.add_argument('action',choices=['on','half','off','status']);args=p.parse_args();request(args.game.absolute(),args.action)
+    p.add_argument('action',choices=['on','half','off','status','coverage']);args=p.parse_args();request(args.game.absolute(),args.action)

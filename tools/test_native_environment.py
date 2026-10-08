@@ -6,6 +6,7 @@ from unittest.mock import patch
 import manage_preview as managed
 import native_environment as native
 from request_native_capture import request
+from request_native_ambient import request as ambient_request
 
 
 def rejects(fn):
@@ -43,7 +44,7 @@ def main():
     after = native.desired(game, args.package, args.runtime,args.allow_shader_experiment)
     with patch.object(native, "running_game", return_value=False):
         if args.previous_package:
-            initial = native.desired(game, args.previous_package, args.runtime)
+            initial = native.desired(game, args.previous_package, args.runtime,args.allow_shader_experiment)
             assert initial["SMSM.NativeLighting.addon64"] != after["SMSM.NativeLighting.addon64"]
             native.transition(game, {}, initial, root / "native-backups")
             settings = game / "ReShade.ini"
@@ -74,6 +75,19 @@ def main():
         assert native.current(game) == after
         captures = game / "SMSM-native-captures"
         captures.mkdir()
+        if json.loads(after[native.RECEIPT]).get('coverage_shader_sha256'):
+            ambient_request(game, 'coverage')
+            marker_command=captures/'ambient-command.txt'
+            assert marker_command.read_bytes()==b'coverage\n'
+            try:ambient_request(game,'off')
+            except FileExistsError:pass
+            else:raise AssertionError('Pending coverage command replaced')
+            assert not list(captures.glob('.ambient-command-*.tmp'))
+            marker_command.unlink()
+            old_receipt=json.loads(after[native.RECEIPT]);old_receipt.pop('coverage_shader_sha256')
+            with patch('request_native_ambient.current',return_value={native.RECEIPT:json.dumps(old_receipt).encode()}):
+                rejects(lambda:ambient_request(game,'coverage'))
+            assert not marker_command.exists()
         request(game, "enable")
         command = game / "SMSM-native-command.txt"
         assert command.read_bytes() == b"enable\n"

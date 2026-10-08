@@ -26,6 +26,10 @@ def main():
         entries['tools/request_native_ambient.py']=ROOT/'tools/request_native_ambient.py'
         entries['docs/NATIVE-AMBIENT-SURFACE.md']=ROOT/'docs/NATIVE-AMBIENT-SURFACE.md'
         entries['docs/validation/native-ambient-r4-2026-10-09.json']=ROOT/'docs/validation/native-ambient-r4-2026-10-09.json'
+        entries['docs/validation/native-hair-identity-2026-10-09.json']=ROOT/'docs/validation/native-hair-identity-2026-10-09.json'
+    if manifest.get('coverage_shader_sha256'):
+        entries['docs/NATIVE-COVERAGE.md']=ROOT/'docs/NATIVE-COVERAGE.md'
+        entries['docs/validation/native-coverage-r5-2026-10-09.json']=ROOT/'docs/validation/native-coverage-r5-2026-10-09.json'
     for name in ("NATIVE-DIAGNOSTIC.md", "NATIVE-DIAGNOSTIC-R2.md", "NATIVE-PRODUCERS.md", "NATIVE-LIGHTING-AUDIT.md", "NATIVE-LIGHTING-PLAN.md", "MANAGEMENT.md",
                  "validation/native-diagnostic-2026-10-08.json", "validation/native-diagnostic-r2-2026-10-08.json",
                  "validation/native-producer-r3-2026-10-09.json",

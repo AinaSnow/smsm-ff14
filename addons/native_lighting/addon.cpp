@@ -6,6 +6,10 @@
 #include "ambient_bridge.hpp"
 #include "native_ambient_bytecode.hpp"
 #endif
+#ifdef SMSM_NATIVE_COVERAGE
+#include "coverage_bridge.hpp"
+#include "native_coverage_bytecode.hpp"
+#endif
 
 using namespace reshade::api;
 namespace {
@@ -14,6 +18,9 @@ struct State {
     uint64_t swapchain = 0;
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
     smsm::AmbientBridge ambient;
+#endif
+#ifdef SMSM_NATIVE_COVERAGE
+    smsm::CoverageBridge coverage;
 #endif
     explicit State(const smsm::fs::path &path) : diagnostic(path) {}
 };
@@ -30,6 +37,9 @@ template<class F> void guarded(device *dev, F &&f) noexcept {
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
     if(it->second->ambient.internal)return;
 #endif
+#ifdef SMSM_NATIVE_COVERAGE
+    if(it->second->coverage.internal)return;
+#endif
     try { f(*it->second); }
     catch (const std::exception &e) {
         it->second->diagnostic.set_enabled(false);
@@ -37,6 +47,9 @@ template<class F> void guarded(device *dev, F &&f) noexcept {
         it->second->diagnostic.draws.clear();
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
         it->second->ambient.disable();
+#endif
+#ifdef SMSM_NATIVE_COVERAGE
+        it->second->coverage.disable();
 #endif
         reshade::log::message(reshade::log::level::error,e.what());
     }
@@ -48,6 +61,9 @@ void init_device(device *dev) {
         states.emplace(dev,std::make_unique<State>(output_path()));
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
         states.at(dev)->ambient.initialize(reinterpret_cast<ID3D11Device *>(dev->get_native()),native_ambient_bytecode,sizeof(native_ambient_bytecode));
+#endif
+#ifdef SMSM_NATIVE_COVERAGE
+        states.at(dev)->coverage.initialize(reinterpret_cast<ID3D11Device *>(dev->get_native()),native_coverage_bytecode,sizeof(native_coverage_bytecode));
 #endif
     }
     catch (const std::exception &e) { reshade::log::message(reshade::log::level::error,e.what()); }
@@ -116,6 +132,15 @@ template<class F> bool native_draw(command_list *cmd,const char *kind,uint32_t c
         auto *ctx=reinterpret_cast<ID3D11DeviceContext *>(cmd->get_native());
         s.diagnostic.before_draw(ctx,kind,count,instances);
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
+#ifdef SMSM_NATIVE_COVERAGE
+        if(s.coverage.enabled()) {
+            smsm::ComPtr<ID3D11PixelShader> ps;ctx->PSGetShader(&ps,nullptr,nullptr);
+            auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
+            if(identity!=s.diagnostic.shaders.end() && identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX)
+                replaced=s.coverage.draw(ctx,GetTickCount64(),[&]{call(ctx);});
+            return;
+        }
+#endif
         if(!s.ambient.enabled())return;
         smsm::ComPtr<ID3D11PixelShader> ps;ctx->PSGetShader(&ps,nullptr,nullptr);
         auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
@@ -146,17 +171,32 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
         d.present(context);
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
         s.ambient.reset_frame();
+        auto write_status=[&] {
+            smsm::Json report;report.fields["enabled"]=s.ambient.enabled()?"true":"false";
+            report.num("copies",s.ambient.copies);report.num("overrides",s.ambient.overrides);report.num("fallbacks",s.ambient.fallbacks);
+#ifdef SMSM_NATIVE_COVERAGE
+            report.fields["coverage_enabled"]=s.coverage.enabled()?"true":"false";
+            report.num("coverage_draws",s.coverage.draws);report.num("coverage_fallbacks",s.coverage.fallbacks);
+#endif
+            std::ofstream output(d.root/"ambient-status.json");output<<report.str()<<'\n';
+        };
+#ifdef SMSM_NATIVE_COVERAGE
+        if(s.coverage.expire(GetTickCount64()))write_status();
+#endif
         const auto ambient_command=d.root/"ambient-command.txt";
         if(GetFileAttributesW(ambient_command.c_str())!=INVALID_FILE_ATTRIBUTES) {
             std::ifstream input(ambient_command);char action[64]={};input.getline(action,sizeof(action));input.close();
             if(!smsm::fs::remove(ambient_command))throw std::runtime_error("ambient_command_consume_failed");
             const std::string value=action;
+#ifdef SMSM_NATIVE_COVERAGE
+            if(value!="status")s.coverage.disable();
+            if(value=="coverage") {d.stop();s.ambient.disable();s.coverage.enable(GetTickCount64());}
+            else
+#endif
             if(value=="on" || value=="half") {d.stop();s.ambient.set_strength(context,value=="on"?1.f:.5f);}
             else if(value=="off")s.ambient.disable();
             else if(value!="status")throw std::runtime_error("unknown ambient command");
-            smsm::Json report;report.fields["enabled"]=s.ambient.enabled()?"true":"false";
-            report.num("copies",s.ambient.copies);report.num("overrides",s.ambient.overrides);report.num("fallbacks",s.ambient.fallbacks);
-            std::ofstream output(d.root/"ambient-status.json");output<<report.str()<<'\n';
+            write_status();
         }
 #endif
         // One manually submitted command is consumed at a frame boundary. No persistent auto-capture mode.
@@ -166,6 +206,9 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
             if (!smsm::fs::remove(command)) throw std::runtime_error("command_consume_failed");
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
             if(action=="enable" || action=="capture")s.ambient.disable();
+#endif
+#ifdef SMSM_NATIVE_COVERAGE
+            s.coverage.disable();
 #endif
             if (action=="enable") d.set_enabled(true);
             else if (action=="stop") d.stop();
@@ -181,6 +224,9 @@ void destroy_swapchain(swapchain *sc,bool) {
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
             s.ambient.disable();
 #endif
+#ifdef SMSM_NATIVE_COVERAGE
+            s.coverage.disable();
+#endif
         }
     });
 }
@@ -194,6 +240,9 @@ void controls(effect_runtime *runtime) {
         if (runtime->is_key_pressed(VK_F7)) {
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
             s.ambient.disable();
+#endif
+#ifdef SMSM_NATIVE_COVERAGE
+            s.coverage.disable();
 #endif
             if (d.enabled) d.stop(); else d.set_enabled(true);
             reshade::log::message(reshade::log::level::info,d.enabled ? "SMSM diagnostic enabled; F8 captures next frame" : "SMSM diagnostic stopped");
@@ -212,7 +261,11 @@ void execute_secondary(command_list *cmd,command_list *) {
 }
 }
 extern "C" __declspec(dllexport) const char *NAME="SMSM Native Lighting Diagnostic";
+#ifdef SMSM_NATIVE_COVERAGE
+extern "C" __declspec(dllexport) const char *DESCRIPTION="Default-off native ambient experiment and 10-second exact hair-variant coverage marker. F7 stops experiments and toggles resource audit.";
+#else
 extern "C" __declspec(dllexport) const char *DESCRIPTION="Default-off read-only D3D11 native resource audit. F7 enable/stop; F8 capture one following frame.";
+#endif
 BOOL APIENTRY DllMain(HMODULE module,DWORD reason,LPVOID) {
     if (reason==DLL_PROCESS_ATTACH) {
         if (!reshade::register_addon(module)) return FALSE;

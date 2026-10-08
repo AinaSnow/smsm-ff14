@@ -1,0 +1,140 @@
+{
+  "target": "980154264a89fba1",
+  "resource_path": "shader/sm5/shpk/hair.shpk",
+  "candidate_sha256": "3b44bac612d6ad0ff68cb8694bc5af690e87445f78add60652222840d682060f",
+  "original_sha256": "f8face0fb530f3b884c2a6b2af289fa1a8bb3ed0e4301b03efd34afadf7c76f7",
+  "scope": "magenta RGB marker only; native alpha/discard and draw states retained",
+  "game_visible_coverage_verified": false,
+  "checks": [
+    {
+      "name": "opaque alpha retained",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "opaque RGB marker/rejection",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "alpha-half alpha retained",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "alpha-half RGB marker/rejection",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "source alpha blend retained",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "discard alpha retained",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "discard RGB marker/rejection",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "depth-reject alpha retained",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "depth-reject RGB marker/rejection",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "mixed depth rejection retained",
+      "passed": true,
+      "max_error": 0.0
+    },
+    {
+      "name": "ISGN unchanged",
+      "passed": true
+    },
+    {
+      "name": "OSGN unchanged",
+      "passed": true
+    }
+  ],
+  "runtime_host": {
+    "source_kind": "synthetic_host",
+    "actual_reshade_runtime": true,
+    "driver": "hardware",
+    "vertices": 0,
+    "game_verified": false,
+    "runtime_sha256": "0cee63f9c9f13f3ac909c5b4903f4dbb4b719a7ab3b4f13b0deaf83c814b94f7",
+    "setup_sha256": "afe4c8f13048306307983b8b3d41d5bf00a86820440b0e57dea10950e1176445",
+    "addon_sha256": "a325b24b1c230b2b9672f3240163c99f3bee2b2827244e050c5dbd305ba8282a",
+    "ambient_on": {
+      "copies": 3,
+      "coverage_draws": 0,
+      "coverage_enabled": false,
+      "coverage_fallbacks": 0,
+      "enabled": true,
+      "fallbacks": 0,
+      "overrides": 3
+    },
+    "ambient_off": {
+      "copies": 3,
+      "coverage_draws": 0,
+      "coverage_enabled": false,
+      "coverage_fallbacks": 0,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 3
+    },
+    "coverage_on": {
+      "copies": 3,
+      "coverage_draws": 3,
+      "coverage_enabled": true,
+      "coverage_fallbacks": 0,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 3
+    },
+    "coverage_auto_expired": {
+      "copies": 3,
+      "coverage_draws": 3,
+      "coverage_enabled": false,
+      "coverage_fallbacks": 0,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 3
+    },
+    "coverage_off": {
+      "copies": 3,
+      "coverage_draws": 4,
+      "coverage_enabled": false,
+      "coverage_fallbacks": 0,
+      "enabled": false,
+      "fallbacks": 0,
+      "overrides": 3
+    }
+  },
+  "bridge": "WARP actual marker pixel, default-off, camera independence, expiry/off and normal/exception PS restoration passed",
+  "installer": {
+    "simulated_client": true,
+    "real_client_written": false,
+    "r10_roundtrip_exact": true,
+    "native_interruption_recovered": true,
+    "collision_modified_and_running_guards": true,
+    "old_to_new_addon_update": true,
+    "interrupted_update_restores_previous_addon": true,
+    "runtime_and_user_settings_retained_on_update": true,
+    "atomic_command_publication_and_duplicate_rejection": true,
+    "coverage_capability_gate_and_pending_command_rejection": true,
+    "tested_addon": "pre-final build with identical install schema; final differs only by add-on description text"
+  },
+  "installed_in_game": true,
+  "game_runtime_verified": false,
+  "settings_retained": true
+}

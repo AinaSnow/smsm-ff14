@@ -31,7 +31,7 @@ def main():
     exe = root / "test_reshade_host.exe"
     compile_cpp(ROOT / "addons/native_lighting/test_reshade_host.cpp", exe)
     command=[str(exe), str(root), str(args.extraction.resolve())]
-    if manifest.get('shader_replacement'):command.append('ambient')
+    if manifest.get('shader_replacement'):command.append('coverage' if manifest.get('coverage_shader_sha256') else 'ambient')
     subprocess.run(command, cwd=root, check=True, timeout=90)
     captures = sorted(root.glob("SMSM-native-captures/*/manifest.json"))
     assert len(captures) == 2, "Plugin did not capture exactly two manually requested frames; inspect ReShade.log"
@@ -73,6 +73,14 @@ def main():
               "setup_sha256": hashlib.sha256(args.setup.read_bytes()).hexdigest(),
               "addon_sha256": manifest["files"][addon.name], "captures": [str(p.relative_to(root)) for p in captures]}
     if manifest.get('shader_replacement'):result['ambient_on']=enabled;result['ambient_off']=disabled
+    if manifest.get('coverage_shader_sha256'):
+        marked=json.loads((root/'coverage-enabled-status.json').read_bytes())
+        expired=json.loads((root/'coverage-expired-status.json').read_bytes())
+        stopped=json.loads((root/'coverage-off-status.json').read_bytes())
+        assert marked['coverage_enabled'] and not marked['enabled'] and marked['coverage_draws']==3, marked
+        assert not expired['coverage_enabled'] and expired['coverage_draws']==3, expired
+        assert not stopped['coverage_enabled'] and stopped['coverage_draws']==4, stopped
+        result['coverage_on']=marked;result['coverage_auto_expired']=expired;result['coverage_off']=stopped
     (root / "report.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
 

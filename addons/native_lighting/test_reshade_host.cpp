@@ -90,6 +90,20 @@ int wmain(int argc,wchar_t **argv) {
             ambient_command("off");present();render(0);render(1);present();
             ambient_command("status");present();
             fs::copy_file(root/"SMSM-native-captures"/"ambient-status.json",root/"ambient-disabled-status.json");
+            if(std::wstring(argv[3])==L"coverage") {
+                ambient_command("coverage");present();
+                // No source/fullscreen draw: coverage must work without ambient readiness.
+                for(int i=0;i<3;++i){render(1);present();}
+                ambient_command("status");present();
+                fs::copy_file(root/"SMSM-native-captures"/"ambient-status.json",root/"coverage-enabled-status.json");
+                Sleep(10100);render(1);present();
+                // Expiry publishes status by itself; do not hide failure with a status command.
+                fs::copy_file(root/"SMSM-native-captures"/"ambient-status.json",root/"coverage-expired-status.json");
+                ambient_command("coverage");present();render(1);present();
+                ambient_command("off");present();render(1);present();
+                ambient_command("status");present();
+                fs::copy_file(root/"SMSM-native-captures"/"ambient-status.json",root/"coverage-off-status.json");
+            }
         }
         if(FAILED(device->GetDeviceRemovedReason()))throw std::runtime_error("device removed");
         ctx->ClearState();ctx->Flush();DestroyWindow(window);

@@ -1,4 +1,5 @@
 #include "ambient_bridge.hpp"
+#include "coverage_bridge.hpp"
 #include <d3dcompiler.h>
 #include <iostream>
 using namespace smsm;
@@ -50,5 +51,22 @@ int main(){try{
     require(caught && !bridge.internal,"exception left override active");ctx->PSGetShader(&restored,nullptr,nullptr);require(restored.Get()==ps.Get(),"exception did not restore PS");
     bridge.note_write(reinterpret_cast<uint64_t>(region.Get()));require(!bridge.draw(ctx.Get(),[]{}),"source mutation ignored");
     bridge.set_strength(ctx.Get(),0);require(!bridge.enabled(),"disable failed");
-    std::cout<<"WARP bridge copy, camera guards, frame invalidation and state restoration passed\n";return 0;
+    CoverageBridge coverage;
+    require(!coverage.draw(ctx.Get(),100,[]{}),"coverage not default-off");
+    auto marker=compile("float4 main():SV_Target{return float4(1,0,1,1);}","ps_5_0");
+    coverage.initialize(device.Get(),marker->GetBufferPointer(),marker->GetBufferSize());
+    coverage.enable(100);b=wrong_camera.Get();ctx->PSSetConstantBuffers(3,1,&b);
+    require(coverage.draw(ctx.Get(),101,[&]{ctx->Draw(3,0);}),"coverage incorrectly requires ambient/camera");
+    ctx->CopyResource(staging.Get(),output.Get());check(ctx->Map(staging.Get(),0,D3D11_MAP_READ,0,&mapped));
+    pixel=static_cast<float*>(mapped.pData);require(pixel[0]==1 && pixel[1]==0 && pixel[2]==1,"coverage did not render marker");ctx->Unmap(staging.Get(),0);
+    ctx->PSGetShader(&restored,nullptr,nullptr);require(restored.Get()==ps.Get(),"coverage PS not restored");
+    ctx1->PSGetConstantBuffers1(8,1,&restored_cb,&restored_first,&restored_count);
+    require(restored_cb.Get()==old_control.Get() && restored_first==first && restored_count==count,"coverage changed CB binding");
+    caught=false;try{coverage.draw(ctx.Get(),102,[]{throw std::runtime_error("marker failure");});}catch(...){caught=true;}
+    require(caught && !coverage.internal,"coverage exception guard failed");
+    ctx->PSGetShader(&restored,nullptr,nullptr);require(restored.Get()==ps.Get(),"coverage exception left PS changed");
+    require(!coverage.draw(ctx.Get(),10100,[]{throw std::runtime_error("expired draw");}),"expired marker rendered");
+    require(coverage.expire(10100) && !coverage.enabled(),"coverage did not expire after ten seconds");
+    coverage.enable(20000);coverage.disable();require(!coverage.draw(ctx.Get(),20001,[]{}),"coverage off failed");
+    std::cout<<"WARP ambient guards/restoration and coverage drawing, default-off, expiry, camera independence and exception restoration passed\n";return 0;
 }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}}
