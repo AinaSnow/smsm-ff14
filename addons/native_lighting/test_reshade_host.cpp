@@ -44,9 +44,24 @@ int wmain(int argc,wchar_t **argv) {
         std::vector<float> constants(1024);for(size_t i=0;i<constants.size();++i)constants[i]=float(i)/128;
         D3D11_SUBRESOURCE_DATA bi={constants.data(),0,0};ComPtr<ID3D11Buffer> cb;check(device->CreateBuffer(&bd,&bi,&cb));
         D3D11_TEXTURE2D_DESC td={};td.Width=64;td.Height=32;td.MipLevels=td.ArraySize=1;td.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;
-        td.SampleDesc.Count=1;td.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+        td.SampleDesc.Count=1;td.BindFlags=D3D11_BIND_SHADER_RESOURCE|D3D11_BIND_RENDER_TARGET;
         std::vector<float> pixels(64*32*4,0.25f);D3D11_SUBRESOURCE_DATA ti={pixels.data(),64*16,0};
         ComPtr<ID3D11Texture2D> tex;ComPtr<ID3D11ShaderResourceView> srv;check(device->CreateTexture2D(&td,&ti,&tex));check(device->CreateShaderResourceView(tex.Get(),nullptr,&srv));
+        ComPtr<ID3D11Texture2D> depth_source,depth_copy;ComPtr<ID3D11ShaderResourceView> depth_view;ComPtr<ID3D11RenderTargetView> producer_target;
+        check(device->CreateTexture2D(&td,&ti,&depth_source));check(device->CreateTexture2D(&td,nullptr,&depth_copy));
+        check(device->CreateShaderResourceView(depth_copy.Get(),nullptr,&depth_view));check(device->CreateRenderTargetView(tex.Get(),nullptr,&producer_target));
+        auto producer_code=read(extraction/L"dxbc"/"edf9243383ddcd52-ps.bin");ComPtr<ID3D11PixelShader> producer_ps;
+        check(device->CreatePixelShader(producer_code.data(),producer_code.size(),nullptr,&producer_ps));
+        D3D11_SAMPLER_DESC sampler_desc={};sampler_desc.Filter=D3D11_FILTER_MIN_MAG_MIP_POINT;
+        sampler_desc.AddressU=sampler_desc.AddressV=sampler_desc.AddressW=D3D11_TEXTURE_ADDRESS_CLAMP;sampler_desc.MaxLOD=D3D11_FLOAT32_MAX;
+        ComPtr<ID3D11SamplerState> sampler;check(device->CreateSamplerState(&sampler_desc,&sampler));
+        auto produce=[&](){
+            ctx->CopyResource(depth_copy.Get(),depth_source.Get());
+            auto *r=producer_target.Get();ctx->OMSetRenderTargets(1,&r,nullptr);
+            D3D11_VIEWPORT vp={3,2,57,27,0.1f,0.9f};ctx->RSSetViewports(1,&vp);
+            ctx->PSSetShader(producer_ps.Get(),nullptr,0);auto *v=depth_view.Get();ctx->PSSetShaderResources(0,1,&v);
+            auto *s=sampler.Get();ctx->PSSetSamplers(0,1,&s);ctx->Draw(0,1);
+        };
         auto render=[&](int shader){
             auto *r=rtv.Get();ctx->OMSetRenderTargets(1,&r,nullptr);D3D11_VIEWPORT vp={3,2,57,27,0.1f,0.9f};ctx->RSSetViewports(1,&vp);
             ctx->VSSetShader(vertex.Get(),nullptr,0);ctx->PSSetShader(ps[shader].Get(),nullptr,0);ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -59,11 +74,11 @@ int wmain(int argc,wchar_t **argv) {
         if(fs::exists(root/"SMSM-native-captures"))throw std::runtime_error("default-off host captured data");
         command(root,"enable");render(0);present();
         command(root,"capture");render(0);present();
-        render(0);render(0);render(1);present();
+        produce();render(0);render(0);render(1);present();
         for(int i=0;i<20;++i){render(0);present();}
         // Repeat with new bytes on the same CB. New capture must not reuse old readback.
         std::fill(constants.begin(),constants.end(),7.25f);ctx->UpdateSubresource(cb.Get(),0,nullptr,constants.data(),0,0);
-        command(root,"capture");render(0);present();render(0);render(1);present();
+        command(root,"capture");render(0);present();produce();render(0);render(1);present();
         for(int i=0;i<20;++i){render(0);present();}
         command(root,"stop");present();
         if(FAILED(device->GetDeviceRemovedReason()))throw std::runtime_error("device removed");

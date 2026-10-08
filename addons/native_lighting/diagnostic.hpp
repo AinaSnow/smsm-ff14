@@ -91,6 +91,11 @@ inline uint32_t texel_bytes(DXGI_FORMAT f) {
 struct History {
     uint64_t generation = 0, event = 0, frame = 0;
     std::string last = "unknown";
+    Json draw_writer;
+    Json copy_source;
+    uint64_t writer_epoch = 0, draw_writers = 0;
+    std::set<std::string> pixel_writers;
+    bool writer_set_truncated = false;
 };
 struct Snapshot {
     Json meta;
@@ -117,6 +122,7 @@ public:
     std::string status = "idle";
     uint64_t captured_frame = 0, bytes = 0, readback_presents = 0;
     uint64_t deferred_draws = 0;
+    uint64_t tracking_epoch = 0;
     double copy_ms = 0, map_ms = 0;
     std::set<std::string> seen;
 
@@ -128,6 +134,38 @@ public:
     void write(uint64_t id, const std::string &kind) {
         if (internal || !enabled || !id) return;
         auto &h = histories[id]; h.event = ++event; h.frame = frame; h.last = kind;
+        h.draw_writer = {}; h.copy_source = {}; h.draw_writers = 0; h.pixel_writers.clear(); h.writer_set_truncated = false;
+    }
+    void set_enabled(bool value) {
+        if (value != enabled) ++tracking_epoch;
+        enabled = value;
+    }
+    Json reference(uint64_t id, bool include_copy = true) const {
+        Json j; j.num("native_resource", id);
+        auto it = histories.find(id);
+        if (it == histories.end()) { j.text("status", "unknown_lifetime"); return j; }
+        j.num("generation", it->second.generation); j.num("last_event", it->second.event);
+        j.num("last_event_frame", it->second.frame); j.text("last_event_kind", it->second.last);
+        if (include_copy && !it->second.copy_source.fields.empty()) j.fields["copy_source"] = it->second.copy_source.str();
+        return j;
+    }
+    void copy_write(uint64_t dest, uint64_t source, const std::string &kind, int64_t src_sub = -1, int64_t dst_sub = -1) {
+        if (internal || !enabled || !dest) return;
+        Json input = reference(source, false); // One source reference, never an unbounded copy graph.
+        input.num("source_subresource", src_sub); input.num("destination_subresource", dst_sub);
+        input.text("scope", "observed_copy_intent; boxes/byte_ranges and successful coverage not established");
+        write(dest, kind); histories[dest].copy_source = std::move(input);
+    }
+    void render_target_write(uint64_t id, Json writer, const std::string &pixel_sha) {
+        auto &h = histories[id];
+        if (h.frame != frame || h.writer_epoch != tracking_epoch || h.last != "draw_output_intent") {
+            h.draw_writers = 0; h.pixel_writers.clear(); h.writer_set_truncated = false;
+        }
+        h.event = ++event; h.frame = frame; h.last = "draw_output_intent"; h.writer_epoch = tracking_epoch; h.copy_source = {};
+        ++h.draw_writers;
+        if (h.pixel_writers.size() < 16 || h.pixel_writers.count(pixel_sha)) h.pixel_writers.insert(pixel_sha);
+        else h.writer_set_truncated = true;
+        h.draw_writer = std::move(writer);
     }
     void init_shader(uint64_t id, const void *code, size_t size) {
         std::string sha = sha256(code, size);
@@ -138,7 +176,7 @@ public:
     }
     void stop() {
         if (recording || waiting) { status = "cancelled"; finish(); }
-        enabled = false;
+        set_enabled(false);
     }
     bool arm() {
         if (!enabled || recording || waiting) return false;
@@ -228,6 +266,18 @@ public:
         if (h != histories.end()) {
             m.num("generation", h->second.generation); m.num("last_event_sequence", h->second.event);
             m.num("last_observed_event_frame", h->second.frame); m.text("last_observed_event", h->second.last);
+            if (!h->second.copy_source.fields.empty()) m.fields["copy_source"] = h->second.copy_source.str();
+            if (!h->second.draw_writer.fields.empty()) {
+                m.fields["last_observed_rtv_draw"] = h->second.draw_writer.str();
+                m.text("writer_observation_scope", h->second.frame == captured_frame && h->second.writer_epoch == tracking_epoch
+                    ? "current_capture_frame_and_enable_epoch" : "historical_observation_only");
+                m.num("observed_rtv_draw_count_since_reset", h->second.draw_writers);
+                std::vector<std::string> writers; for (const auto &sha : h->second.pixel_writers) writers.push_back(quote(sha));
+                m.fields["observed_pixel_writer_sha256"] = array(writers);
+                m.fields["writer_set_truncated"] = h->second.writer_set_truncated ? "true" : "false";
+                m.fields["complete_write_history_verified"] = "false";
+                m.text("producer_evidence", "RTV binding before draw; not successful pixel writes or full-image coverage; compute/UAV/indirect writes are not fully tracked");
+            }
         } else { m.num("generation", 0); m.text("last_observed_event", "unknown_initial_state"); }
         return m;
     }
@@ -287,16 +337,72 @@ public:
         if (internal || !enabled) return;
         ++draw; ++event;
         if (ctx->GetType() != D3D11_DEVICE_CONTEXT_IMMEDIATE) { if (recording) ++deferred_draws; return; }
+        ComPtr<ID3D11PixelShader> ps; ctx->PSGetShader(&ps, nullptr, nullptr);
+        auto identity = shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
+        const std::string pixel_sha = identity == shaders.end() ? "unknown" : identity->second.second;
         if (recording) {
-            ComPtr<ID3D11PixelShader> ps; ctx->PSGetShader(&ps, nullptr, nullptr);
-            auto identity = shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
             if (identity != shaders.end() && !identity->second.first.empty() && !seen.count(identity->second.first))
                 capture(ctx, identity->second, kind, count, instances);
         }
         // Pre-call evidence of intended writes; success/content/precise stencil coverage are not inferred.
         ID3D11RenderTargetView *rt[8] = {}; ComPtr<ID3D11DepthStencilView> depth;
         ctx->OMGetRenderTargets(8, rt, &depth);
-        for (auto *v : rt) if (v) { ComPtr<ID3D11Resource> r; v->GetResource(&r); write(reinterpret_cast<uint64_t>(r.Get()), "draw_output_intent"); v->Release(); }
+        ComPtr<ID3D11RenderTargetView> held_rt[8];
+        for (UINT slot = 0; slot < 8; ++slot) held_rt[slot].Attach(rt[slot]);
+        // Build bounded metadata only. No producer resources are copied here.
+        Json writer; writer.text("pixel_sha256", pixel_sha); writer.num("frame", frame); writer.num("draw", draw);
+        writer.text("call", kind); writer.num("element_count", count); writer.num("instances", instances);
+        ComPtr<ID3D11VertexShader> vs; ctx->VSGetShader(&vs, nullptr, nullptr);
+        auto vi = shaders.find(reinterpret_cast<uint64_t>(vs.Get()));
+        writer.text("vertex_sha256", vi == shaders.end() ? "unknown" : vi->second.second);
+        ComPtr<ID3D11BlendState> blend; FLOAT blend_factors[4]; UINT mask;
+        ctx->OMGetBlendState(&blend, blend_factors, &mask); D3D11_BLEND_DESC bd = {};
+        if (blend) blend->GetDesc(&bd);
+        // This exact shader has one depth input and common/camera constant buffers.
+        if (pixel_sha == "acb10d73d882b5fd238cc5cf3bb3091cae3fcde8c09395a84195ff22024170d9") {
+            ComPtr<ID3D11ShaderResourceView> input; ctx->PSGetShaderResources(0, 1, &input);
+            ComPtr<ID3D11Resource> resource; if (input) input->GetResource(&resource);
+            Json depth_input = reference(reinterpret_cast<uint64_t>(resource.Get()));
+            if (input) {
+                D3D11_SHADER_RESOURCE_VIEW_DESC sd; input->GetDesc(&sd);
+                depth_input.num("view_format", sd.Format); depth_input.num("view_dimension", sd.ViewDimension);
+                if (sd.ViewDimension == D3D11_SRV_DIMENSION_TEXTURE2D) { depth_input.num("first_mip", sd.Texture2D.MostDetailedMip); depth_input.num("mip_count", sd.Texture2D.MipLevels); }
+            }
+            writer.fields["depth_t0_binding"] = depth_input.str();
+            ComPtr<ID3D11DeviceContext1> context1; ctx->QueryInterface(IID_PPV_ARGS(&context1));
+            for (UINT slot = 0; slot < 2; ++slot) {
+                ComPtr<ID3D11Buffer> buffer; UINT first=0, constants=4096;
+                if (context1) context1->PSGetConstantBuffers1(slot,1,&buffer,&first,&constants);
+                else ctx->PSGetConstantBuffers(slot, 1, &buffer);
+                Json binding = reference(reinterpret_cast<uint64_t>(buffer.Get()));
+                binding.num("constant_first", first); binding.num("constant_count", constants);
+                writer.fields["cb" + number(slot) + "_binding"] = binding.str();
+            }
+            UINT n=D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE; D3D11_VIEWPORT vp[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+            ctx->RSGetViewports(&n,vp); std::vector<std::string> values;
+            for (UINT i=0;i<n;++i) values.push_back(array({number(vp[i].TopLeftX),number(vp[i].TopLeftY),number(vp[i].Width),number(vp[i].Height),number(vp[i].MinDepth),number(vp[i].MaxDepth)}));
+            writer.fields["viewports"] = array(values);
+            ComPtr<ID3D11SamplerState> sampler; ctx->PSGetSamplers(0,1,&sampler);
+            if (sampler) {
+                D3D11_SAMPLER_DESC sd; sampler->GetDesc(&sd); Json s;
+                s.num("filter",sd.Filter); s.num("address_u",sd.AddressU); s.num("address_v",sd.AddressV); s.num("address_w",sd.AddressW);
+                writer.fields["sampler0"] = s.str();
+            } else writer.text("sampler0", "null_default_state");
+            writer.text("input_reference_limit", "producer-stage bindings and observed updates only; no producer-stage payload copy or successful-write proof");
+        }
+        for (UINT slot = 0; slot < 8; ++slot) if (auto *v = rt[slot]) {
+            ComPtr<ID3D11Resource> r; v->GetResource(&r); D3D11_RENDER_TARGET_VIEW_DESC desc; v->GetDesc(&desc);
+            Json output = writer; output.num("output_slot", slot); output.num("view_format", desc.Format); output.num("view_dimension", desc.ViewDimension);
+            if (desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2D) {
+                output.num("mip", desc.Texture2D.MipSlice); output.num("first_slice", 0); output.num("slice_count", 1);
+            } else if (desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DARRAY) {
+                output.num("mip", desc.Texture2DArray.MipSlice); output.num("first_slice", desc.Texture2DArray.FirstArraySlice); output.num("slice_count", desc.Texture2DArray.ArraySize);
+            } else output.text("subresource_scope", "unsupported_view_range");
+            const auto &target_blend = bd.RenderTarget[bd.IndependentBlendEnable ? slot : 0];
+            output.num("color_write_mask", blend ? target_blend.RenderTargetWriteMask : D3D11_COLOR_WRITE_ENABLE_ALL);
+            output.fields["blend_enabled"] = blend && target_blend.BlendEnable ? "true" : "false";
+            render_target_write(reinterpret_cast<uint64_t>(r.Get()), std::move(output), pixel_sha);
+        }
         if (depth) { ComPtr<ID3D11Resource> r; depth->GetResource(&r); write(reinterpret_cast<uint64_t>(r.Get()), "depth_draw_intent"); }
     }
     void capture(ID3D11DeviceContext *ctx, const std::pair<std::string,std::string> &identity, const std::string &kind, UINT count, UINT instances) {

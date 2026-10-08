@@ -22,7 +22,7 @@ template<class F> void guarded(device *dev, F &&f) noexcept {
     auto it=states.find(dev); if (it==states.end() || it->second->diagnostic.internal) return;
     try { f(*it->second); }
     catch (const std::exception &e) {
-        it->second->diagnostic.enabled=false;
+        it->second->diagnostic.set_enabled(false);
         it->second->diagnostic.recording=it->second->diagnostic.waiting=false;
         it->second->diagnostic.draws.clear();
         reshade::log::message(reshade::log::level::error,e.what());
@@ -61,9 +61,13 @@ void map_buffer(device *dev,resource r,uint64_t,uint64_t,map_access access,void 
 void map_texture(device *dev,resource r,uint32_t,const subresource_box *,map_access access,subresource_data *) {
     if (access!=map_access::read_only) note(dev,r,"map_texture_write_access");
 }
-bool copy_resource(command_list *cmd,resource,resource r) { note(cmd->get_device(),r,"copy_resource_intent"); return false; }
+bool copy_resource(command_list *cmd,resource source,resource dest) {
+    guarded(cmd->get_device(),[&](State &s){s.diagnostic.copy_write(dest.handle,source.handle,"copy_resource_intent");}); return false;
+}
 bool copy_buffer(command_list *cmd,resource,uint64_t,resource r,uint64_t,uint64_t) { note(cmd->get_device(),r,"copy_buffer_intent"); return false; }
-bool copy_texture(command_list *cmd,resource,uint32_t,const subresource_box *,resource r,uint32_t,const subresource_box *,filter_mode) { note(cmd->get_device(),r,"copy_texture_intent"); return false; }
+bool copy_texture(command_list *cmd,resource source,uint32_t src_sub,const subresource_box *,resource dest,uint32_t dst_sub,const subresource_box *,filter_mode) {
+    guarded(cmd->get_device(),[&](State &s){s.diagnostic.copy_write(dest.handle,source.handle,"copy_texture_intent",src_sub,dst_sub);}); return false;
+}
 bool resolve(command_list *cmd,resource,uint32_t,const subresource_box *,resource r,uint32_t,uint32_t,uint32_t,uint32_t,format) { note(cmd->get_device(),r,"resolve_intent"); return false; }
 bool clear_rt(command_list *cmd,resource_view view,const float[4],uint32_t,const rect *) {
     note(cmd->get_device(),cmd->get_device()->get_resource_from_view(view),"clear_render_target_intent"); return false;
@@ -90,7 +94,7 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
         if (GetFileAttributesW(command.c_str())!=INVALID_FILE_ATTRIBUTES) {
             std::ifstream in(command); std::string action; std::getline(in,action); in.close();
             if (!smsm::fs::remove(command)) throw std::runtime_error("command_consume_failed");
-            if (action=="enable") d.enabled=true;
+            if (action=="enable") d.set_enabled(true);
             else if (action=="stop") d.stop();
             else if (action=="capture") {
                 if (!d.arm()) reshade::log::message(reshade::log::level::warning,"SMSM capture rejected: disabled or busy");
@@ -111,7 +115,7 @@ void controls(effect_runtime *runtime) {
         if (s.swapchain!=runtime->get_native()) return;
         auto &d=s.diagnostic;
         if (runtime->is_key_pressed(VK_F7)) {
-            if (d.enabled) d.stop(); else d.enabled=true;
+            if (d.enabled) d.stop(); else d.set_enabled(true);
             reshade::log::message(reshade::log::level::info,d.enabled ? "SMSM diagnostic enabled; F8 captures next frame" : "SMSM diagnostic stopped");
         }
         if (runtime->is_key_pressed(VK_F8)) {

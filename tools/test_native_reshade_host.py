@@ -46,6 +46,17 @@ def main():
                     raw = (path.parent / item["file"]).read_bytes()
                     assert len(raw) == item["selected_bytes"]
                     assert hashlib.sha256(raw).hexdigest() == item["sha256"]
+                    if draw["target"] == "415a922293923fa4" and item["label"] == "ps-t10":
+                        writer = item["last_observed_rtv_draw"]
+                        assert writer["pixel_sha256"] == "acb10d73d882b5fd238cc5cf3bb3091cae3fcde8c09395a84195ff22024170d9"
+                        assert writer["frame"] == draw["frame"] and writer["draw"] < draw["draw"]
+                        assert writer["element_count"] == 0  # Wiring test, not real output coverage.
+                        assert writer["sampler0"]["filter"] == 0 and writer["sampler0"]["address_u"] == 3
+                        assert writer["viewports"] == draw["viewports"]
+                        assert writer["cb1_binding"]["constant_first"] == 0
+                        depth = writer["depth_t0_binding"]
+                        assert depth["copy_source"]["native_resource"] != depth["native_resource"]
+                        assert depth["last_event_kind"] == "copy_resource_intent"
         hashes.append(report["draws"][0]["resources"][0]["sha256"])
     assert hashes[0] != hashes[1], "Old capture mixed into new frame"
     log = (root / "ReShade.log").read_text(encoding="utf-8", errors="replace")

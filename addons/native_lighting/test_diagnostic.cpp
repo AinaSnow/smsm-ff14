@@ -38,7 +38,7 @@ struct Fixture {
         std::vector<float> pixels(17*9*4);for(size_t i=0;i<pixels.size();++i)pixels[i]=float(i)/1024;
         D3D11_SUBRESOURCE_DATA initial={pixels.data(),17*16,0};
         check(device->CreateTexture2D(&td,&initial,&tex)); check(device->CreateShaderResourceView(tex.Get(),nullptr,&srv));
-        td.BindFlags=D3D11_BIND_RENDER_TARGET;check(device->CreateTexture2D(&td,nullptr,&out));check(device->CreateRenderTargetView(out.Get(),nullptr,&rtv));
+        td.BindFlags=D3D11_BIND_RENDER_TARGET|D3D11_BIND_SHADER_RESOURCE;check(device->CreateTexture2D(&td,nullptr,&out));check(device->CreateRenderTargetView(out.Get(),nullptr,&rtv));
         td.Format=DXGI_FORMAT_R32_TYPELESS;td.BindFlags=D3D11_BIND_DEPTH_STENCIL;
         check(device->CreateTexture2D(&td,nullptr,&depth));
         D3D11_DEPTH_STENCIL_VIEW_DESC dd={};dd.Format=DXGI_FORMAT_D32_FLOAT;dd.ViewDimension=D3D11_DSV_DIMENSION_TEXTURE2D;
@@ -89,6 +89,33 @@ int wmain(int argc,wchar_t **argv) {
         D3D11_MAPPED_SUBRESOURCE m;check(f.ctx->Map(read.Get(),0,D3D11_MAP_READ,0,&m));
         const float *p=reinterpret_cast<const float *>(static_cast<unsigned char *>(m.pData)+m.RowPitch*2)+4*3;
         require(p[0]==float((2*17+3)*4)/1024,"capture changed application output");f.ctx->Unmap(read.Get(),0);
+        Diagnostic producers(root/"producer");f.identify(producers);producers.init_resource(reinterpret_cast<uint64_t>(f.out.Get()),false);
+        producers.set_enabled(true);f.draw(producers,0);
+        D3D11_BLEND_DESC alpha_only_desc={};alpha_only_desc.RenderTarget[0].RenderTargetWriteMask=D3D11_COLOR_WRITE_ENABLE_ALPHA;
+        ComPtr<ID3D11BlendState> alpha_only;check(f.device->CreateBlendState(&alpha_only_desc,&alpha_only));
+        f.ctx->OMSetBlendState(alpha_only.Get(),nullptr,~0u);f.draw(producers,1);
+        auto output_id=reinterpret_cast<uint64_t>(f.out.Get());
+        require(producers.histories.at(output_id).pixel_writers.size()==2,"multiple draw writers lost");
+        require(producers.histories.at(output_id).draw_writer.fields.at("color_write_mask")=="8","alpha-only mask not recorded");
+        f.ctx->CopyResource(read.Get(),f.out.Get());check(f.ctx->Map(read.Get(),0,D3D11_MAP_READ,0,&m));
+        p=reinterpret_cast<const float *>(static_cast<unsigned char *>(m.pData)+m.RowPitch*2)+4*3;
+        require(p[0]==float((2*17+3)*4)/1024 && p[3]==1,"last draw incorrectly assumed to own RGB");f.ctx->Unmap(read.Get(),0);
+        f.ctx->OMSetBlendState(nullptr,nullptr,~0u);
+        producers.write(output_id,"copy_resource_intent");
+        require(producers.histories.at(output_id).draw_writer.fields.empty(),"copy retained stale producer");
+        f.draw(producers,0);
+        producers.stop();producers.set_enabled(true);
+        require(producers.resource_meta(f.out.Get(),"test","unknown").fields.at("writer_observation_scope")==quote("historical_observation_only"),"disabled epoch reused as current");
+        f.draw(producers,0); // Fresh producer in the current enable epoch.
+        ComPtr<ID3D11ShaderResourceView> produced_srv;check(f.device->CreateShaderResourceView(f.out.Get(),nullptr,&produced_srv));
+        D3D11_TEXTURE2D_DESC alternate_desc;f.out->GetDesc(&alternate_desc);
+        ComPtr<ID3D11Texture2D> alternate;ComPtr<ID3D11RenderTargetView> alternate_rtv;
+        check(f.device->CreateTexture2D(&alternate_desc,nullptr,&alternate));check(f.device->CreateRenderTargetView(alternate.Get(),nullptr,&alternate_rtv));
+        auto *alternate_view=alternate_rtv.Get();f.ctx->OMSetRenderTargets(1,&alternate_view,f.dsv.Get());
+        auto *produced_view=produced_srv.Get();f.ctx->PSSetShaderResources(10,1,&produced_view);
+        producers.arm();f.draw(producers,0);f.finish(producers);
+        auto *original_source=f.srv.Get();f.ctx->PSSetShaderResources(10,1,&original_source);
+        auto *original_target=f.rtv.Get();f.ctx->OMSetRenderTargets(1,&original_target,f.dsv.Get());
         // Actual game r1 reported DXGI 87 normals. Verify exact BGRA bytes, padded
         // staging rows, and the GPU's independent logical RGBA interpretation.
         std::vector<unsigned char> bgra(17*9*4);
