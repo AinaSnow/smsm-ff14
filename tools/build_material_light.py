@@ -6,13 +6,14 @@ from build_preview import BUILD
 from build_single_light import validate_settings
 from manage_preview import ROOT, RECEIPT, digest, encoded, read_package
 from patch_material_light import TARGET, load_original, compile_helper, patch
+from patch_forward_light import TARGET as MESH_TARGET, compile_helper as compile_mesh_helper, patch_forward
 from shader_compile import Compiler
 from validate_d3d11 import validate_package
 
 BASE_SHA='8fc10d0b0ab4bf8bb3dccccf4f62b4bd684dca57e8425aa010324a7b90a211ae'
 
 
-def build(extraction,base_package,output,decompiler,position=(0,0,0),color=(1,1,1),intensity=2,radius=8):
+def build(extraction,base_package,output,decompiler,position=(0,0,0),color=(1,1,1),intensity=2,radius=8,include_mesh=False):
     validate_settings(position,color,intensity,radius)
     manifest,receipt=read_package(base_package)
     if digest(receipt)!=BASE_SHA or manifest['client_build']!=BUILD:
@@ -41,6 +42,22 @@ def build(extraction,base_package,output,decompiler,position=(0,0,0),color=(1,1,
         game_runtime_verified=False,performance_verified=False,
         limits=['No new specular lobe','Screen-visible G-buffer only; no transparent material coverage guarantee',
                 'Unoccluded lamp can illuminate through walls','Native scene output is still FP16; tiny increments may quantize away'])
+    if include_mesh:
+        mesh_original=load_original(extraction,MESH_TARGET)
+        mesh_helper=compile_mesh_helper(output/'build-audit/mesh-helper',compiler,position,color,intensity,radius)
+        mesh_source,mesh_data=patch_forward(mesh_original,mesh_helper,output/'build-audit'/MESH_TARGET,decompiler,compiler)
+        for suffix,content in (('txt',mesh_source.read_bytes()),('bin',mesh_data)):
+            name=f'SMSM-ShaderFixes/{MESH_TARGET}-ps.{suffix}'
+            (output/name).write_bytes(content);manifest['files'][name]=digest(content)
+        manifest['shaders'].append(dict(hash=MESH_TARGET,effect='experimental mesh-material diffuse lamp',
+            original_sha256=digest(mesh_original),compiled_sha256=digest(mesh_data),
+            compiler_diagnostics='Final host normal/view position reused; native discards preserved; no new bindings'))
+        manifest['effects']['mesh-light']=dict(shaders=[MESH_TARGET],status='experimental-offline-prototype',
+            execution_verified=False,performance_verified=False)
+        manifest['profiles']['mesh-light-only']=['mesh-light']
+        manifest['profiles']['material-light-both']=['material-light','mesh-light']
+        manifest['material_light'].update(audited_targets=[TARGET,MESH_TARGET],two_path_pixel_overlap_verified=False,
+            mesh_injection='after native normal-alignment/camera-light correction, before material/output encoding')
     (output/RECEIPT).write_bytes(encoded(manifest)); read_package(output); validate_package(output)
     print('Built default-off material-light candidate:',output)
     return output
@@ -54,4 +71,5 @@ if __name__=='__main__':
     p.add_argument('--decompiler',type=Path,default=ROOT/'artifacts/decompiler/1.3.16/cmd_Decompiler.exe')
     p.add_argument('--position',type=float,nargs=3,default=[0,0,0]); p.add_argument('--color',type=float,nargs=3,default=[1,1,1])
     p.add_argument('--intensity',type=float,default=2); p.add_argument('--range',dest='radius',type=float,default=8)
-    a=p.parse_args(); build(a.extraction,a.base_package,a.output,a.decompiler.resolve(),a.position,a.color,a.intensity,a.radius)
+    p.add_argument('--include-mesh',action='store_true',help='Add independent, default-off audited mesh-material path')
+    a=p.parse_args(); build(a.extraction,a.base_package,a.output,a.decompiler.resolve(),a.position,a.color,a.intensity,a.radius,a.include_mesh)
