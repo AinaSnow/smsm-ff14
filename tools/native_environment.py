@@ -137,6 +137,7 @@ def with_receipt(files, meta):
     data[RECEIPT] = encoded({"schema": 1, "client_build": BUILD, "files": {n: digest(v) for n, v in files.items()},
                             "default_enabled": False, "shader_replacement": meta.get('shader_replacement',False),
                             "coverage_shader_sha256": meta.get('coverage_shader_sha256'),
+                            "output_audit":meta.get('output_audit',False),
                             "package_sha256": digest(encoded(meta))})
     return data
 

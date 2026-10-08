@@ -1,0 +1,107 @@
+{
+  "candidate_addon_sha256": "46caad31d372974dfa4a2accb70b6271dae235cf4a0de9a0d8b764489f12ec51",
+  "default_enabled": false,
+  "game_cause_verified": false,
+  "installed": true,
+  "hardware_cases": [
+    {
+      "case": "native-output-hardware-write-v2",
+      "addon_sha256": "225f88b2ad0b110235ce1b796ec59098dda486f13de9e89533094822c440279c",
+      "result": {
+        "passed": true,
+        "write_mask": 15,
+        "occlusion_samples": 768,
+        "color_changed": true,
+        "later_overwrite_verified": false,
+        "before_after_end_readback_verified": true
+      },
+      "comparison": {
+        "pixels": 768,
+        "changed_by_draw": 768,
+        "changed_after_draw_by_frame_end": 0,
+        "draw_changed_pixels_altered_later": 0,
+        "byte_comparison_includes_alpha": true,
+        "rgb_changed_by_draw": 768,
+        "rgb_draw_changed_pixels_altered_later": 0
+      }
+    },
+    {
+      "case": "native-output-hardware-masked-v2",
+      "addon_sha256": "225f88b2ad0b110235ce1b796ec59098dda486f13de9e89533094822c440279c",
+      "result": {
+        "passed": true,
+        "write_mask": 0,
+        "occlusion_samples": 768,
+        "color_changed": false,
+        "later_overwrite_verified": false,
+        "before_after_end_readback_verified": true
+      },
+      "comparison": {
+        "pixels": 768,
+        "changed_by_draw": 0,
+        "changed_after_draw_by_frame_end": 0,
+        "draw_changed_pixels_altered_later": 0,
+        "byte_comparison_includes_alpha": true,
+        "rgb_changed_by_draw": 0,
+        "rgb_draw_changed_pixels_altered_later": 0
+      }
+    },
+    {
+      "case": "native-output-hardware-overwrite-v1",
+      "addon_sha256": "225f88b2ad0b110235ce1b796ec59098dda486f13de9e89533094822c440279c",
+      "result": {
+        "passed": true,
+        "write_mask": 15,
+        "occlusion_samples": 768,
+        "color_changed": true,
+        "later_overwrite_verified": true,
+        "before_after_end_readback_verified": true
+      },
+      "comparison": {
+        "pixels": 768,
+        "changed_by_draw": 768,
+        "changed_after_draw_by_frame_end": 768,
+        "draw_changed_pixels_altered_later": 768,
+        "byte_comparison_includes_alpha": true,
+        "rgb_changed_by_draw": 768,
+        "rgb_draw_changed_pixels_altered_later": 768
+      }
+    },
+    {
+      "case": "native-output-hardware-predicated-final-v2",
+      "addon_sha256": "46caad31d372974dfa4a2accb70b6271dae235cf4a0de9a0d8b764489f12ec51",
+      "result": {
+        "passed": true,
+        "write_mask": 15,
+        "occlusion_samples": 0,
+        "color_changed": false,
+        "predication_restored": true,
+        "later_overwrite_verified": false,
+        "before_after_end_readback_verified": true
+      },
+      "comparison": {
+        "pixels": 768,
+        "changed_by_draw": 0,
+        "changed_after_draw_by_frame_end": 0,
+        "draw_changed_pixels_altered_later": 0,
+        "byte_comparison_includes_alpha": true,
+        "rgb_changed_by_draw": 0,
+        "rgb_draw_changed_pixels_altered_later": 0
+      }
+    }
+  ],
+  "analyzer_corruption_rejected": true,
+  "installer": {
+    "simulated_client": true,
+    "real_client_written": false,
+    "r10_roundtrip_exact": true,
+    "native_interruption_recovered": true,
+    "collision_modified_and_running_guards": true,
+    "old_to_new_addon_update": true,
+    "interrupted_update_restores_previous_addon": true,
+    "runtime_and_user_settings_retained_on_update": true,
+    "atomic_command_publication_and_duplicate_rejection": true
+  },
+  "limits": "First three cases precede predicate-preserving copy and resource lifetime retention; final exact binary separately tests predicated path and restore.",
+  "settings_retained": true
+}

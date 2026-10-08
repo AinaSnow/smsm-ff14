@@ -80,6 +80,7 @@ def main():
                 "capture_budget_bytes": 256 * 1024 * 1024, "shader_replacement": bool(args.ambient_shader),
                 "ambient_shader_sha256":ambient_sha,
                 "coverage_shader_sha256":coverage_sha,
+                "output_audit":bool(args.coverage_shader),
                 "files": {addon.name: hashlib.sha256(addon.read_bytes()).hexdigest()},
                 "sources": {str(path.relative_to(ROOT)).replace("\\", "/"): hashlib.sha256(path.read_bytes()).hexdigest()
                             for path in (ROOT / "addons/native_lighting").glob("*.*")}}

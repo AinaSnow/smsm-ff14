@@ -8,6 +8,7 @@
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
 #include "coverage_bridge.hpp"
+#include "output_audit.hpp"
 #include "native_coverage_bytecode.hpp"
 #endif
 
@@ -21,6 +22,7 @@ struct State {
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
     smsm::CoverageBridge coverage;
+    smsm::OutputAudit output_audit;
 #endif
     explicit State(const smsm::fs::path &path) : diagnostic(path) {}
 };
@@ -38,7 +40,7 @@ template<class F> void guarded(device *dev, F &&f) noexcept {
     if(it->second->ambient.internal)return;
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
-    if(it->second->coverage.internal)return;
+    if(it->second->coverage.internal || it->second->output_audit.internal)return;
 #endif
     try { f(*it->second); }
     catch (const std::exception &e) {
@@ -50,6 +52,7 @@ template<class F> void guarded(device *dev, F &&f) noexcept {
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
         it->second->coverage.disable();
+        it->second->output_audit.cancel();
 #endif
         reshade::log::message(reshade::log::level::error,e.what());
     }
@@ -136,8 +139,8 @@ template<class F> bool native_draw(command_list *cmd,const char *kind,uint32_t c
         if(s.coverage.enabled()) {
             smsm::ComPtr<ID3D11PixelShader> ps;ctx->PSGetShader(&ps,nullptr,nullptr);
             auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
-            if(identity!=s.diagnostic.shaders.end() && identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX)
-                replaced=s.coverage.draw(ctx,GetTickCount64(),[&]{call(ctx);});
+            if(identity!=s.diagnostic.shaders.end() && identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX && instances!=0)
+                replaced=s.output_audit.draw(ctx,count,instances,[&]{return s.coverage.draw(ctx,GetTickCount64(),[&]{call(ctx);});});
             return;
         }
 #endif
@@ -146,7 +149,7 @@ template<class F> bool native_draw(command_list *cmd,const char *kind,uint32_t c
         auto identity=s.diagnostic.shaders.find(reinterpret_cast<uint64_t>(ps.Get()));
         if(identity==s.diagnostic.shaders.end())return;
         if(identity->second.first==smsm::game_targets[0].migoto)s.ambient.capture_source(ctx);
-        else if(identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX)
+        else if(identity->second.first==smsm::game_targets[1].migoto && count!=UINT32_MAX && instances!=0)
             replaced=s.ambient.draw(ctx,[&]{call(ctx);});
 #endif
     });
@@ -177,10 +180,22 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
 #ifdef SMSM_NATIVE_COVERAGE
             report.fields["coverage_enabled"]=s.coverage.enabled()?"true":"false";
             report.num("coverage_draws",s.coverage.draws);report.num("coverage_fallbacks",s.coverage.fallbacks);
+            report.fields["output_audit_active"]=s.output_audit.active()?"true":"false";
+            report.text("output_audit_directory",s.output_audit.path().filename().string());
 #endif
             std::ofstream output(d.root/"ambient-status.json");output<<report.str()<<'\n';
         };
 #ifdef SMSM_NATIVE_COVERAGE
+        const bool audit_was_active=s.output_audit.active();
+        if(audit_was_active){
+            smsm::ComPtr<ID3D11Texture2D> backbuffer;
+            auto *swap=reinterpret_cast<IDXGISwapChain *>(sc->get_native());
+            smsm::check(swap->GetBuffer(0,IID_PPV_ARGS(&backbuffer)));
+            const bool collecting=s.output_audit.collecting();
+            s.output_audit.present(context,backbuffer.Get());
+            if(collecting)s.coverage.disable();
+            write_status();
+        }
         if(s.coverage.expire(GetTickCount64()))write_status();
 #endif
         const auto ambient_command=d.root/"ambient-command.txt";
@@ -189,8 +204,11 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
             if(!smsm::fs::remove(ambient_command))throw std::runtime_error("ambient_command_consume_failed");
             const std::string value=action;
 #ifdef SMSM_NATIVE_COVERAGE
-            if(value!="status")s.coverage.disable();
-            if(value=="coverage") {d.stop();s.ambient.disable();s.coverage.enable(GetTickCount64());}
+            if(value!="status"){s.coverage.disable();s.output_audit.cancel();}
+            if(value=="coverage" || value=="audit") {
+                d.stop();s.ambient.disable();s.coverage.enable(GetTickCount64());
+                if(value=="audit")s.output_audit.arm(d.root);
+            }
             else
 #endif
             if(value=="on" || value=="half") {d.stop();s.ambient.set_strength(context,value=="on"?1.f:.5f);}
@@ -209,6 +227,7 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
             s.coverage.disable();
+            s.output_audit.cancel();
 #endif
             if (action=="enable") d.set_enabled(true);
             else if (action=="stop") d.stop();
@@ -226,6 +245,7 @@ void destroy_swapchain(swapchain *sc,bool) {
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
             s.coverage.disable();
+            s.output_audit.cancel();
 #endif
         }
     });
@@ -243,6 +263,7 @@ void controls(effect_runtime *runtime) {
 #endif
 #ifdef SMSM_NATIVE_COVERAGE
             s.coverage.disable();
+            s.output_audit.cancel();
 #endif
             if (d.enabled) d.stop(); else d.set_enabled(true);
             reshade::log::message(reshade::log::level::info,d.enabled ? "SMSM diagnostic enabled; F8 captures next frame" : "SMSM diagnostic stopped");

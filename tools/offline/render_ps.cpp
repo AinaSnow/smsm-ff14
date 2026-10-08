@@ -112,6 +112,9 @@ int wmain(int argc, wchar_t** argv) try {
     // identical blending to all MRTs; alpha always takes the latest source.
     D3D11_BLEND_DESC bd{}; auto& rt=bd.RenderTarget[0];
     rt.RenderTargetWriteMask=D3D11_COLOR_WRITE_ENABLE_ALL;
+#ifdef SMSM_WRITE_MASK_ZERO
+    rt.RenderTargetWriteMask=0;
+#endif
     rt.BlendEnable=blend!="overwrite";
     rt.SrcBlend=blend=="source-alpha" ? D3D11_BLEND_SRC_ALPHA : D3D11_BLEND_ONE;
     rt.DestBlend=blend=="source-alpha" ? D3D11_BLEND_INV_SRC_ALPHA : D3D11_BLEND_ONE;
@@ -183,9 +186,21 @@ int wmain(int argc, wchar_t** argv) try {
         check(device->CreateTexture2D(&td,nullptr,&stage),"readback texture"); rawRT[i]=rtv.Get(); renderTargets.push_back(tex); staging.push_back(stage); rtvs.push_back(rtv);
     }
     context->OMSetRenderTargets(targets,rawRT,nullptr);
+#ifdef SMSM_PREDICATED
+    ComPtr<ID3D11Predicate> testPredicate;D3D11_QUERY_DESC pd{D3D11_QUERY_OCCLUSION_PREDICATE,0};
+    check(device->CreatePredicate(&pd,&testPredicate),"test predicate");
+    context->Begin(testPredicate.Get());context->End(testPredicate.Get());context->Flush();
+    BOOL predicateResult=TRUE;HRESULT predHr=S_FALSE;
+    for(unsigned poll=0;poll<1000 && predHr==S_FALSE;++poll){predHr=context->GetData(testPredicate.Get(),&predicateResult,sizeof(predicateResult),0);if(predHr==S_FALSE)Sleep(1);}
+    if(predHr!=S_OK || predicateResult)throw std::runtime_error("Expected completed false occlusion predicate");
+#endif
     for (unsigned frame=0;frame<frames;++frame) {
 #ifdef SMSM_RESHADE_PIXEL_TEST
+#ifdef SMSM_RESHADE_OUTPUT_TEST
+        send(frame==1?"audit":"off");
+#else
         send(frame==1?"coverage":"off");
+#endif
 #endif
         if (animation) context->UpdateSubresource(animation.Get(),0,nullptr,animationBytes.data()+size_t(frame)*animationStride,0,0);
         if (regionSource) {
@@ -193,7 +208,17 @@ int wmain(int argc, wchar_t** argv) try {
             context->CopyResource(regionDestination.Get(),regionSource.Get());
         }
         float clear[4]={0,0,0,0}; for (auto& rtv:rtvs) context->ClearRenderTargetView(rtv.Get(),clear);
+#ifdef SMSM_PREDICATED
+        if(frame==1)context->SetPredication(testPredicate.Get(),FALSE);
+#endif
         for (unsigned draw=0;draw<draws;++draw) context->Draw(3,0);
+#ifdef SMSM_PREDICATED
+        if(frame==1){
+            ComPtr<ID3D11Predicate> restored;BOOL value;context->GetPredication(&restored,&value);
+            if(restored.Get()!=testPredicate.Get() || value)throw std::runtime_error("Audit failed to restore predication");
+            context->SetPredication(nullptr,FALSE);
+        }
+#endif
         for (unsigned i=0;i<targets;++i) {
             context->CopyResource(staging[i].Get(),renderTargets[i].Get()); D3D11_MAPPED_SUBRESOURCE mapped{};
             check(context->Map(staging[i].Get(),0,D3D11_MAP_READ,0,&mapped),"readback Map");
@@ -204,7 +229,13 @@ int wmain(int argc, wchar_t** argv) try {
             context->Unmap(staging[i].Get(),0); if (!out) throw std::runtime_error("Readback write failed");
         }
 #ifdef SMSM_RESHADE_PIXEL_TEST
+#ifdef SMSM_LATER_CLEAR
+        if(frame==1){float later[4]={.125f,.125f,.125f,1};for(auto &rtv:rtvs)context->ClearRenderTargetView(rtv.Get(),later);}
+#endif
         send("status");
+#ifdef SMSM_RESHADE_OUTPUT_TEST
+        if(frame==1)for(unsigned poll=0;poll<10;++poll){Sleep(5);send("status");}
+#endif
         fs::copy_file(hostRoot/"SMSM-native-captures"/"ambient-status.json",hostRoot/("frame-"+std::to_string(frame)+"-status.json"));
 #endif
     }

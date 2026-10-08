@@ -88,6 +88,14 @@ def main():
             with patch('request_native_ambient.current',return_value={native.RECEIPT:json.dumps(old_receipt).encode()}):
                 rejects(lambda:ambient_request(game,'coverage'))
             assert not marker_command.exists()
+        if json.loads(after[native.RECEIPT]).get('output_audit'):
+            ambient_request(game,'audit')
+            marker_command=captures/'ambient-command.txt'
+            assert marker_command.read_bytes()==b'audit\n';marker_command.unlink()
+            old_receipt=json.loads(after[native.RECEIPT]);old_receipt.pop('output_audit')
+            with patch('request_native_ambient.current',return_value={native.RECEIPT:json.dumps(old_receipt).encode()}):
+                rejects(lambda:ambient_request(game,'audit'))
+            assert not marker_command.exists()
         request(game, "enable")
         command = game / "SMSM-native-command.txt"
         assert command.read_bytes() == b"enable\n"
