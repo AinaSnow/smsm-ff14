@@ -1,0 +1,159 @@
+{
+  "addon_sha256": "108761a7bb147c0a4d1c59b4c8939003f9cd8a991c46bd22dfe57605616d02e4",
+  "shader_replacement_used": false,
+  "census_limitation": "Early depth-only passes exhausted 512 records; no inference about missing later identities. Existing full frame logs provided exact named-package candidates for current samples.",
+  "captures": [
+    {
+      "kind": "census",
+      "observed_draws": 2008,
+      "recorded_draws": 512,
+      "truncated": true,
+      "recorded_outputs": "No RTVs in first 512 records; depth-stage identities only"
+    },
+    {
+      "shader": "1c5c89ac035f9a44",
+      "skip": 0,
+      "observed_draws": 10,
+      "verified_bytes": 207360000,
+      "sampled_draws": [
+        {
+          "ordinal": 1,
+          "occlusion_samples": 215,
+          "rgb_changed_pixels": 213
+        },
+        {
+          "ordinal": 2,
+          "occlusion_samples": 298,
+          "rgb_changed_pixels": 298
+        },
+        {
+          "ordinal": 3,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        },
+        {
+          "ordinal": 4,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        }
+      ]
+    },
+    {
+      "shader": "1c5c89ac035f9a44",
+      "skip": 9,
+      "observed_draws": 10,
+      "verified_bytes": 58060800,
+      "sampled_draws": [
+        {
+          "ordinal": 10,
+          "occlusion_samples": 10996,
+          "rgb_changed_pixels": 10996
+        }
+      ]
+    },
+    {
+      "shader": "643c8fab6e8d0bce",
+      "skip": 0,
+      "observed_draws": 17,
+      "verified_bytes": 207360000,
+      "sampled_draws": [
+        {
+          "ordinal": 1,
+          "occlusion_samples": 1219,
+          "rgb_changed_pixels": 1219
+        },
+        {
+          "ordinal": 2,
+          "occlusion_samples": 961,
+          "rgb_changed_pixels": 961
+        },
+        {
+          "ordinal": 3,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        },
+        {
+          "ordinal": 4,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        }
+      ]
+    },
+    {
+      "shader": "ba9e417598de8f83",
+      "skip": 0,
+      "observed_draws": 10,
+      "verified_bytes": 207360000,
+      "sampled_draws": [
+        {
+          "ordinal": 1,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        },
+        {
+          "ordinal": 2,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        },
+        {
+          "ordinal": 3,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        },
+        {
+          "ordinal": 4,
+          "occlusion_samples": 0,
+          "rgb_changed_pixels": 0
+        }
+      ]
+    },
+    {
+      "shader": "e86f0d4916054deb",
+      "skip": 0,
+      "observed_draws": 3,
+      "verified_bytes": 157593600,
+      "sampled_draws": [
+        {
+          "ordinal": 1,
+          "occlusion_samples": 53565,
+          "rgb_changed_pixels": 53565
+        },
+        {
+          "ordinal": 2,
+          "occlusion_samples": 1682,
+          "rgb_changed_pixels": 1682
+        },
+        {
+          "ordinal": 3,
+          "occlusion_samples": 426,
+          "rgb_changed_pixels": 426
+        }
+      ]
+    }
+  ],
+  "player_spatial_correspondence": [
+    {
+      "shader": "1c5c89ac035f9a44",
+      "package": "hair",
+      "draw_ordinal_in_sample_frame": 10,
+      "rgb_changed_pixels": 10996,
+      "observed_region": "Current player hair and ears; confirmed on offline difference mask over same-frame backbuffer"
+    },
+    {
+      "shader": "e86f0d4916054deb",
+      "package": "character",
+      "draw_ordinal_in_sample_frame": 1,
+      "rgb_changed_pixels": 53565,
+      "observed_region": "Current player dress; confirmed on offline difference mask over same-frame backbuffer"
+    }
+  ],
+  "skin_player_correspondence_verified": false,
+  "lighting_benefit_verified": false,
+  "gpu_effect_cost_verified": false,
+  "limits": [
+    "One outfit, hairstyle and camera view; no universal player/material coverage claim",
+    "Later color processing changes buffer values; difference mask is spatial evidence, not a formal final compositing trace",
+    "Difference overlays are local analysis annotations, not game shader colors"
+  ],
+  "effects_disabled_after_capture": true
+}
