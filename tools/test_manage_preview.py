@@ -5,12 +5,14 @@ import tempfile
 import sys
 import os
 import subprocess
+import shutil
 import unittest
 from unittest.mock import patch
 import manage_preview as m
 
 PACKAGE = m.ROOT / "artifacts/preview-2026.09.15-r10-managed"
 LEGACY = m.ROOT / "artifacts/preview-2026.09.15-r9-native-dof"
+PROBE = m.ROOT / "artifacts/diagnostic-2026.09.15-reflection-marker"
 
 
 class ManagementTests(unittest.TestCase):
@@ -174,6 +176,75 @@ class ManagementTests(unittest.TestCase):
         for n, value in originals.items():
             self.assertEqual((self.game / n).read_bytes(), value)
         self.assertEqual(m.snapshot(self.game)[2]["application"], "pending-restart-or-F10")
+
+    def copy_package(self, name, source=PROBE):
+        destination = self.root / name
+        manifest, receipt = m.read_package(source)
+        for item in manifest["files"]:
+            target = destination / item
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / item, target)
+        (destination / m.RECEIPT).write_bytes(receipt)
+        return destination, manifest
+
+    def test_live_probe_switch_and_exact_daily_restore(self):
+        before = self.install()
+        unchanged = {n: value for n, value in before.items()
+                     if n in m.FIXED or n.endswith(".h")}
+        self.run_cli("select", "--package", str(PROBE), "--isolate", "reflection", "--live", running=True)
+        probe_files, manifest, state = m.snapshot(self.game)
+        self.assertEqual(state["effects"], ["reflection"])
+        self.assertEqual(state["package_path"], str(PROBE.resolve()))
+        self.assertEqual(manifest["diagnostic"]["kind"], "reflection-execution-marker")
+        for n, value in unchanged.items():
+            self.assertEqual(probe_files[n], value)
+        # Same-package selection and returning to the baseline both remain possible.
+        self.run_cli("select", "--profile", "vanilla", "--live", running=True)
+        self.assertEqual(m.snapshot(self.game)[2]["effects"], [])
+        self.run_cli("select", "--package", str(PACKAGE), "--profile", "daily", "--live", running=True)
+        self.assertEqual(m.snapshot(self.game)[0], before)
+
+    def test_probe_rejects_mixed_effects(self):
+        before = self.install()
+        with self.assertRaisesRegex(ValueError, "must be isolated"):
+            self.run_cli("select", "--package", str(PROBE), "--effects", "tone,reflection", "--live", running=True)
+        self.assertEqual(m.snapshot(self.game)[0], before)
+
+    def test_package_selection_rejects_changed_runtime_or_headers(self):
+        before = self.install()
+        for index, name in enumerate(("d3dx.ini", "d3d11.dll", "SMSM-ShaderFixes/Configuration.h")):
+            package, manifest = self.copy_package(f"altered-{index}")
+            (package / name).write_bytes((package / name).read_bytes() + b"changed")
+            manifest["files"][name] = m.digest((package / name).read_bytes())
+            (package / m.RECEIPT).write_bytes(m.encoded(manifest))
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "runtime/configuration"):
+                self.run_cli("select", "--package", str(package), "--isolate", "reflection", "--live", running=True)
+            self.assertEqual(m.snapshot(self.game)[0], before)
+
+    def test_package_selection_rejects_removed_header_and_wrong_build(self):
+        before = self.install()
+        package, manifest = self.copy_package("removed-header")
+        del manifest["files"]["SMSM-ShaderFixes/Configuration.h"]
+        (package / m.RECEIPT).write_bytes(m.encoded(manifest))
+        with self.assertRaisesRegex(ValueError, "runtime/configuration"):
+            self.run_cli("select", "--package", str(package), "--isolate", "reflection", "--live", running=True)
+        package, manifest = self.copy_package("wrong-build")
+        manifest["client_build"] = "unreviewed-build"
+        (package / m.RECEIPT).write_bytes(m.encoded(manifest))
+        with self.assertRaisesRegex(ValueError, "build mismatch"):
+            self.run_cli("select", "--package", str(package), "--isolate", "reflection", "--live", running=True)
+        self.assertEqual(m.snapshot(self.game)[0], before)
+
+    def test_explicit_same_path_cannot_bypass_immutability(self):
+        package, manifest = self.copy_package("installed-copy", PACKAGE)
+        self.run_cli("install", "--package", str(package))
+        before = m.snapshot(self.game)[0]
+        manifest["test_edit"] = True
+        (package / m.RECEIPT).write_bytes(m.encoded(manifest))
+        for extra in ((), ("--package", str(package))):
+            with self.assertRaisesRegex(ValueError, "Immutable package"):
+                self.run_cli("select", *extra, "--profile", "daily", "--live", running=True)
+        self.assertEqual(m.snapshot(self.game)[0], before)
 
     def test_running_game_blocks_install_uninstall_and_plain_selection(self):
         self.install()

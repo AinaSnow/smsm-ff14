@@ -77,6 +77,12 @@ C:\Python314\python.exe $smsmManager select --client-root $smsmClient --enable t
 
 按键无效时可先用小键盘 0 开启 hunting，再按一次 F10，不连续按。`--live` 只允许选项变更；实际改变的只能是 shader TXT/BIN 和管理状态。DLL、头文件、INI 改变会被拒绝。出现无响应/重载错误就停止，退出后恢复；这不是已验证的无重启保证。F8 默认关闭。
 
+### 从独立诊断包切换 shader
+
+`select --package <新包> --live` 现在支持明确选择另一个不可变管理包，只允许 shader TXT/BIN、包凭据和选择状态发生变化。客户端版本和所有文件哈希仍需匹配；DLL、INI、头文件的变化（包括增加或删除）会阻止操作。它不能用于完整运行库升级，也不允许绕过同一路径的包被修改检查。每次操作仍生成备份。省略 `--package` 时继续使用当前状态指向的包。
+
+反射紫红色执行诊断的构建、切换、恢复和判断标准见 [REFLECTION-DIAGNOSTIC.md](REFLECTION-DIAGNOSTIC.md)。诊断效果不能和其他效果同时开启，默认预设仍只选择色调。
+
 ## 备份、恢复和所有权
 
 每次文件变更都会输出一个 `artifacts/install-backups/<UTC时间-UUID>` 备份目录，包含变更前全部清单所有文件与状态。保留它；这些目录不会被自动清理。工具不执行递归删除、不改游戏原文件、不改已有目录 ACL。当前包外的 ReShade 等文件、已修改文件、shader 目录中的未登记文件、符号链接/目录联接和跨客户端备份会阻止操作。

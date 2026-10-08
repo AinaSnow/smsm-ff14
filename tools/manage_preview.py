@@ -311,7 +311,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("action", choices=("status", "install", "select", "uninstall", "rollback", "recover", "audit"))
     p.add_argument("--client-root", required=True, type=Path)
-    p.add_argument("--package", type=Path)
+    p.add_argument("--package", type=Path, help="Explicit package for install/audit or shader-only selection from a new immutable package")
     p.add_argument("--profile")
     p.add_argument("--effects", help="Comma-separated enabled effects; empty string means original")
     p.add_argument("--isolate", help="Only this effect, so F9 compares just that effect")
@@ -365,14 +365,15 @@ def main():
         if args.action == "select":
             if not state:
                 raise ValueError("Install a managed package once before selecting effects")
-            package = Path(state["package_path"])
+            package = args.package or Path(state["package_path"])
         else:
             if not args.package:
                 p.error("install requires --package")
             package = args.package
         manifest, receipt = read_package(package)
         check_build(game, manifest)
-        if args.action == "select" and digest(receipt) != state["package_sha256"]:
+        if (args.action == "select" and digest(receipt) != state["package_sha256"] and
+                (args.package is None or package.resolve() == Path(state["package_path"]).resolve())):
             raise ValueError("Immutable package was modified; install an explicitly reviewed new package")
         if args.enable or args.disable:
             if (set(args.enable) | set(args.disable)) - manifest["effects"].keys():
@@ -381,10 +382,15 @@ def main():
             label = "custom"
         else:
             effects, label = selection(manifest, args.profile, args.effects, args.isolate)
+        diagnostic = manifest.get("diagnostic")
+        if diagnostic and any(diagnostic["target"] in manifest["effects"][e]["shaders"] for e in effects):
+            if len(effects) != 1:
+                raise ValueError("Diagnostic target must be isolated from other effects")
         after = desired_package(package, manifest, receipt, effects, label)
         if args.action == "select":
             changed = {n for n in before.keys() | after.keys() if before.get(n) != after.get(n)}
-            if any(n != STATE and not re.fullmatch(rf"{FIXES}/[0-9a-f]{{16}}-ps(?:_replace)?\.(txt|bin)", n) for n in changed):
+            metadata = {STATE, RECEIPT} if args.package else {STATE}
+            if any(n not in metadata and not re.fullmatch(rf"{FIXES}/[0-9a-f]{{16}}-ps(?:_replace)?\.(txt|bin)", n) for n in changed):
                 raise ValueError("Selection tried to change runtime/configuration files")
     elif args.action == "uninstall":
         if not current:
@@ -398,6 +404,8 @@ def main():
             check_build(game, json.loads(after[RECEIPT]))
     backup = transition(game, before, after, args.backup_root)
     print(f"Files updated. Backup: {backup}")
+    if args.action in ("install", "select") and manifest.get("diagnostic") and effects == ["reflection"]:
+        print("DIAGNOSTIC ONLY: reflection output is forced magenta, including alpha. This tests visible contribution, not quality. Restore the baseline package after testing.")
     if args.action == "select" and running:
         print("Game application NOT confirmed. Return to game and press F10 once. If uncertain, restart. F9 is all active effects; isolate selects one.")
     else:
