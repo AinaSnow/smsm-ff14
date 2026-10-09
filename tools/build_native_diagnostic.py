@@ -125,6 +125,7 @@ def main():
                 "ambient_variants":ambient_variants,
                 "coverage_shader_sha256":coverage_sha,
                 "output_audit":bool(args.coverage_shader),
+                "material_input_probe":bool(args.material_roster),
                 "material_roster_sha256":roster_sha,"material_shader_count":roster_count,
                 "files": {addon.name: hashlib.sha256(addon.read_bytes()).hexdigest()},
                 "sources": {str(path.relative_to(ROOT)).replace("\\", "/"): hashlib.sha256(path.read_bytes()).hexdigest()

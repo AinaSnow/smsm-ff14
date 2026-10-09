@@ -27,5 +27,6 @@
   "startup_hitch_improvement_measured": false,
   "default_light_count": 0,
   "r8_disabled_required": true,
-  "r10_preserved": true
+  "r10_preserved": true,
+  "subsequent_scene_result": "stagehand-m2-scene-cleanup-2026-10-09.json"
 }

@@ -124,6 +124,41 @@ foreach(var scenario in new[]{"scene","logout","provider","stop","timeout"})
     Require(capture.BeginCount==0 && session.CompletedCaptures==0,"Lifecycle accidentally captured");
     checks.Add("bounded lifecycle without capture: "+scenario);
 }
+{
+    var stage=new FakeStage();var capture=new FakeCapture();var journal=new FakeJournal();var session=new Session(stage,capture,journal);
+    session.Start(0,env,materialProbe:true);session.Tick(1,env);
+    long now=2101;for(int i=0;i<4;++i){session.Tick(now,env);session.Tick(now+1,env);now+=2100;}
+    Require(!session.Running && session.CompletedCaptures==4 && journal.Owned.Count==0,"Probe did not complete finite cleanup");
+    Require(stage.Applied.SequenceEqual(new[]{LightPreset.Off,LightPreset.Warm,LightPreset.Cool,LightPreset.Off}),"Probe recovery baseline missing");
+    checks.Add("four material probes with returning OFF baseline and cleanup");
+}
+File.WriteAllText(Path.Combine(root,"d3d11.dll"),"test only");Status("old-probe");
+var unsupported=new CaptureClient(root);unsupported.Prepare(true);
+try{WaitForOff(unsupported);throw new Exception("Old add-on accepted probe");}catch(InvalidOperationException){}finally{unsupported.Cancel();}
+checks.Add("probe capability required before publishing");
+File.WriteAllText(Path.Combine(root,"SMSM-native-install.json"),JsonSerializer.Serialize(new{client_build="2026.09.15.0000.0000",output_audit=true,material_input_probe=true,material_roster_sha256="test",files=ownedFiles}));
+foreach(var scenario in new[]{"complete","missing-input","wrong-geometry","cancel"})
+{
+    Status("old-probe");var probe=new CaptureClient(root);probe.Prepare(true);WaitForOff(probe);
+    File.Delete(Path.Combine(folder,"ambient-command.txt"));probe.PollPrepare();probe.Begin();
+    Require(File.ReadAllText(Path.Combine(folder,"ambient-command.txt"))==$"probe {CaptureClient.Target} {CaptureClient.Elements} {CaptureClient.Vertex}\n","Wrong probe filter");
+    File.Delete(Path.Combine(folder,"ambient-command.txt"));
+    if(scenario=="cancel")
+    {
+        Status("output-audit-2-5",true);probe.Cancel();Require(File.ReadAllText(Path.Combine(folder,"ambient-command.txt"))=="off\n","In-flight probe not stopped");File.Delete(Path.Combine(folder,"ambient-command.txt"));
+    }
+    else
+    {
+        var name="output-audit-2-"+(scenario=="complete"?"1":scenario=="missing-input"?"2":"3");var dir=Path.Combine(folder,name);Directory.CreateDirectory(dir);
+        var inputs=new[]{"-ps-b3","-ps-b6","-ps-t0","-ps-t1"}.Select(slot=>new{label="draw-1"+slot,status=scenario=="missing-input" && slot=="-ps-t1"?"unsupported":"captured",phase="pre_draw"}).ToArray();
+        var draw=new{vertex_sha256=CaptureClient.Vertex,elements=CaptureClient.Elements,shader_replaced=false,inputs,images=new[]{new{status="captured"},new{status="captured"},new{status="captured"}}};
+        File.WriteAllText(Path.Combine(dir,"report.json"),JsonSerializer.Serialize(new{status="complete",mode="probe",selected_shader=CaptureClient.Target,selected_vertex_sha256=scenario=="wrong-geometry"?"wrong":CaptureClient.Vertex,selected_elements=CaptureClient.Elements,selected_bytes=100,draws=new[]{draw}}));Status(name);
+        if(scenario=="complete")Require(probe.Poll().Done,"Complete probe rejected");
+        else{try{probe.Poll();throw new Exception("Bad probe accepted");}catch(InvalidDataException){}}
+        probe.Cancel();
+    }
+    checks.Add("material probe transport: "+scenario);
+}
 Console.WriteLine(JsonSerializer.Serialize(new{passed=true,checks}));
 
 sealed class FakeStage : IStageClient
@@ -136,7 +171,7 @@ sealed class FakeStage : IStageClient
 sealed class FakeCapture : ICaptureClient
 {
     public bool Throw; public int BeginCount;
-    public void Prepare(){} public PollResult PollPrepare()=>new(true);
+    public void Prepare(bool materialProbe=false){} public PollResult PollPrepare()=>new(true);
     public void Begin(){++BeginCount;if(Throw)throw new IOException("failure");} public PollResult Poll()=>new(true,"synthetic-capture");public void Cancel(){}
 }
 sealed class FakeJournal : ISessionJournal

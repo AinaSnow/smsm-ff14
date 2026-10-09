@@ -1,0 +1,58 @@
+{
+  "scope": "M3 material-input capture candidate; not live GPU light-data association",
+  "native_addon_sha256": "ee6d3943a274124db73e46f3f88931cceba5e808a35a2b86bce6c44607cd35a2",
+  "bridge_version": "0.2.0.0",
+  "bridge_dll_sha256": "a64562c18362673dfb0fdf9ac051f2fdb7fc911fbeea1de26c38a9c810e71aa0",
+  "bridge_offline_checks_passed": 27,
+  "bridge_build_zero_warnings": true,
+  "native_build_warnings": 0,
+  "native_warp": {
+    "passed": true,
+    "filtered_early_draws": 520,
+    "recorded_draws": 2,
+    "verified_bytes": 51056,
+    "input_snapshot_lifetime_verified": true,
+    "bound_constant_range_preserved": true
+  },
+  "reshade_hardware": {
+    "actual_runtime": true,
+    "original_inputs_exact": true,
+    "max_original_pixel_error": 2.9802322387695312e-08,
+    "off_restores_baseline": 0.0,
+    "ambient_overrides": 0,
+    "marker_draws": 0
+  },
+  "upgrade_and_r10_restore_simulation_passed": true,
+  "states": [
+    "Off",
+    "Warm",
+    "Cool",
+    "Off"
+  ],
+  "maximum_draws_per_capture": 2,
+  "maximum_bytes_per_capture": 268435456,
+  "inputs": {
+    "ps_constant_buffers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "ps_texture_slots": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "phase": "pre_draw",
+    "supported_srv": "Texture2D; other views explicitly marked unsupported"
+  },
+  "default_light_count": 0,
+  "installed": false,
+  "live_capture_verified": false,
+  "m3_correspondence_passed": false,
+  "performance_work_deferred": true
+}

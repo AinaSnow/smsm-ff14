@@ -210,6 +210,8 @@ int wmain(int argc, wchar_t** argv) try {
         send(frame==1?"census":"off");
 #elif defined(SMSM_MATERIAL_SAMPLE)
         send(frame==1?"sample 980154264a89fba1 0":"off");
+#elif defined(SMSM_MATERIAL_PROBE)
+        send(frame==1?"probe 980154264a89fba1 3 " SMSM_PROBE_VERTEX_SHA:"off");
 #elif defined(SMSM_MATERIAL_SKIP)
         send(frame==1?"sample 980154264a89fba1 1":"off");
 #else

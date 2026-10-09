@@ -27,7 +27,18 @@ def analyze(directory):
         return np.frombuffer(raw,np.uint8).reshape(item['height'],item['width'],-1)
     results=[]
     for draw in report['draws']:
-        row={k:v for k,v in draw.items() if k!='images'}
+        row={k:v for k,v in draw.items() if k not in ('images','inputs')}
+        for item in draw.get('inputs',[]):
+            if item.get('phase')!='pre_draw':raise ValueError('Input snapshot is not pre-draw')
+            if item.get('status')!='captured':continue
+            if 'width' in item:read(item)
+            else:
+                name=item['file'];payload=directory/name
+                if Path(name).name!=name or '\\' in name or ':' in name or payload.is_symlink() or payload.resolve().parent!=directory:
+                    raise ValueError('Unsafe constant snapshot path')
+                raw=payload.read_bytes()
+                if len(raw)!=item['bytes'] or hashlib.sha256(raw).hexdigest()!=item['sha256']:raise ValueError('Damaged constant snapshot')
+                total+=len(raw)
         images=draw.get('images',[]);raw=[read(i) for i in images]
         if len(raw)==3 and all(r is not None for r in raw):
             if len({(i['width'],i['height'],i['format'],i['resource'],i['subresource']) for i in images})!=1:

@@ -232,22 +232,25 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
 #endif
         const auto ambient_command=d.root/"ambient-command.txt";
         if(GetFileAttributesW(ambient_command.c_str())!=INVALID_FILE_ATTRIBUTES) {
-            std::ifstream input(ambient_command);char action[64]={};input.getline(action,sizeof(action));input.close();
+            std::ifstream input(ambient_command);char action[192]={};input.getline(action,sizeof(action));const bool malformed=input.fail();input.close();
             if(!smsm::fs::remove(ambient_command))throw std::runtime_error("ambient_command_consume_failed");
+            if(malformed)throw std::runtime_error("Invalid ambient command length");
             const std::string value=action;
 #ifdef SMSM_NATIVE_COVERAGE
             if(value!="status"){s.coverage.disable();s.output_audit.cancel();}
 #ifdef SMSM_MATERIAL_ROSTER
-            if(value=="census" || value.rfind("sample ",0)==0){
-                std::string hash;UINT skip=0;
+            if(value=="census" || value.rfind("sample ",0)==0 || value.rfind("probe ",0)==0){
+                std::string hash,vertex;UINT skip=0,elements=0;const bool probe=value.rfind("probe ",0)==0;
                 if(value!="census"){
-                    std::istringstream params(value);std::string verb;params>>verb>>hash>>skip;
+                    std::istringstream params(value);std::string verb;params>>verb>>hash;
+                    if(probe)params>>elements>>vertex;else params>>skip;
                     if(!params || skip>4096 || hash.size()!=16 || !std::all_of(hash.begin(),hash.end(),[](char c){return c>='0' && c<='9' || c>='a' && c<='f';}))throw std::runtime_error("Invalid material sample command");
+                    if(probe && (elements==0 || elements>10000000 || vertex.size()!=64 || !std::all_of(vertex.begin(),vertex.end(),[](char c){return c>='0' && c<='9' || c>='a' && c<='f';})))throw std::runtime_error("Invalid material probe filter");
                     params>>std::ws;if(!params.eof())throw std::runtime_error("Unexpected sample arguments");
                     if(std::none_of(native_material_roster.begin(),native_material_roster.end(),[&](const auto &entry){return entry.second.hash==hash;}))throw std::runtime_error("Sample shader is not in verified material roster");
                 }
                 d.stop();s.ambient.disable();
-                s.output_audit.arm(d.root,value=="census"?smsm::OutputAudit::Mode::census:smsm::OutputAudit::Mode::sample,hash,skip);
+                s.output_audit.arm(d.root,value=="census"?smsm::OutputAudit::Mode::census:probe?smsm::OutputAudit::Mode::probe:smsm::OutputAudit::Mode::sample,hash,skip,vertex,elements);
             }
             else
 #endif

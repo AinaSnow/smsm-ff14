@@ -65,3 +65,5 @@ Release 编译零警告，21 项检查通过，新增异步校验取消/失败�
 用户随后退出游戏，0.1.1 登记升级已完成。逐字段比对确认仅预期路径/昵称及开发加载选项变化，WorkingPluginId、profiles 和其他配置保留，包文件校验一致。旧桥退出状态为 disposed、无所属 Stage，r8/marker/audit 关闭，r10 冻结包不变。本次退出前没有活跃测试灯，不能据此通过亮灯期间的退出清理；新版本加载、生命周期和耗时仍待实机验收。
 
 证据：[0.1.1 候选检查](validation/stagehand-m2-lifecycle-candidate-2026-10-09.json)。
+
+0.1.1 已在普通游戏启动 lifecycle。用户先回复未看清暖光，随后明确更正为切图前看到暖光、新地图没有暖光。日志在亮灯后 49.744 秒因环境变化停止，未走 60 秒超时；所属 Stage、持久 OwnedStages、cleanupPending 均为空，采集数为 0，锁和命令已释放。**本次切图清理通过**，不要求重复切图。亮灯退出测试留待正常下线。启动仍记录 62.7965 ms framework hitch，用户要求暂不处理性能问题，后续不追加性能优化或测量。见 [切图结果](validation/stagehand-m2-scene-cleanup-2026-10-09.json)。

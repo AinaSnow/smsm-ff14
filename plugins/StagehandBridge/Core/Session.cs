@@ -15,7 +15,7 @@ public interface IStageClient
 }
 public interface ICaptureClient
 {
-    void Prepare();
+    void Prepare(bool materialProbe = false);
     PollResult PollPrepare();
     void Begin();
     PollResult Poll();
@@ -40,7 +40,8 @@ public sealed class Session(IStageClient stage, ICaptureClient capture, ISession
     private string? owned;
     private bool lifecycleOnly;
     private readonly List<string> cleanupPending = [];
-    private static readonly LightPreset[] Sequence = [LightPreset.Off, LightPreset.Warm, LightPreset.Cool];
+    private LightPreset[] Sequence = [LightPreset.Off, LightPreset.Warm, LightPreset.Cool];
+    private bool materialProbe;
     public bool Running => phase != Phase.Idle;
     public string Status { get; private set; } = "Idle; no light created";
     public string? OwnedStage => owned;
@@ -53,13 +54,16 @@ public sealed class Session(IStageClient stage, ICaptureClient capture, ISession
         RetryCleanup();
     }
 
-    public void Start(long now, EnvironmentState environment, bool lifecycleOnly = false)
+    public void Start(long now, EnvironmentState environment, bool lifecycleOnly = false, bool materialProbe = false)
     {
         if (Running) throw new InvalidOperationException("A finite session is already running");
+        if (lifecycleOnly && materialProbe) throw new ArgumentException("Choose lifecycle or material probe");
         RetryCleanup();
         if (cleanupPending.Count != 0) throw new InvalidOperationException("Previous owned Stage cleanup is pending");
         if (!environment.Ready || !stage.Available) throw new InvalidOperationException("Ordinary gameplay and compatible Stagehand are required");
         this.lifecycleOnly = lifecycleOnly;
+        this.materialProbe = materialProbe;
+        Sequence = materialProbe ? [LightPreset.Off, LightPreset.Warm, LightPreset.Cool, LightPreset.Off] : [LightPreset.Off, LightPreset.Warm, LightPreset.Cool];
         place = environment.Place; player = environment.Player;
         position = player + new Vector3(2, 1.5f, 1.5f);
         if (!Finite(position)) throw new InvalidOperationException("Invalid player position");
@@ -68,8 +72,8 @@ public sealed class Session(IStageClient stage, ICaptureClient capture, ISession
         try
         {
             journal.Own(owned);
-            journal.Event("start", new { stageId = owned, place, position, mode = lifecycleOnly ? "lifecycle" : "capture", presets = lifecycleOnly ? [LightPreset.Warm] : Sequence });
-            capture.Prepare(); index = 0; CompletedCaptures = 0;
+            journal.Event("start", new { stageId = owned, place, position, mode = lifecycleOnly ? "lifecycle" : materialProbe ? "material-probe" : "capture", presets = lifecycleOnly ? [LightPreset.Warm] : Sequence });
+            capture.Prepare(materialProbe); index = 0; CompletedCaptures = 0;
             phase = Phase.Prepare; deadline = now + 5000; Status = "Waiting for r8 OFF acknowledgment";
         }
         catch { Stop("start failed"); throw; }
@@ -109,7 +113,7 @@ public sealed class Session(IStageClient stage, ICaptureClient capture, ISession
                     if (!result.Done) break;
                     journal.Event("capture", new { preset = Sequence[index], directory = result.Directory });
                     ++CompletedCaptures; ++index;
-                    if (index == Sequence.Length) Stop("completed three captures");
+                    if (index == Sequence.Length) Stop(materialProbe ? "completed four material probes" : "completed three captures");
                     else Apply(now);
                     break;
             }

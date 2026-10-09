@@ -18,24 +18,30 @@ public sealed class CaptureClient(string game) : ICaptureClient
     private FileStream? lease;
     private Task? validation;
     private bool offPublished;
+    private bool materialProbe;
     public const string Target = "e86f0d4916054deb";
+    public const string Vertex = "6fcf9d7d0b2f8003165c608008f588620cc783e652201cb6ffda32d2a245df35";
+    public const uint Elements = 7914;
 
-    public void Prepare()
+    public void Prepare(bool materialProbe = false)
     {
         if (validation is not null || lease is not null) throw new InvalidOperationException("Capture preparation already active");
         offPublished = false;
+        this.materialProbe = materialProbe;
         // Only read-only integrity work leaves the framework thread. Publishing,
         // ownership and IPC remain on the framework thread, including on cancel.
-        validation = Task.Run(ValidateInstallation);
+        validation = Task.Run(() => ValidateInstallation(materialProbe));
     }
 
-    private void ValidateInstallation()
+    private void ValidateInstallation(bool probe)
     {
         ValidateDirectory(root);
         var receipt = Read(Path.Combine(game, "SMSM-native-install.json")) ?? throw new IOException("Missing native install receipt");
         using (receipt)
         {
             var r = receipt.RootElement;
+            if (probe && (!r.TryGetProperty("material_input_probe", out var capability) || !capability.GetBoolean()))
+                throw new InvalidOperationException("Install the verified material-input probe add-on first");
             if (r.GetProperty("client_build").GetString() != "2026.09.15.0000.0000" ||
                 !r.GetProperty("output_audit").GetBoolean() || string.IsNullOrEmpty(r.GetProperty("material_roster_sha256").GetString()))
                 throw new InvalidOperationException("Installed add-on does not support verified material sampling");
@@ -85,7 +91,7 @@ public sealed class CaptureClient(string game) : ICaptureClient
         if (s.GetProperty("enabled").GetBoolean() || s.GetProperty("coverage_enabled").GetBoolean() || s.GetProperty("output_audit_active").GetBoolean())
             throw new InvalidOperationException("Native pipeline is busy or effect enabled");
         previous = s.GetProperty("output_audit_directory").GetString() ?? ""; ownedAudit = null;
-        Publish($"sample {Target} 0");
+        Publish(materialProbe ? $"probe {Target} {Elements} {Vertex}" : $"sample {Target} 0");
     }
 
     public PollResult Poll()
@@ -104,9 +110,28 @@ public sealed class CaptureClient(string game) : ICaptureClient
         using var report = Read(Path.Combine(directory, "report.json"));
         if (report is null) return new(false);
         var r = report.RootElement;
-        if (r.GetProperty("status").GetString() != "complete" || r.GetProperty("mode").GetString() != "sample" ||
+        if (r.GetProperty("status").GetString() != "complete" || r.GetProperty("mode").GetString() != (materialProbe ? "probe" : "sample") ||
             r.GetProperty("selected_shader").GetString() != Target || r.GetProperty("selected_bytes").GetUInt64() > 256UL * 1024 * 1024)
             throw new InvalidDataException("Capture report does not match this finite sample");
+        if (materialProbe)
+        {
+            if (r.GetProperty("selected_vertex_sha256").GetString() != Vertex || r.GetProperty("selected_elements").GetUInt32() != Elements)
+                throw new InvalidDataException("Material probe geometry mismatch");
+            var draws = r.GetProperty("draws");
+            if (draws.GetArrayLength() is < 1 or > 2) throw new InvalidDataException("Material probe has no bounded geometry matches");
+            foreach (var draw in draws.EnumerateArray())
+            {
+                if (draw.GetProperty("vertex_sha256").GetString() != Vertex || draw.GetProperty("elements").GetUInt32() != Elements || draw.GetProperty("shader_replaced").GetBoolean())
+                    throw new InvalidDataException("Material probe draw identity changed");
+                var inputs = draw.GetProperty("inputs").EnumerateArray().ToArray();
+                foreach (var slot in new[] { "-ps-b3", "-ps-b6", "-ps-t0", "-ps-t1" })
+                    if (!inputs.Any(x => (x.GetProperty("label").GetString() ?? "").EndsWith(slot, StringComparison.Ordinal) &&
+                        x.GetProperty("status").GetString() == "captured" && x.GetProperty("phase").GetString() == "pre_draw"))
+                        throw new InvalidDataException("Required probe input was not captured");
+                if (draw.GetProperty("images").GetArrayLength() != 3 || draw.GetProperty("images").EnumerateArray().Any(x => x.GetProperty("status").GetString() != "captured"))
+                    throw new InvalidDataException("Material probe output snapshots incomplete");
+            }
+        }
         ownedCommand = ""; ownedAudit = null; return new(true, directory);
     }
 
@@ -116,7 +141,7 @@ public sealed class CaptureClient(string game) : ICaptureClient
         {
             // A location/stop event can arrive after native command consumption
             // but before the next normal Poll. Discover that own in-flight audit.
-            if (ownedAudit is null && ownedCommand.StartsWith("sample ", StringComparison.Ordinal) && !File.Exists(Command))
+            if (ownedAudit is null && (ownedCommand.StartsWith("sample ", StringComparison.Ordinal) || ownedCommand.StartsWith("probe ", StringComparison.Ordinal)) && !File.Exists(Command))
             {
                 using var latest = Read(Status);
                 var name = latest?.RootElement.GetProperty("output_audit_directory").GetString();

@@ -1,0 +1,24 @@
+{
+  "bridge_version": "0.1.1.0",
+  "actual_ipc": "1.2",
+  "mode": "lifecycle",
+  "warm_lamp_started": true,
+  "seconds_before_environment_stop": 49.744,
+  "stop_reason": "location/logout/provider changed",
+  "timeout_was_not_trigger": true,
+  "completed_captures": 0,
+  "cleanup_pending": 0,
+  "owned_stages_after": 0,
+  "capture_lock_and_pending_command_absent": true,
+  "user_observation": "Saw warm light before changing map; no warm light in destination map",
+  "r8_marker_audit_disabled": true,
+  "scene_cleanup_passed": true,
+  "bridge_hitch_warnings_in_test_minute": 1,
+  "limits": [
+    "No native memory object enumeration",
+    "One 62.7965 ms startup framework hitch remains; optimization and additional performance tests deferred by user",
+    "Active-lamp logout/exit will be checked at a normal future logout"
+  ],
+  "bridge_startup_hitch_ms": 62.7965,
+  "performance_work_deferred_by_user": true
+}

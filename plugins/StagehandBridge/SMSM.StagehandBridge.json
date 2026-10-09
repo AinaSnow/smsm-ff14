@@ -2,11 +2,11 @@
   "Author": "AinaSnow",
   "Name": "SMSM Stagehand M2 Test Bridge",
   "InternalName": "SMSM.StagehandBridge",
-  "AssemblyVersion": "0.1.1.0",
+  "AssemblyVersion": "0.2.0.0",
   "DalamudApiLevel": 15,
   "ApplicableVersion": "2026.09.15.0000.0000",
   "LoadRequiredState": 1,
   "CanUnloadAsync": false,
   "Punchline": "有限的原生单灯 IPC 测试与既有定点采集协调。",
-  "Description": "每次加载不创建灯。/smsm-light run 执行关闭/暖光/冷光三次定点采集；stop 随时清理自己的临时 Stage。采集时移动角色会停止。lifecycle 模式最多亮灯 60 秒，允许走动、不采集，切图、退出或 stop 时清理。r8 保持关闭。"
+  "Description": "每次加载不创建灯。probe 执行关闭/暖/冷/再关闭四态材质输入采集。/smsm-light run 执行关闭/暖光/冷光三次定点采集；stop 随时清理自己的临时 Stage。采集时移动角色会停止。lifecycle 模式最多亮灯 60 秒，允许走动、不采集，切图、退出或 stop 时清理。r8 保持关闭。"
 }

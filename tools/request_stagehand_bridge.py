@@ -10,7 +10,7 @@ import uuid
 
 
 def request(directory,action):
-    if os.name!='nt' or action not in ('run','lifecycle','stop','status'):raise ValueError('Unsupported command/platform')
+    if os.name!='nt' or action not in ('run','probe','lifecycle','stop','status'):raise ValueError('Unsupported command/platform')
     directory=directory.resolve(strict=True)
     if directory.is_symlink() or directory.stat().st_file_attributes&0x400:raise ValueError('Expected a real bridge directory')
     status=json.loads((directory/'status.json').read_bytes())
@@ -31,5 +31,5 @@ def request(directory,action):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('directory',type=Path);p.add_argument('action',choices=['run','lifecycle','stop','status'])
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('directory',type=Path);p.add_argument('action',choices=['run','probe','lifecycle','stop','status'])
     a=p.parse_args();request(a.directory,a.action)

@@ -50,7 +50,7 @@ public sealed class Plugin : IDalamudPlugin
         var game = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule!.FileName)!;
         session = new(stage, new CaptureClient(game), new Journal(pi, config, directory));
         session.Recover(config.OwnedStages.ToArray());
-        commands.AddHandler("/smsm-light", new CommandInfo(OnCommand) { HelpMessage = "run: OFF/WARM/COOL samples; lifecycle: warm lamp for up to 60s, no capture; stop: cleanup; status: report. No light on load." });
+        commands.AddHandler("/smsm-light", new CommandInfo(OnCommand) { HelpMessage = "run: three samples; probe: OFF/WARM/COOL/OFF material inputs; lifecycle: warm lamp for up to 60s, no capture; stop: cleanup; status: report. No light on load." });
         framework.Update += Update;
         api.LocationChanged += OnLocation;
         client.TerritoryChanged += OnTerritory;
@@ -76,10 +76,11 @@ public sealed class Plugin : IDalamudPlugin
             switch (args.Trim().ToLowerInvariant())
             {
                 case "run": session.Start(Now, Current()); break;
+                case "probe": session.Start(Now, Current(), materialProbe: true); break;
                 case "lifecycle": session.Start(Now, Current(), lifecycleOnly: true); break;
                 case "stop": session.Stop("manual stop"); break;
                 case "": case "status": log.Information("SMSM light: {Status}; captures={Captures}", session.Status, session.CompletedCaptures); break;
-                default: throw new ArgumentException("Use /smsm-light run, lifecycle, stop or status");
+                default: throw new ArgumentException("Use /smsm-light run, probe, lifecycle, stop or status");
             }
         }
         catch (Exception e) { log.Warning(e, "SMSM light command rejected"); }

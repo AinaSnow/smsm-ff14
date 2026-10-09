@@ -6,14 +6,15 @@ namespace smsm {
 // after/end snapshots provide separate evidence. No forced render-state changes.
 class OutputAudit {
 public:
-    enum class Mode {marker,census,sample};
+    enum class Mode {marker,census,sample,probe};
 private:
     struct Image {
         Json meta;
         ComPtr<ID3D11Texture2D> source,stage;
         UINT sub=0,width=0,height=0,bpp=0;
     };
-    struct Entry {Json meta;ComPtr<ID3D11Query> query;std::vector<Image> images;};
+    struct Constant {Json meta;ComPtr<ID3D11Buffer> stage;UINT bytes=0;};
+    struct Entry {Json meta;ComPtr<ID3D11Query> query;std::vector<Image> images,inputs;std::vector<Constant> constants;};
     std::vector<Entry> entries;
     std::map<uint64_t,uint64_t> resource_ids;
     std::vector<ComPtr<ID3D11Resource>> held_resources;
@@ -23,6 +24,8 @@ private:
     bool recording=false,waiting=false;
     Mode mode=Mode::marker;
     std::string selected_shader;
+    std::string selected_vertex;
+    UINT selected_elements=0;
     UINT skip_draws=0;
     Image final_image;
     uint64_t id(ID3D11Resource *r) {
@@ -74,18 +77,72 @@ private:
         if(!file)throw std::runtime_error("output audit payload write failed");
         i.meta.text("file",name);i.meta.text("sha256",sha256(data.data(),data.size()));i.meta.text("status","captured");return i.meta;
     }
+    void capture_inputs(ID3D11DeviceContext *ctx,Entry &entry) {
+        // Called before the original draw. Copy commands share its immediate
+        // context order; later binding/resource changes cannot alter snapshots.
+        ComPtr<ID3D11Device> device;ctx->GetDevice(&device);
+        ComPtr<ID3D11DeviceContext1> ctx1;ctx->QueryInterface(IID_PPV_ARGS(&ctx1));
+        ComPtr<ID3D11Predicate> predicate;BOOL value;ctx->GetPredication(&predicate,&value);
+        if(predicate)ctx->SetPredication(nullptr,FALSE);
+        try {
+            for(UINT slot=0;slot<7;++slot){
+                Constant c;const std::string label="draw-"+number(observed)+"-ps-b"+number(slot);
+                c.meta.text("label",label);c.meta.text("stage","ps");c.meta.text("phase","pre_draw");c.meta.num("slot",slot);
+                ComPtr<ID3D11Buffer> source;UINT first=0,count=4096;
+                if(ctx1)ctx1->PSGetConstantBuffers1(slot,1,&source,&first,&count);else ctx->PSGetConstantBuffers(slot,1,&source);
+                c.meta.num("constant_first",first);c.meta.num("constant_count",count);c.meta.num("resource",id(source.Get()));
+                if(!source)c.meta.text("status","missing_binding");
+                else {
+                    D3D11_BUFFER_DESC desc;source->GetDesc(&desc);c.meta.num("byte_width",desc.ByteWidth);
+                    if(desc.ByteWidth>4*1024*1024 || desc.ByteWidth>budget-bytes)c.meta.text("status","unsupported_or_budget");
+                    else {
+                        c.bytes=desc.ByteWidth;bytes+=c.bytes;c.meta.num("bytes",c.bytes);
+                        D3D11_BUFFER_DESC staging={};staging.ByteWidth=c.bytes;staging.Usage=D3D11_USAGE_STAGING;staging.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
+                        check(device->CreateBuffer(&staging,nullptr,&c.stage));ctx->CopyResource(c.stage.Get(),source.Get());c.meta.text("status","queued");
+                    }
+                }
+                entry.constants.push_back(std::move(c));
+            }
+            for(UINT slot=0;slot<4;++slot){
+                ComPtr<ID3D11ShaderResourceView> view;ctx->PSGetShaderResources(slot,1,&view);
+                ComPtr<ID3D11Resource> resource;if(view)view->GetResource(&resource);
+                D3D11_SHADER_RESOURCE_VIEW_DESC vd={};if(view)view->GetDesc(&vd);
+                ComPtr<ID3D11Texture2D> tex;if(resource)resource.As(&tex);
+                const bool supported=tex && vd.ViewDimension==D3D11_SRV_DIMENSION_TEXTURE2D;
+                auto input=prepare(ctx,supported?tex.Get():nullptr,supported?vd.Texture2D.MostDetailedMip:0,vd.Format,"draw-"+number(observed)+"-ps-t"+number(slot));
+                input.meta.text("stage","ps");input.meta.text("phase","pre_draw");input.meta.num("slot",slot);
+                input.meta.num("resource",id(resource.Get()));input.meta.num("view_dimension",vd.ViewDimension);
+                if(view && !supported)input.meta.text("status","unsupported_view_dimension");
+                copy(ctx,input);entry.inputs.push_back(std::move(input));
+            }
+        }catch(...){if(predicate)ctx->SetPredication(predicate.Get(),value);throw;}
+        if(predicate)ctx->SetPredication(predicate.Get(),value);
+    }
+    Json read_constant(ID3D11DeviceContext *ctx,Constant &c) {
+        if(!c.stage)return c.meta;
+        D3D11_MAPPED_SUBRESOURCE mapped;check(ctx->Map(c.stage.Get(),0,D3D11_MAP_READ,D3D11_MAP_FLAG_DO_NOT_WAIT,&mapped));
+        std::vector<char> data;
+        try {data.resize(c.bytes);memcpy(data.data(),mapped.pData,c.bytes);}catch(...){ctx->Unmap(c.stage.Get(),0);throw;}
+        ctx->Unmap(c.stage.Get(),0);
+        const auto label=c.meta.fields.at("label");const auto name=label.substr(1,label.size()-2)+".bin";
+        std::ofstream file(directory/name,std::ios::binary);file.write(data.data(),data.size());if(!file)throw std::runtime_error("constant snapshot write failed");
+        c.meta.text("file",name);c.meta.text("sha256",sha256(data.data(),data.size()));c.meta.text("status","captured");return c.meta;
+    }
     void write_report(ID3D11DeviceContext *ctx,const std::string &status) {
         Json report;report.num("schema",1);report.text("status",status);report.num("observed_target_draws",observed);
         report.num("byte_budget",budget);report.num("selected_bytes",bytes);
-        report.text("mode",mode==Mode::marker?"marker":mode==Mode::census?"census":"sample");
+        report.text("mode",mode==Mode::marker?"marker":mode==Mode::census?"census":mode==Mode::probe?"probe":"sample");
+        if(mode==Mode::probe){report.text("selected_vertex_sha256",selected_vertex);report.num("selected_elements",selected_elements);}
         report.text("selected_shader",selected_shader);report.num("skip_draws",skip_draws);report.num("recorded_draws",entries.size());
         report.text("scope",mode==Mode::census?"verified material packages; at most 512 original-draw states/queries; no per-draw color snapshots":"one exact PS; at most 128 draw states/queries and first four selected RTV0 before/after/end snapshots; queries do not prove color writes");
+        if(mode==Mode::probe)report.text("scope","exact PS/VS/element count with RGB output; at most two draws, PS b0-b6/t0-t3 pre-draw inputs and RTV snapshots; binding names are not proven light semantics");
         std::vector<std::string> rows;
         for(auto &e:entries){
             if(status=="complete") {
                 UINT64 samples=0;const HRESULT hr=ctx->GetData(e.query.Get(),&samples,sizeof(samples),D3D11_ASYNC_GETDATA_DONOTFLUSH);
                 if(hr==S_OK)e.meta.num("occlusion_samples",samples);else e.meta.text("query_status","unavailable");
                 std::vector<std::string> images;for(auto &i:e.images)images.push_back(read(ctx,i).str());e.meta.fields["images"]=array(images);
+                if(mode==Mode::probe){std::vector<std::string> resources;for(auto &c:e.constants)resources.push_back(read_constant(ctx,c).str());for(auto &i:e.inputs)resources.push_back(read(ctx,i).str());e.meta.fields["inputs"]=array(resources);}
             }
             rows.push_back(e.meta.str());
         }
@@ -99,13 +156,13 @@ public:
     bool active() const {return recording || waiting;}
     bool collecting() const {return recording;}
     bool read_only() const {return mode!=Mode::marker;}
-    bool accepts(const std::string &hash) const {return mode==Mode::census || mode==Mode::sample && hash==selected_shader;}
+    bool accepts(const std::string &hash) const {return mode==Mode::census || (mode==Mode::sample || mode==Mode::probe) && hash==selected_shader;}
     const fs::path &path() const {return directory;}
     void cancel(){recording=waiting=internal=false;entries.clear();resource_ids.clear();held_resources.clear();done.Reset();final_image={};}
-    void arm(const fs::path &root,Mode requested=Mode::marker,const std::string &shader="",UINT skip=0) {
+    void arm(const fs::path &root,Mode requested=Mode::marker,const std::string &shader="",UINT skip=0,const std::string &vertex="",UINT elements=0) {
         if(active())throw std::runtime_error("output audit already active");
         cancel();bytes=observed=0;
-        mode=requested;selected_shader=shader;skip_draws=skip;
+        mode=requested;selected_shader=shader;skip_draws=skip;selected_vertex=vertex;selected_elements=elements;
         directory=root/("output-audit-"+number(GetCurrentProcessId())+"-"+number(GetTickCount64()));
         if(!fs::create_directory(directory))throw std::runtime_error("output audit directory exists");
         recording=true;
@@ -113,7 +170,13 @@ public:
     template<class F> bool draw(ID3D11DeviceContext *ctx,UINT count,UINT instances,F call,
             const std::string &pixel_hash="",const std::string &packages="",const std::string &vertex_sha="") {
         if(!recording || internal || ctx->GetType()!=D3D11_DEVICE_CONTEXT_IMMEDIATE)return call();
-        ++observed;if(observed<=skip_draws || entries.size()>=(mode==Mode::census?512u:128u))return call();
+        if(mode==Mode::probe){
+            if(count!=selected_elements || vertex_sha!=selected_vertex)return call();
+            ComPtr<ID3D11RenderTargetView> output;ctx->OMGetRenderTargets(1,&output,nullptr);if(!output)return call();
+            ComPtr<ID3D11BlendState> blend;FLOAT factors[4];UINT mask;ctx->OMGetBlendState(&blend,factors,&mask);
+            if(blend){D3D11_BLEND_DESC desc;blend->GetDesc(&desc);if(!(desc.RenderTarget[0].RenderTargetWriteMask&7))return call();}
+        }
+        ++observed;if(observed<=skip_draws || entries.size()>=(mode==Mode::census?512u:mode==Mode::probe?2u:128u))return call();
         Entry entry;auto &j=entry.meta;j.num("ordinal",observed);j.num("elements",count);j.num("instances",instances);
         j.text("pixel_shader",pixel_hash);j.text("packages",packages);j.text("vertex_sha256",vertex_sha);
         j.fields["shader_replaced"]=mode==Mode::marker?"true":"false";
@@ -158,6 +221,7 @@ public:
         internal=true;
         bool replaced=false;
         try {
+            if(mode==Mode::probe)capture_inputs(ctx,entry);
             if(!entry.images.empty())copy(ctx,entry.images[0]);
             ctx->Begin(entry.query.Get());
             try{replaced=call();}catch(...){ctx->End(entry.query.Get());throw;}

@@ -62,6 +62,9 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
     if material_mode:
         if not audit or zero_mask or later_clear or predicated or reject:raise ValueError('Material mode requires plain audit fixture')
         extra.append('/DSMSM_MATERIAL_'+material_mode.upper())
+        if material_mode=='probe':
+            vertex=Path(json.loads(next(l for l in lines if l.startswith('vertex '))[7:]))
+            extra.append('/DSMSM_PROBE_VERTEX_SHA="'+hashlib.sha256(vertex.read_bytes()).hexdigest()+'"')
     compile_cpp(ROOT/'tools/offline/render_ps.cpp',exe,extra_args=extra)
     subprocess.run([str(exe),str(job_path)],cwd=output,check=True,timeout=60)
     pixels=[np.fromfile(output/f'hardware-pixels-f{i}-rt0.f32',np.float32).reshape(f['height'],f['width'],4) for i in range(3)]
@@ -105,8 +108,23 @@ def run(output,package,setup,audit=False,zero_mask=False,later_clear=False,predi
             (output/'report.json').write_text(json.dumps(result,indent=2)+'\n')
             print(json.dumps(result['material_mode']));return
         draw=report['draws'][0]
-        if material_mode=='sample':
-            assert report['mode']=='sample' and draw['pixel_shader']=='980154264a89fba1' and not draw['shader_replaced']
+        if material_mode in ('sample','probe'):
+            assert report['mode']==material_mode and draw['pixel_shader']=='980154264a89fba1' and not draw['shader_replaced']
+        if material_mode=='probe':
+            from analyze_native_output import analyze
+            verified=analyze(directory)
+            assert report['selected_elements']==3 and report['selected_vertex_sha256']==hashlib.sha256(vertex.read_bytes()).hexdigest()
+            assert len(draw['inputs'])==11
+            for item in draw['inputs']:
+                slot=item['slot'];kind='b' if '-ps-b' in item['label'] else 't'
+                expected_file=output/'warp-reference'/f'{kind}{slot}.f32'
+                if item['status']!='captured':
+                    assert not expected_file.exists()
+                    assert item['status'] in ('missing','missing_binding') or (item['status']=='unsupported_view_dimension' and (output/'warp-reference'/f'structured{slot}.bin').exists())
+                    continue
+                expected_raw=expected_file.read_bytes()
+                assert (directory/item['file']).read_bytes()==expected_raw,'Pre-draw input differs from fixture'
+            result['probe_inputs']={'verified_bytes':verified['verified_bytes'],'original_inputs_exact':True}
         assert draw['replacement_executed']==1 and (draw['occlusion_samples']>0)==(not predicated),draw
         assert draw['predication_bound']==int(predicated),draw
         assert draw['outputs'][0]['write_mask']==(0 if zero_mask else 15)
@@ -137,6 +155,6 @@ if __name__=='__main__':
     p.add_argument('--later-clear',action='store_true')
     p.add_argument('--predicated',action='store_true')
     p.add_argument('--reject',choices=['alpha','sampled-depth'])
-    p.add_argument('--material-mode',choices=['census','sample','skip'])
+    p.add_argument('--material-mode',choices=['census','sample','skip','probe'])
     p.add_argument('--visible-material',choices=['hair','dress']);p.add_argument('--visible-bundle',type=Path)
     a=p.parse_args();run(a.output,a.package,a.setup,a.audit,a.zero_mask,a.later_clear,a.predicated,a.reject,a.material_mode,a.visible_material,a.visible_bundle)

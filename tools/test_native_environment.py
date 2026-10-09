@@ -75,6 +75,15 @@ def main():
         assert native.current(game) == after
         captures = game / "SMSM-native-captures"
         captures.mkdir()
+        if json.loads(after[native.RECEIPT]).get('material_input_probe'):
+            ambient_request(game,'probe','e86f0d4916054deb',vertex='a'*64,elements=7914)
+            command=captures/'ambient-command.txt'
+            assert command.read_text()==('probe e86f0d4916054deb 7914 '+'a'*64+'\n');command.unlink()
+            old_receipt=json.loads(after[native.RECEIPT]);old_receipt.pop('material_input_probe')
+            with patch('request_native_ambient.current',return_value={native.RECEIPT:json.dumps(old_receipt).encode()}):
+                rejects(lambda:ambient_request(game,'probe','e86f0d4916054deb',vertex='a'*64,elements=7914))
+            rejects(lambda:ambient_request(game,'probe','e86f0d4916054deb',vertex='bad',elements=7914))
+            assert not command.exists()
         if json.loads(after[native.RECEIPT]).get('coverage_shader_sha256'):
             ambient_request(game, 'coverage')
             marker_command=captures/'ambient-command.txt'
