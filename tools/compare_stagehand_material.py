@@ -58,6 +58,7 @@ def compare(root, vertex_sha, elements):
                      'mean_linear_rgb':rgb.mean(axis=0,dtype=np.float64).tolist(),
                      'median_linear_rgb':np.median(rgb,axis=0).tolist()})
     return {'scope':'inspected geometry, common interior pixels in original material RTV; no light-buffer identity',
+            'output_domain':'native material encoded RGB after sqrt and scale; historical mean_linear_rgb field is not linear-energy evidence',
             'pixel_shader':shader,'elements':elements,'common_interior_pixels':int(common.sum()),'states':rows,
             'limitations':['Pose/animation and other game lighting can vary between frames',
                            'Mesh identity needs manual spatial-mask inspection; not inferred from counts alone',

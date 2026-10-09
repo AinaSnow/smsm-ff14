@@ -1,0 +1,215 @@
+{
+  "bridge_version": "0.2.1.0",
+  "native_and_bridge_unchanged": true,
+  "game_restart_required": false,
+  "control": "bounded lifecycle warm light; manually stopped after two observations per material",
+  "materials": [
+    {
+      "material": "hair",
+      "pixel_shader": "1c5c89ac035f9a44",
+      "coverage_scope": "current hair/ears",
+      "states": [
+        "Off0",
+        "Warm0",
+        "Warm1",
+        "Off1"
+      ],
+      "verified_bytes": [
+        83141440,
+        83144672,
+        83147904,
+        83141440
+      ],
+      "selected_draws": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "lamp_paths": [
+        [],
+        [
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": true
+          },
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": false
+          }
+        ],
+        [
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": true
+          },
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": false
+          }
+        ],
+        []
+      ],
+      "common_pixels": 2420,
+      "stable_gbuffer_pixels": 0,
+      "encoded_output_mean_absolute_delta": {
+        "Warm0": [
+          0.03859807794744318,
+          0.03267080764139979,
+          0.02339076522953254
+        ],
+        "Warm1": [
+          0.09705052651649665,
+          0.08465611481469525,
+          0.06083724597268853
+        ],
+        "Off1": [
+          0.082620945449703,
+          0.07438682366993801,
+          0.05445435579158058
+        ]
+      },
+      "producer_counts": [
+        {
+          "state": "Off0",
+          "producer_candidates": 97,
+          "trace_truncated": false
+        },
+        {
+          "state": "Warm0",
+          "producer_candidates": 99,
+          "trace_truncated": false
+        },
+        {
+          "state": "Warm1",
+          "producer_candidates": 101,
+          "trace_truncated": false
+        },
+        {
+          "state": "Off1",
+          "producer_candidates": 97,
+          "trace_truncated": false
+        }
+      ],
+      "producer_input_resource_link_verified": true,
+      "pixel_response_acceptance": "inconclusive; returning-OFF differences comparable to some warm differences"
+    },
+    {
+      "material": "hands",
+      "pixel_shader": "643c8fab6e8d0bce",
+      "coverage_scope": "visible hands only",
+      "states": [
+        "Off0",
+        "Warm0",
+        "Warm1",
+        "Off1"
+      ],
+      "verified_bytes": [
+        174381952,
+        174385184,
+        174385184,
+        174381952
+      ],
+      "selected_draws": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "lamp_paths": [
+        [],
+        [
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": true
+          },
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": false
+          }
+        ],
+        [
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": true
+          },
+          {
+            "position_error": 4.154063475178093e-06,
+            "links_both_light_inputs": false
+          }
+        ],
+        []
+      ],
+      "common_pixels": 126,
+      "stable_gbuffer_pixels": 2,
+      "encoded_output_mean_absolute_delta": {
+        "Warm0": [
+          0.05185275607638889,
+          0.02697269500248016,
+          0.009112645709325396
+        ],
+        "Warm1": [
+          0.09219118148561507,
+          0.047816685267857144,
+          0.015343075706845238
+        ],
+        "Off1": [
+          0.06582399398561507,
+          0.03533451140873016,
+          0.011067708333333334
+        ]
+      },
+      "producer_counts": [
+        {
+          "state": "Off0",
+          "producer_candidates": 97,
+          "trace_truncated": false
+        },
+        {
+          "state": "Warm0",
+          "producer_candidates": 99,
+          "trace_truncated": false
+        },
+        {
+          "state": "Warm1",
+          "producer_candidates": 99,
+          "trace_truncated": false
+        },
+        {
+          "state": "Off1",
+          "producer_candidates": 97,
+          "trace_truncated": false
+        }
+      ],
+      "producer_input_resource_link_verified": true,
+      "pixel_response_acceptance": "inconclusive; returning-OFF differences comparable to some warm differences"
+    }
+  ],
+  "light_color": [
+    1,
+    0.35,
+    0.1
+  ],
+  "intensity": 8,
+  "range": 10,
+  "cold_state_tested": false,
+  "scene": "ordinary-mode cafe, current character/camera",
+  "final_lamp_and_ownership_cleared": true,
+  "r8_marker_audit_off": true,
+  "r10_preserved": true,
+  "full_m3_complete": false,
+  "performance_work_deferred": true,
+  "collector_guards_verified": [
+    "foreign command preserved",
+    "foreign lease preserved",
+    "expired lifecycle rejected",
+    "failed publish cleans own command and lease"
+  ],
+  "limitations": [
+    "Hair structured t3 is not captured by the Texture2D-only sampler",
+    "Skin b5 is ambient; b6 is unused/missing, not a failed required input",
+    "Observed material entry and resource routing are not isolated pixel-benefit acceptance",
+    "View/inverse-view remained unchanged; pose/environment or other scene light changes were not isolated",
+    "Discovery only covers verified shader identities and supported direct draws"
+  ]
+}

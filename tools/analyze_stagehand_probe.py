@@ -66,6 +66,7 @@ def compare(root):
     cb_changes={str(slot):{'reflected_bytes':size,'equal_to_Off0':[r['cb'][slot]==rows[0]['cb'][slot] for r in rows]} for slot,size in enumerate(CB_SIZES)}
     sampler_verified=all(r['draw'].get('sampler0',{}).get('filter')==0 and r['draw']['sampler0'].get('address_u')==3 and r['draw']['sampler0'].get('address_v')==3 for r in rows)
     return {'scope':'one inspected skirt draw; input/output association, no upstream light-buffer identity',
+            'color_domains':{'output':'native material encoded RGB after sqrt and scale; historical mean_linear_rgb field does not imply linear output','t0_diffuse':'diffuse light-buffer RGB','t1_specular':'specular light-buffer RGB'},
             'states':[r['state'] for r in rows],'verified_bytes_per_state':[r['bytes'] for r in rows],
             'regions':regions,'constant_buffer_comparison':cb_changes,
             'view_inverse_view_first_96_bytes_equal':[r['cb'][3][:96]==rows[0]['cb'][3][:96] for r in rows],
