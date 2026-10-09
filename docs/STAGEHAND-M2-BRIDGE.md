@@ -41,3 +41,15 @@
 使用 `/smsm-light status` 查看状态，`/smsm-light stop` 停止。已有 M1 local 灯保持禁用，避免两个测试灯混用。r8 关闭，r10 冻结包不变。切图/退出、阴影、GPose及性能的待验收项继续保留。
 
 证据：[M2 离线准备](validation/stagehand-m2-preflight-2026-10-09.json)。
+
+## 首次实机结果（2026-10-09）
+
+官方 Stagehand 和测试桥均由用户手动启用，实际 IPC revision 为 1.2。普通模式一次 run 完成 OFF/WARM/COOL，三份不同目录的报告均完整，目标 shader 和预算符合预期；每态 207,360,000 字节快照已逐文件核对长度、完整性及同目标图像布局。用户确认两种颜色明显、结束后恢复原画面。
+
+正常完成后，status 为 `completed three captures`，完成数 3、所属 Stage 为 null、持久 OwnedStages 空、cleanupPending 为 0，采集锁和待处理命令均消失。第二次 run 在 WARM 活跃、完成 OFF 采集后提交 stop，得到 `manual stop`；同样无待清理所属 ID，r8、marker、audit 均关闭。清理依据为官方 IPC、所有权记录、可见恢复和采集状态，未枚举原生内存对象。
+
+**M2 有限采集协调与正常/手动停止通过。**切图、注销和桥卸载仍需补做实机生命周期验证。启动日志记录一次 framework Update 102.6954 ms 卡顿，保留为待处理开销；没有测量 GPU 成本，不作日常性能通过结论。
+
+每态观察到同 shader 六次 draw，但 RGB 有贡献的绘制序号会变化，部分采样 draw 的 RGB 改变量为零。三份完整文件证明协调成功，不能直接建立灯参数到玩家裙装某次 draw 的关联。M3 必须先在当前采样中确认材质身份和渲染阶段，再关联缓冲/纹理；不能仅以 shader 命中或文件数通过。全部原始帧、位置、场景和日志只留本地，提交的是汇总结果。r10 冻结包校验不变。
+
+证据：[M2 实机结果](validation/stagehand-m2-live-2026-10-09.json)。

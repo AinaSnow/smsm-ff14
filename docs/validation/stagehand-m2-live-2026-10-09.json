@@ -1,0 +1,49 @@
+{
+  "bridge_version": "0.1.0.0",
+  "bridge_dll_sha256": "a1e37b0580d15726451b39c5a9d347fb6f9437c22ce38129b71dbd3e5dd5bf22",
+  "stagehand_version": "0.5.5.0",
+  "actual_ipc_revision": "1.2",
+  "mode": "ordinary_game",
+  "extra_shadows": false,
+  "states": ["Off", "Warm", "Cool"],
+  "intensity": 8,
+  "range": 10,
+  "color_warm": [1, 0.35, 0.1],
+  "color_cool": [0.1, 0.35, 1],
+  "three_distinct_complete_reports": true,
+  "snapshot_bytes_verified_per_state": 207360000,
+  "per_state_byte_limit": 268435456,
+  "selected_shader": "e86f0d4916054deb",
+  "observed_target_draws_per_state": [6, 6, 6],
+  "same_target_pixel_validation": true,
+  "user_observation": "Warm and cool colors were clear; original image restored at completion",
+  "normal_completion": {
+    "completed_captures": 3,
+    "owned_stage_null": true,
+    "persisted_owned_stages": 0,
+    "cleanup_pending": 0,
+    "session_lock_released": true,
+    "pending_command_absent": true
+  },
+  "manual_interruption": {
+    "active_preset": "Warm",
+    "completed_captures": 1,
+    "status": "manual stop",
+    "owned_stage_null": true,
+    "persisted_owned_stages": 0,
+    "cleanup_pending": 0,
+    "session_lock_released": true,
+    "pending_command_absent": true
+  },
+  "final_r8_marker_audit_disabled": true,
+  "r10_archive_unchanged": true,
+  "startup_framework_hitch_ms": 102.6954,
+  "m2_finite_coordination_passed": true,
+  "limits": [
+    "Cleanup checked through official IPC, ownership journal, visible restoration and idle capture state; native object memory was not enumerated",
+    "Lifecycle scene change, logout and bridge unload are not yet live tested",
+    "Same shader had changing draw order and zero RGB contributions in some sampled draws; player material and light-buffer correspondence remain M3 work",
+    "One startup framework hitch is recorded; this is not a GPU-time measurement or daily-use performance acceptance",
+    "No shader change, GPU light-data association or map-original-light improvement accepted"
+  ]
+}

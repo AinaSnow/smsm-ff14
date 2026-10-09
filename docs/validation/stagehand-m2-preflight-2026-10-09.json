@@ -19,6 +19,7 @@
   "actual_three_captures_verified": false,
   "live_cleanup_verified": false,
   "registered": true,
+  "subsequent_live_result": "stagehand-m2-live-2026-10-09.json",
   "live_registration": {
     "game_stopped": true,
     "package_hash_verified": true,
