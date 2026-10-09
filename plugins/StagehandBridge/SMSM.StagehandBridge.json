@@ -2,7 +2,7 @@
   "Author": "AinaSnow",
   "Name": "SMSM Stagehand M2 Test Bridge",
   "InternalName": "SMSM.StagehandBridge",
-  "AssemblyVersion": "0.2.0.0",
+  "AssemblyVersion": "0.2.1.0",
   "DalamudApiLevel": 15,
   "ApplicableVersion": "2026.09.15.0000.0000",
   "LoadRequiredState": 1,

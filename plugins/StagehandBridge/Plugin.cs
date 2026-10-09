@@ -33,15 +33,23 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Session session;
     private readonly StageClient stage;
     private readonly string directory;
+    private readonly object lifecycleGate = new();
+    private readonly StatusPublisher statusPublisher;
+    private readonly string[] recoveryIds;
+    private bool recovered;
+    private bool commandRegistered, locationSubscribed, territorySubscribed, logoutSubscribed, updateSubscribed;
+    private bool statusWarning;
     private long nextTick;
     private bool disposed;
-    private string lastStatus = "";
     public Plugin(IDalamudPluginInterface pi, IFramework framework, ICommandManager commands, IClientState client,
         IObjectTable objects, ICondition conditions, IPluginLog log)
     {
         this.pi = pi; this.framework = framework; this.commands = commands; this.client = client;
         this.objects = objects; this.conditions = conditions; this.log = log;
-        directory = pi.GetPluginConfigDirectory(); Directory.CreateDirectory(directory);
+        // Failed pre-0.2.1 constructors may still have callbacks in this game
+        // process. Isolate control files so those instances cannot consume work.
+        directory = Path.Combine(pi.GetPluginConfigDirectory(), "control-v2"); Directory.CreateDirectory(directory);
+        statusPublisher = new(directory);
         var staleCommand = Path.Combine(directory, "command.txt");
         if (File.Exists(staleCommand)) File.Delete(staleCommand); // Never replay an old RUN after reload/crash.
         var config = pi.GetPluginConfig() as Configuration ?? new();
@@ -49,13 +57,26 @@ public sealed class Plugin : IDalamudPlugin
         api = StagehandApi.CreateIpcClient(pi); stage = new(api);
         var game = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule!.FileName)!;
         session = new(stage, new CaptureClient(game), new Journal(pi, config, directory));
-        session.Recover(config.OwnedStages.ToArray());
-        commands.AddHandler("/smsm-light", new CommandInfo(OnCommand) { HelpMessage = "run: three samples; probe: OFF/WARM/COOL/OFF material inputs; lifecycle: warm lamp for up to 60s, no capture; stop: cleanup; status: report. No light on load." });
-        framework.Update += Update;
-        api.LocationChanged += OnLocation;
-        client.TerritoryChanged += OnTerritory;
-        client.Logout += OnLogout;
-        WriteStatus();
+        recoveryIds = config.OwnedStages.ToArray();
+        lock (lifecycleGate)
+        {
+            try
+            {
+                WriteStatus(); // Publish before any callback can enter this instance.
+                commands.AddHandler("/smsm-light", new CommandInfo(OnCommand) { HelpMessage = "run: three samples; probe: OFF/WARM/COOL/OFF material inputs; lifecycle: warm lamp for up to 60s, no capture; stop: cleanup; status: report. No light on load." });
+                commandRegistered = true;
+                api.LocationChanged += OnLocation; locationSubscribed = true;
+                client.TerritoryChanged += OnTerritory; territorySubscribed = true;
+                client.Logout += OnLogout; logoutSubscribed = true;
+                framework.Update += Update; updateSubscribed = true; // Register last.
+            }
+            catch
+            {
+                disposed = true;
+                try { Unsubscribe(); } finally { api.Dispose(); }
+                throw;
+            }
+        }
     }
     private static long Now => Environment.TickCount64;
     private EnvironmentState Current()
@@ -71,6 +92,10 @@ public sealed class Plugin : IDalamudPlugin
     private void OnCommand(string command, string args) => framework.RunOnFrameworkThread(() => Execute(args));
     private void Execute(string args)
     {
+        lock (lifecycleGate)
+        {
+        if (disposed) return;
+        RecoverOnFramework();
         try
         {
             switch (args.Trim().ToLowerInvariant())
@@ -85,38 +110,63 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e) { log.Warning(e, "SMSM light command rejected"); }
         WriteStatus();
+        }
     }
     private void Update(IFramework _)
     {
+        lock (lifecycleGate)
+        {
         if (disposed || Now < nextTick) return; nextTick = Now + 100;
         try
         {
+            RecoverOnFramework();
             var command = Path.Combine(directory, "command.txt");
             if (File.Exists(command)) { var value = File.ReadAllText(command).Trim(); File.Delete(command); Execute(value); }
             session.Tick(Now, session.Running ? Current() : default);
         }
         catch (Exception e) { session.Stop("framework error"); log.Warning(e, "SMSM light stopped"); }
         WriteStatus();
+        }
     }
-    private void OnLocation(StageLocation _) => framework.RunOnFrameworkThread(() => session.Stop("Stagehand location changed"));
-    private void OnTerritory(uint _) => framework.RunOnFrameworkThread(() => session.Stop("territory changed"));
-    private void OnLogout(int type, int code) => framework.RunOnFrameworkThread(() => session.Stop("logout"));
+    private void RecoverOnFramework()
+    {
+        if (recovered) return;
+        session.Recover(recoveryIds); recovered = true;
+    }
+    private void StopFromEvent(string reason) => framework.RunOnFrameworkThread(() =>
+    {
+        lock (lifecycleGate) { if (!disposed) { session.Stop(reason); WriteStatus(); } }
+    });
+    private void OnLocation(StageLocation _) => StopFromEvent("Stagehand location changed");
+    private void OnTerritory(uint _) => StopFromEvent("territory changed");
+    private void OnLogout(int type, int code) => StopFromEvent("logout");
     private void WriteStatus()
     {
-        var path = Path.Combine(directory, "status.json"); var temp = path + ".tmp";
-        var text = JsonSerializer.Serialize(new { processId = Environment.ProcessId, running = session.Running, status = session.Status, completedCaptures = session.CompletedCaptures, ownedStage = session.OwnedStage, pluginDisabled = disposed, apiRevision = stage.Revision });
-        if (text == lastStatus) return;
-        File.WriteAllText(temp, text);
-        File.Move(temp, path, true);
-        lastStatus = text;
+        var text = JsonSerializer.Serialize(new { bridgeVersion = "0.2.1.0", controlProtocol = 2, processId = Environment.ProcessId, running = session.Running, status = session.Status, completedCaptures = session.CompletedCaptures, ownedStage = session.OwnedStage, pluginDisabled = disposed, apiRevision = stage.Revision });
+        if (!statusPublisher.TryPublish(text))
+        {
+            if (!statusWarning) log.Warning("SMSM status file temporarily unavailable; publication will retry");
+            statusWarning = true;
+        }
+        else statusWarning = false;
+    }
+    private void Unsubscribe()
+    {
+        if (updateSubscribed) { framework.Update -= Update; updateSubscribed = false; }
+        if (locationSubscribed) { api.LocationChanged -= OnLocation; locationSubscribed = false; }
+        if (territorySubscribed) { client.TerritoryChanged -= OnTerritory; territorySubscribed = false; }
+        if (logoutSubscribed) { client.Logout -= OnLogout; logoutSubscribed = false; }
+        if (commandRegistered) { commands.RemoveHandler("/smsm-light"); commandRegistered = false; }
     }
     public void Dispose()
     {
-        disposed = true;
-        framework.Update -= Update; api.LocationChanged -= OnLocation;
-        client.TerritoryChanged -= OnTerritory; client.Logout -= OnLogout;
-        commands.RemoveHandler("/smsm-light"); session.Stop("plugin disabled");
-        WriteStatus(); api.Dispose();
+        lock (lifecycleGate)
+        {
+            if (disposed) return;
+            disposed = true;
+            try { Unsubscribe(); session.Stop("plugin disabled"); WriteStatus(); }
+            finally { api.Dispose(); }
+        }
     }
     private sealed class StageClient(IStagehandApiConsumer api) : IStageClient
     {

@@ -11,6 +11,7 @@ import uuid
 
 def request(directory,action):
     if os.name!='nt' or action not in ('run','probe','lifecycle','stop','status'):raise ValueError('Unsupported command/platform')
+    if (directory/'control-v2'/'status.json').exists():directory=directory/'control-v2'
     directory=directory.resolve(strict=True)
     if directory.is_symlink() or directory.stat().st_file_attributes&0x400:raise ValueError('Expected a real bridge directory')
     status=json.loads((directory/'status.json').read_bytes())

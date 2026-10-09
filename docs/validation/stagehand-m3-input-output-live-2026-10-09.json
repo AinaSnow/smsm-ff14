@@ -1,0 +1,131 @@
+{
+  "bridge_version": "0.2.1.0",
+  "api_revision": "1.2",
+  "repeated_sequences": 2,
+  "states_per_sequence": [
+    "Off",
+    "Warm",
+    "Cool",
+    "Off"
+  ],
+  "mode": "ordinary_game",
+  "same_scene_and_lamp_anchor": true,
+  "skirt_mask_spatially_inspected": true,
+  "pixel_shader": "e86f0d4916054deb",
+  "input_texture_format": "R11G11B10_FLOAT",
+  "runs": [
+    {
+      "verified_bytes_per_capture": 91240656,
+      "common_interior_pixels": 13292,
+      "gbuffer_stable_pixels": 1379,
+      "camera_view_inverse_view_unchanged": true,
+      "color_ratios": {
+        "t0_diffuse": {
+          "warm_delta_normalized_to_red": [
+            1.0,
+            0.350311,
+            0.098623
+          ],
+          "cool_delta_normalized_to_blue": [
+            0.10227,
+            0.3544,
+            1.0
+          ]
+        },
+        "t1_specular": {
+          "warm_delta_normalized_to_red": [
+            1.0,
+            0.350818,
+            0.098625
+          ],
+          "cool_delta_normalized_to_blue": [
+            0.104773,
+            0.357992,
+            1.0
+          ]
+        }
+      },
+      "output_mean_abs_rgb_difference": {
+        "Warm_vs_Off0_mean_abs_rgb": [
+          0.4753132931472081,
+          0.2552947887395758,
+          0.14043211297248911
+        ],
+        "Cool_vs_Off0_mean_abs_rgb": [
+          0.08043442159739848,
+          0.25671590316805654,
+          0.7609626930463651
+        ],
+        "Off1_vs_Off0_mean_abs_rgb": [
+          0.004819874144534083,
+          0.004055584747779188,
+          0.003052200416968818
+        ]
+      },
+      "material_and_common_and_dynamic_material_cb_unchanged": true
+    },
+    {
+      "verified_bytes_per_capture": 91240656,
+      "common_interior_pixels": 13302,
+      "gbuffer_stable_pixels": 1706,
+      "camera_view_inverse_view_unchanged": true,
+      "color_ratios": {
+        "t0_diffuse": {
+          "warm_delta_normalized_to_red": [
+            1.0,
+            0.350506,
+            0.098766
+          ],
+          "cool_delta_normalized_to_blue": [
+            0.101599,
+            0.352496,
+            1.0
+          ]
+        },
+        "t1_specular": {
+          "warm_delta_normalized_to_red": [
+            1.0,
+            0.34987,
+            0.098535
+          ],
+          "cool_delta_normalized_to_blue": [
+            0.098319,
+            0.351092,
+            1.0
+          ]
+        }
+      },
+      "output_mean_abs_rgb_difference": {
+        "Warm_vs_Off0_mean_abs_rgb": [
+          0.4680328905792057,
+          0.2527280496684496,
+          0.13972049189899619
+        ],
+        "Cool_vs_Off0_mean_abs_rgb": [
+          0.0777455516604997,
+          0.2520598828582943,
+          0.7520128721928121
+        ],
+        "Off1_vs_Off0_mean_abs_rgb": [
+          0.0018813568151011138,
+          0.0015827639580890973,
+          0.001237017328546307
+        ]
+      },
+      "material_and_common_and_dynamic_material_cb_unchanged": true
+    }
+  ],
+  "final_ownership_empty": true,
+  "final_r8_marker_audit_disabled": true,
+  "native_addon_unchanged_since_probe_deployment": true,
+  "r10_unchanged": true,
+  "current_skirt_input_output_association_confirmed": true,
+  "full_m3_complete": false,
+  "unknowns": [
+    "Upstream light parameter buffer and producers of t0/t1 not yet identified",
+    "Unrecorded sampler state prevents exact per-pixel replay",
+    "Other constant buffers including ambient vary with time/scene; not attributed solely to this light",
+    "Hair and skin require separate matching captures",
+    "No map-original-light improvement or GPU performance acceptance"
+  ]
+}

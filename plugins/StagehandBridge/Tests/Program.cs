@@ -159,6 +159,24 @@ foreach(var scenario in new[]{"complete","missing-input","wrong-geometry","cance
     }
     checks.Add("material probe transport: "+scenario);
 }
+var statusFolder=Path.Combine(root,"status-publisher");Directory.CreateDirectory(statusFolder);
+var publisher=new StatusPublisher(statusFolder);
+using(var legacyLock=new FileStream(Path.Combine(statusFolder,"status.json.tmp"),FileMode.Create,FileAccess.ReadWrite,FileShare.None))
+    Require(publisher.TryPublish("{\"state\":1}"),"Legacy temporary lock prevented startup status");
+checks.Add("locked legacy status temp cannot fail startup");
+Parallel.For(0,100,i=>Require(publisher.TryPublish(JsonSerializer.Serialize(new{state=i})),"Concurrent instance write failed"));
+using(var parsed=JsonDocument.Parse(File.ReadAllText(Path.Combine(statusFolder,"status.json"))))Require(parsed.RootElement.TryGetProperty("state",out _),"Partial concurrent JSON");
+checks.Add("concurrent constructor and callback status publication serialized");
+using(var locked=new FileStream(Path.Combine(statusFolder,"status.json"),FileMode.Open,FileAccess.Read,FileShare.None))
+    Require(!publisher.TryPublish("{\"state\":1001}"),"Locked destination was not reported as retryable");
+Require(publisher.TryPublish("{\"state\":1001}") && File.ReadAllText(Path.Combine(statusFolder,"status.json"))=="{\"state\":1001}","Failed status update lost instead of retried");
+Require(!Directory.EnumerateFiles(statusFolder,".status-*.tmp").Any(),"Status write left temporary files");
+checks.Add("locked destination is nonfatal and retries without orphan temp files");
+var publisher2=new StatusPublisher(statusFolder);
+Parallel.Invoke(()=>{for(int i=0;i<50;++i)publisher.TryPublish(JsonSerializer.Serialize(new{source=1,state=i}));},()=>{for(int i=0;i<50;++i)publisher2.TryPublish(JsonSerializer.Serialize(new{source=2,state=i}));});
+using(var parsed=JsonDocument.Parse(File.ReadAllText(Path.Combine(statusFolder,"status.json"))))Require(parsed.RootElement.TryGetProperty("source",out _),"Instance temp files collided");
+Require(!Directory.EnumerateFiles(statusFolder,".status-*.tmp").Any(),"Concurrent instance temp files remained");
+checks.Add("different instances use distinct temporary files");
 Console.WriteLine(JsonSerializer.Serialize(new{passed=true,checks}));
 
 sealed class FakeStage : IStageClient
