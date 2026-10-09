@@ -15,7 +15,7 @@
   "installed_light_layout_match": true,
   "definitions_schema_roundtrip": true,
   "official_plugin_registered": true,
-  "official_plugin_live_load_verified": false,
+  "official_plugin_live_load_verified": true,
   "initial_stage_light_count": 0,
   "auto_show_conditions": 0,
   "m0_offline_checks_passed": true,
@@ -31,5 +31,7 @@
     "Repeatedly create/hide/destroy exactly one native point light and verify restoration",
     "Test one parameter at a time and record hair/dress/skin/floor response",
     "Verify location-change and plugin-disable cleanup in game"
-  ]
+  ],
+  "ui_open_and_empty_stage_show_reported": true,
+  "native_light_created": false
 }
