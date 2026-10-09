@@ -1,6 +1,17 @@
 {
   "native_addon_sha256": "8b2752d5b432593714000420f9eeaa28bec51314373f08ba4a2e5779b5539fd6",
-  "installed": false,
+  "installed": true,
+  "installation_verified": {
+    "game_stopped": true,
+    "native_addon_hash_matches_candidate": true,
+    "producer_trace_capability_in_receipt": true,
+    "previous_addon_backup_verified": true,
+    "reshade_runtime_and_settings_retained": true,
+    "bridge_0_2_1_unchanged": true,
+    "pending_commands_absent": true,
+    "owned_stages_at_exit": 0,
+    "r10_archive_unchanged": true
+  },
   "default_enabled": false,
   "probe_compatible_with_bridge": "0.2.1.0",
   "producer_filter": "two RGB-enabled R11G11B10_FLOAT RTV slots on immediate context",
