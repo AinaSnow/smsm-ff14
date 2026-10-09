@@ -63,7 +63,17 @@ var ownedFiles = new Dictionary<string,string>();
 foreach(var name in new[]{"d3d11.dll","SMSM.NativeLighting.addon64"}) { File.WriteAllText(Path.Combine(root,name),"test only");ownedFiles[name]=Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,name)))); }
 File.WriteAllText(Path.Combine(root,"SMSM-native-install.json"),JsonSerializer.Serialize(new{client_build="2026.09.15.0000.0000",output_audit=true,material_roster_sha256="test",files=ownedFiles}));
 void Status(string directory, bool active=false) => File.WriteAllText(Path.Combine(folder,"ambient-status.json"),JsonSerializer.Serialize(new{enabled=false,coverage_enabled=false,output_audit_active=active,output_audit_directory=directory}));
-Status("old");var transport=new CaptureClient(root);transport.Prepare();
+void WaitForOff(CaptureClient client)
+{
+    var deadline=DateTime.UtcNow.AddSeconds(5);
+    while(!File.Exists(Path.Combine(folder,"ambient-command.txt")))
+    {
+        Require(!client.PollPrepare().Done,"Prepared without acknowledged OFF");
+        if(DateTime.UtcNow>deadline)throw new Exception("Validation did not publish bounded OFF");
+        Thread.Sleep(1);
+    }
+}
+Status("old");var transport=new CaptureClient(root);transport.Prepare();WaitForOff(transport);
 Require(!transport.PollPrepare().Done,"Prepared before command consumed");File.Delete(Path.Combine(folder,"ambient-command.txt"));Require(transport.PollPrepare().Done,"OFF acknowledgment failed");
 transport.Begin();Require(File.ReadAllText(Path.Combine(folder,"ambient-command.txt"))=="sample e86f0d4916054deb 0\n","Wrong target transport");
 File.Delete(Path.Combine(folder,"ambient-command.txt"));Require(!transport.Poll().Done,"Old capture accepted");
@@ -75,16 +85,45 @@ File.WriteAllText(Path.Combine(folder,"ambient-command.txt"),"foreign\n");transp
 Require(File.ReadAllText(Path.Combine(folder,"ambient-command.txt"))=="foreign\n","Cancelled foreign command");
 checks.Add("transport fresh report and foreign queue preservation");
 File.Delete(Path.Combine(folder,"ambient-command.txt"));
-var wrong=new CaptureClient(root);wrong.Prepare();File.Delete(Path.Combine(folder,"ambient-command.txt"));wrong.PollPrepare();wrong.Begin();File.Delete(Path.Combine(folder,"ambient-command.txt"));
+var wrong=new CaptureClient(root);wrong.Prepare();WaitForOff(wrong);File.Delete(Path.Combine(folder,"ambient-command.txt"));wrong.PollPrepare();wrong.Begin();File.Delete(Path.Combine(folder,"ambient-command.txt"));
 var wrongDir=Path.Combine(folder,"output-audit-1-3");Directory.CreateDirectory(wrongDir);
 File.WriteAllText(Path.Combine(wrongDir,"report.json"),JsonSerializer.Serialize(new{status="complete",mode="sample",selected_shader="wrong",selected_bytes=100}));Status("output-audit-1-3");
 try { wrong.Poll();throw new Exception("Wrong-target report accepted"); } catch(InvalidDataException){}finally{wrong.Cancel();}
 checks.Add("wrong target rejected");
-var pending=new CaptureClient(root);pending.Prepare();Require(File.Exists(Path.Combine(folder,"ambient-command.txt")),"No pending own command");pending.Cancel();
+var pending=new CaptureClient(root);pending.Prepare();WaitForOff(pending);Require(File.Exists(Path.Combine(folder,"ambient-command.txt")),"No pending own command");pending.Cancel();
 Require(!File.Exists(Path.Combine(folder,"ambient-command.txt")),"Own unconsumed command remained");checks.Add("own pending command cleanup");
-var inFlight=new CaptureClient(root);inFlight.Prepare();File.Delete(Path.Combine(folder,"ambient-command.txt"));inFlight.PollPrepare();inFlight.Begin();File.Delete(Path.Combine(folder,"ambient-command.txt"));
+var inFlight=new CaptureClient(root);inFlight.Prepare();WaitForOff(inFlight);File.Delete(Path.Combine(folder,"ambient-command.txt"));inFlight.PollPrepare();inFlight.Begin();File.Delete(Path.Combine(folder,"ambient-command.txt"));
 Status("output-audit-1-4",true);inFlight.Cancel();
 Require(File.ReadAllText(Path.Combine(folder,"ambient-command.txt"))=="off\n","Own active audit not stopped before Poll");checks.Add("abort after native consumption before first poll");
+File.Delete(Path.Combine(folder,"ambient-command.txt"));
+var cancelled = new CaptureClient(root);cancelled.Prepare();cancelled.Cancel();
+try { cancelled.PollPrepare(); throw new Exception("Cancelled preparation resumed"); } catch(InvalidOperationException){}
+Require(!File.Exists(Path.Combine(folder,"ambient-command.txt")) && !File.Exists(Path.Combine(folder,".smsm-m2-session.lock")),"Cancelled read-only preparation mutated queue");
+checks.Add("cancel before asynchronous validation completion cannot publish");
+File.WriteAllText(Path.Combine(root,"d3d11.dll"),"changed");
+var invalid=new CaptureClient(root);invalid.Prepare();
+try { WaitForOff(invalid); throw new Exception("Changed DLL accepted"); } catch(InvalidDataException){} finally{invalid.Cancel();}
+Require(!File.Exists(Path.Combine(folder,"ambient-command.txt")) && !File.Exists(Path.Combine(folder,".smsm-m2-session.lock")),"Invalid package published or leased");
+checks.Add("background integrity failure reaches framework before mutation");
+foreach(var scenario in new[]{"scene","logout","provider","stop","timeout"})
+{
+    var stage=new FakeStage();var capture=new FakeCapture();var journal=new FakeJournal();
+    var session=new Session(stage,capture,journal);session.Start(0,env,lifecycleOnly:true);session.Tick(1,env);
+    Require(stage.LiveOwnedLight && stage.Applied.SequenceEqual(new[]{LightPreset.Warm}),"Lifecycle lamp not warm");
+    session.Tick(500,env with { Player=new(50,2,3) });
+    Require(session.Running,"Lifecycle movement should allow reaching a zone exit");
+    switch(scenario)
+    {
+        case "scene":session.Tick(501,env with { Place=env.Place with { Territory=3 } });break;
+        case "logout":session.Tick(501,env with { Ready=false });break;
+        case "provider":stage.Available=false;session.Tick(501,env);stage.Available=true;session.Tick(502,env);break;
+        case "stop":session.Stop("plugin disabled");break;
+        case "timeout":session.Tick(60002,env);break;
+    }
+    Require(!session.Running && !stage.LiveOwnedLight && journal.Owned.Count==0,"Lifecycle cleanup failed: "+scenario);
+    Require(capture.BeginCount==0 && session.CompletedCaptures==0,"Lifecycle accidentally captured");
+    checks.Add("bounded lifecycle without capture: "+scenario);
+}
 Console.WriteLine(JsonSerializer.Serialize(new{passed=true,checks}));
 
 sealed class FakeStage : IStageClient
@@ -96,9 +135,9 @@ sealed class FakeStage : IStageClient
 }
 sealed class FakeCapture : ICaptureClient
 {
-    public bool Throw;
+    public bool Throw; public int BeginCount;
     public void Prepare(){} public PollResult PollPrepare()=>new(true);
-    public void Begin(){if(Throw)throw new IOException("failure");} public PollResult Poll()=>new(true,"synthetic-capture");public void Cancel(){}
+    public void Begin(){++BeginCount;if(Throw)throw new IOException("failure");} public PollResult Poll()=>new(true,"synthetic-capture");public void Cancel(){}
 }
 sealed class FakeJournal : ISessionJournal
 {

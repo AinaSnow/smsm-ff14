@@ -31,13 +31,14 @@ public interface ISessionJournal
 /// <summary>A finite manual-start session. All methods run on the framework thread.</summary>
 public sealed class Session(IStageClient stage, ICaptureClient capture, ISessionJournal journal)
 {
-    private enum Phase { Idle, Prepare, Settle, Capture }
+    private enum Phase { Idle, Prepare, Settle, Capture, Lifecycle }
     private Phase phase;
     private int index;
     private long deadline, readyAt;
     private Place place;
     private Vector3 player, position;
     private string? owned;
+    private bool lifecycleOnly;
     private readonly List<string> cleanupPending = [];
     private static readonly LightPreset[] Sequence = [LightPreset.Off, LightPreset.Warm, LightPreset.Cool];
     public bool Running => phase != Phase.Idle;
@@ -52,12 +53,13 @@ public sealed class Session(IStageClient stage, ICaptureClient capture, ISession
         RetryCleanup();
     }
 
-    public void Start(long now, EnvironmentState environment)
+    public void Start(long now, EnvironmentState environment, bool lifecycleOnly = false)
     {
         if (Running) throw new InvalidOperationException("A finite session is already running");
         RetryCleanup();
         if (cleanupPending.Count != 0) throw new InvalidOperationException("Previous owned Stage cleanup is pending");
         if (!environment.Ready || !stage.Available) throw new InvalidOperationException("Ordinary gameplay and compatible Stagehand are required");
+        this.lifecycleOnly = lifecycleOnly;
         place = environment.Place; player = environment.Player;
         position = player + new Vector3(2, 1.5f, 1.5f);
         if (!Finite(position)) throw new InvalidOperationException("Invalid player position");
@@ -66,7 +68,7 @@ public sealed class Session(IStageClient stage, ICaptureClient capture, ISession
         try
         {
             journal.Own(owned);
-            journal.Event("start", new { stageId = owned, place, position, presets = Sequence });
+            journal.Event("start", new { stageId = owned, place, position, mode = lifecycleOnly ? "lifecycle" : "capture", presets = lifecycleOnly ? [LightPreset.Warm] : Sequence });
             capture.Prepare(); index = 0; CompletedCaptures = 0;
             phase = Phase.Prepare; deadline = now + 5000; Status = "Waiting for r8 OFF acknowledgment";
         }
@@ -80,13 +82,23 @@ public sealed class Session(IStageClient stage, ICaptureClient capture, ISession
         {
             if (!environment.Ready || environment.Place != place || !stage.Available)
             { Stop("location/logout/provider changed"); return; }
-            if (Vector3.Distance(environment.Player, player) > .15f)
+            if (!lifecycleOnly && Vector3.Distance(environment.Player, player) > .15f)
             { Stop("player moved; capture pairing cancelled"); return; }
             if (now > deadline) { Stop("bounded phase timeout"); return; }
             switch (phase)
             {
                 case Phase.Prepare:
-                    if (capture.PollPrepare().Done) Apply(now);
+                    if (capture.PollPrepare().Done)
+                    {
+                        if (!lifecycleOnly) Apply(now);
+                        else
+                        {
+                            if (owned is null || !stage.Apply(owned, position, LightPreset.Warm)) throw new InvalidOperationException("Stagehand rejected lifecycle lamp");
+                            journal.Event("lifecycle-light", new { preset = LightPreset.Warm, durationSeconds = 60, captureEnabled = false });
+                            phase = Phase.Lifecycle; deadline = now + 60000;
+                            Status = "Lifecycle warm lamp; no capture; automatic cleanup within 60 seconds";
+                        }
+                    }
                     break;
                 case Phase.Settle:
                     if (now >= readyAt)

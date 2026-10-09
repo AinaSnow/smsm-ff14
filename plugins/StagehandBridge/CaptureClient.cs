@@ -16,9 +16,20 @@ public sealed class CaptureClient(string game) : ICaptureClient
     private DateTime commandWritten;
     private string? ownedAudit;
     private FileStream? lease;
+    private Task? validation;
+    private bool offPublished;
     public const string Target = "e86f0d4916054deb";
 
     public void Prepare()
+    {
+        if (validation is not null || lease is not null) throw new InvalidOperationException("Capture preparation already active");
+        offPublished = false;
+        // Only read-only integrity work leaves the framework thread. Publishing,
+        // ownership and IPC remain on the framework thread, including on cancel.
+        validation = Task.Run(ValidateInstallation);
+    }
+
+    private void ValidateInstallation()
     {
         ValidateDirectory(root);
         var receipt = Read(Path.Combine(game, "SMSM-native-install.json")) ?? throw new IOException("Missing native install receipt");
@@ -35,16 +46,29 @@ public sealed class CaptureClient(string game) : ICaptureClient
                 if (hash != file.Value.GetString()) throw new InvalidDataException("Native owned file changed");
             }
         }
+    }
+
+    private void AcquireAndPublishOff()
+    {
         if (File.Exists(Command)) throw new IOException("Another capture command is pending");
         using (var status = Read(Status))
             if (status?.RootElement.GetProperty("output_audit_active").GetBoolean() == true) throw new IOException("Another audit is active");
         lease = new FileStream(Path.Combine(root, ".smsm-m2-session.lock"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
             4096, FileOptions.DeleteOnClose);
         Publish("off");
+        offPublished = true;
     }
 
     public PollResult PollPrepare()
     {
+        if (!offPublished)
+        {
+            if (validation is null) throw new InvalidOperationException("Preparation was not started");
+            if (!validation.IsCompleted) return new(false);
+            validation.GetAwaiter().GetResult();
+            AcquireAndPublishOff();
+            return new(false);
+        }
         if (File.Exists(Command)) return new(false);
         using var status = Read(Status);
         if (status is null) return new(false);
@@ -107,7 +131,15 @@ public sealed class CaptureClient(string game) : ICaptureClient
                     status.RootElement.GetProperty("output_audit_active").GetBoolean()) Publish("off");
             }
         }
-        finally { ownedAudit = null; ownedCommand = ""; lease?.Dispose(); lease = null; }
+        finally
+        {
+            // A cancelled validation may finish reading, but cannot publish or
+            // acquire a lock. Observe failures without reviving that session.
+            var pendingValidation = validation; validation = null; offPublished = false;
+            if (pendingValidation is not null)
+                _ = pendingValidation.ContinueWith(t => { _ = t.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+            ownedAudit = null; ownedCommand = ""; lease?.Dispose(); lease = null;
+        }
     }
 
     private void Publish(string text)

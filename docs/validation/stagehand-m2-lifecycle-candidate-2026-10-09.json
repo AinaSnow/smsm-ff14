@@ -1,0 +1,21 @@
+{
+  "bridge_version": "0.1.1.0",
+  "bridge_dll_sha256": "5f32827fd64f1aa7aaeea08183325d10e80b1c4e32185b8aa00815639d2a158a",
+  "build_zero_warnings": true,
+  "offline_checks_passed": 21,
+  "lifecycle_max_seconds": 60,
+  "lifecycle_captures": 0,
+  "read_only_integrity_off_framework_thread": true,
+  "upgrade_simulation": {
+    "working_plugin_id_preserved": true,
+    "profiles_preserved": true,
+    "other_entries_preserved": true,
+    "running_game_rejected": true
+  },
+  "installed": false,
+  "live_lifecycle_verified": false,
+  "startup_hitch_improvement_measured": false,
+  "default_light_count": 0,
+  "r8_disabled_required": true,
+  "r10_preserved": true
+}
