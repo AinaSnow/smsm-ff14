@@ -18,7 +18,16 @@
   "actual_ipc_verified": false,
   "actual_three_captures_verified": false,
   "live_cleanup_verified": false,
-  "registered": false,
+  "registered": true,
+  "live_registration": {
+    "game_stopped": true,
+    "package_hash_verified": true,
+    "start_on_boot": false,
+    "other_entries_preserved": true,
+    "m1_local_lights_disabled": true,
+    "r8_and_marker_disabled": true,
+    "game_dlls_changed": false
+  },
   "shader_modified": false,
   "new_gpu_data_association": false,
   "r8_disabled_required": true,

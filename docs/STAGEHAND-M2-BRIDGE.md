@@ -36,6 +36,8 @@
 
 上述不是实际 Dalamud IPC 或 GPU 采集成功的证据。下一次实机启用官方 Stagehand 与此桥，用户普通模式在咖啡馆站定，一次 run。应得到三份不同的完整目录、实际 IPC revision、三个参数状态和最终无所属 Stage；再验证一次手动/场景中断。通过前保持默认不运行。
 
+2026-10-09，用户退出游戏后，已登记核对过的 0.1.0.0 最小包。实际配置比对确认其他开发插件条目保留，桥 StartOnBoot 为 false，原 M1 local 灯已禁用，r8、marker、audit 状态均关闭；本次没有修改游戏 DLL。登记完成仍不代表实际 IPC、三次采集或清理验收通过，需要重新进入普通模式并手动启用官方 Stagehand 与 SMSM Stagehand M2 Test Bridge。
+
 使用 `/smsm-light status` 查看状态，`/smsm-light stop` 停止。已有 M1 local 灯保持禁用，避免两个测试灯混用。r8 关闭，r10 冻结包不变。切图/退出、阴影、GPose及性能的待验收项继续保留。
 
 证据：[M2 离线准备](validation/stagehand-m2-preflight-2026-10-09.json)。
