@@ -12,7 +12,17 @@
     "other_entries_preserved": true,
     "running_game_rejected": true
   },
-  "installed": false,
+  "installed": true,
+  "installation_verified": {
+    "game_stopped": true,
+    "package_hashes_match": true,
+    "only_expected_registration_changes": true,
+    "working_plugin_id_preserved": true,
+    "profiles_preserved": true,
+    "old_bridge_disposed": true,
+    "owned_stages_at_exit": 0,
+    "active_lamp_exit_test": false
+  },
   "live_lifecycle_verified": false,
   "startup_hitch_improvement_measured": false,
   "default_light_count": 0,

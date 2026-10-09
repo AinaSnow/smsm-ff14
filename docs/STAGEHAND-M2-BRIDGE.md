@@ -60,6 +60,8 @@
 
 安装文件的读取和 SHA 校验改到只读后台任务，完成后回到 framework 线程核对队列、取得锁和发送 OFF。取消中的后台任务只能结束读取，不能事后发命令；失败仍在主流程终止。该修改移除启动路径的一项同步 I/O 开销，尚不能断言实机 103 ms 卡顿已消除。
 
-Release 编译零警告，21 项检查通过，新增异步校验取消/失败与生命周期场景、注销、provider、停止、超时检查。升级模拟确认保留 WorkingPluginId、profiles 和无关条目，并拒绝游戏运行时改配置。新包独立冻结，旧 0.1.0 包保留；通过 `register_stagehand_bridge.py --replace-package <旧包>` 在游戏退出后迁移登记路径，桥启动仍不自动运行灯光测试。候选尚未安装，实机生命周期和耗时待验收。
+Release 编译零警告，21 项检查通过，新增异步校验取消/失败与生命周期场景、注销、provider、停止、超时检查。升级模拟确认保留 WorkingPluginId、profiles 和无关条目，并拒绝游戏运行时改配置。新包独立冻结，旧 0.1.0 包保留；通过 `register_stagehand_bridge.py --replace-package <旧包>` 在游戏退出后迁移登记路径，桥启动仍不自动运行灯光测试。
+
+用户随后退出游戏，0.1.1 登记升级已完成。逐字段比对确认仅预期路径/昵称及开发加载选项变化，WorkingPluginId、profiles 和其他配置保留，包文件校验一致。旧桥退出状态为 disposed、无所属 Stage，r8/marker/audit 关闭，r10 冻结包不变。本次退出前没有活跃测试灯，不能据此通过亮灯期间的退出清理；新版本加载、生命周期和耗时仍待实机验收。
 
 证据：[0.1.1 候选检查](validation/stagehand-m2-lifecycle-candidate-2026-10-09.json)。
