@@ -16,6 +16,10 @@ private:
     struct Constant {Json meta;ComPtr<ID3D11Buffer> stage;UINT bytes=0;};
     struct Entry {Json meta;ComPtr<ID3D11Query> query;std::vector<Image> images,inputs;std::vector<Constant> constants;};
     std::vector<Entry> entries;
+    std::vector<Entry> producers;
+    Diagnostic *tracker=nullptr;
+    uint64_t producer_bytes=0,producer_candidates=0;
+    bool producer_truncated=false;
     std::map<uint64_t,uint64_t> resource_ids;
     std::vector<ComPtr<ID3D11Resource>> held_resources;
     ComPtr<ID3D11Query> done;
@@ -77,7 +81,7 @@ private:
         if(!file)throw std::runtime_error("output audit payload write failed");
         i.meta.text("file",name);i.meta.text("sha256",sha256(data.data(),data.size()));i.meta.text("status","captured");return i.meta;
     }
-    void capture_inputs(ID3D11DeviceContext *ctx,Entry &entry) {
+    void capture_inputs(ID3D11DeviceContext *ctx,Entry &entry,bool constants_only=false,const std::string &prefix="") {
         // Called before the original draw. Copy commands share its immediate
         // context order; later binding/resource changes cannot alter snapshots.
         ComPtr<ID3D11Device> device;ctx->GetDevice(&device);
@@ -86,7 +90,7 @@ private:
         if(predicate)ctx->SetPredication(nullptr,FALSE);
         try {
             for(UINT slot=0;slot<7;++slot){
-                Constant c;const std::string label="draw-"+number(observed)+"-ps-b"+number(slot);
+                Constant c;const std::string label=(prefix.empty()?"draw-"+number(observed):prefix)+"-ps-b"+number(slot);
                 c.meta.text("label",label);c.meta.text("stage","ps");c.meta.text("phase","pre_draw");c.meta.num("slot",slot);
                 ComPtr<ID3D11Buffer> source;UINT first=0,count=4096;
                 if(ctx1)ctx1->PSGetConstantBuffers1(slot,1,&source,&first,&count);else ctx->PSGetConstantBuffers(slot,1,&source);
@@ -94,16 +98,19 @@ private:
                 if(!source)c.meta.text("status","missing_binding");
                 else {
                     D3D11_BUFFER_DESC desc;source->GetDesc(&desc);c.meta.num("byte_width",desc.ByteWidth);
-                    if(desc.ByteWidth>4*1024*1024 || desc.ByteWidth>budget-bytes)c.meta.text("status","unsupported_or_budget");
+                    if(desc.ByteWidth>4*1024*1024 || desc.ByteWidth>budget-bytes || (constants_only && desc.ByteWidth>32ull*1024*1024-producer_bytes)){
+                        c.meta.text("status","unsupported_or_budget");if(constants_only)producer_truncated=true;
+                    }
                     else {
                         c.bytes=desc.ByteWidth;bytes+=c.bytes;c.meta.num("bytes",c.bytes);
+                        if(constants_only)producer_bytes+=c.bytes;
                         D3D11_BUFFER_DESC staging={};staging.ByteWidth=c.bytes;staging.Usage=D3D11_USAGE_STAGING;staging.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
                         check(device->CreateBuffer(&staging,nullptr,&c.stage));ctx->CopyResource(c.stage.Get(),source.Get());c.meta.text("status","queued");
                     }
                 }
                 entry.constants.push_back(std::move(c));
             }
-            for(UINT slot=0;slot<4;++slot){
+            for(UINT slot=0;!constants_only && slot<4;++slot){
                 ComPtr<ID3D11ShaderResourceView> view;ctx->PSGetShaderResources(slot,1,&view);
                 ComPtr<ID3D11Resource> resource;if(view)view->GetResource(&resource);
                 D3D11_SHADER_RESOURCE_VIEW_DESC vd={};if(view)view->GetDesc(&vd);
@@ -112,6 +119,7 @@ private:
                 auto input=prepare(ctx,supported?tex.Get():nullptr,supported?vd.Texture2D.MostDetailedMip:0,vd.Format,"draw-"+number(observed)+"-ps-t"+number(slot));
                 input.meta.text("stage","ps");input.meta.text("phase","pre_draw");input.meta.num("slot",slot);
                 input.meta.num("resource",id(resource.Get()));input.meta.num("view_dimension",vd.ViewDimension);
+                if(tracker && resource)input.meta.fields["producer_history"]=tracker->resource_meta(resource.Get(),"consumer-ps-t"+number(slot),"observed_pre_draw_resource_history").str();
                 if(view && !supported)input.meta.text("status","unsupported_view_dimension");
                 copy(ctx,input);entry.inputs.push_back(std::move(input));
             }
@@ -134,6 +142,18 @@ private:
         report.text("mode",mode==Mode::marker?"marker":mode==Mode::census?"census":mode==Mode::probe?"probe":"sample");
         if(mode==Mode::probe){report.text("selected_vertex_sha256",selected_vertex);report.num("selected_elements",selected_elements);}
         report.text("selected_shader",selected_shader);report.num("skip_draws",skip_draws);report.num("recorded_draws",entries.size());
+        if(tracker){
+            report.num("producer_candidates",producer_candidates);report.num("producer_bytes",producer_bytes);
+            report.fields["producer_trace_truncated"]=producer_truncated?"true":"false";
+            report.fields["complete_write_history_verified"]="false";
+            report.text("producer_trace_scope","one capture frame; dual R11G11B10 RGB RTV draw candidates, at most 128 PS b0-b6 snapshots/32 MiB; binding is not pixel contribution; compute/UAV/indirect writes not complete");
+            std::vector<std::string> records;
+            for(auto &p:producers){
+                if(status=="complete"){std::vector<std::string> inputs;for(auto &c:p.constants)inputs.push_back(read_constant(ctx,c).str());p.meta.fields["inputs"]=array(inputs);}
+                records.push_back(p.meta.str());
+            }
+            report.fields["producer_records"]=array(records);
+        }
         report.text("scope",mode==Mode::census?"verified material packages; at most 512 original-draw states/queries; no per-draw color snapshots":"one exact PS; at most 128 draw states/queries and first four selected RTV0 before/after/end snapshots; queries do not prove color writes");
         if(mode==Mode::probe)report.text("scope","exact PS/VS/element count with RGB output; at most two draws, PS b0-b6/t0-t3 pre-draw inputs and RTV snapshots; binding names are not proven light semantics");
         std::vector<std::string> rows;
@@ -158,14 +178,34 @@ public:
     bool read_only() const {return mode!=Mode::marker;}
     bool accepts(const std::string &hash) const {return mode==Mode::census || (mode==Mode::sample || mode==Mode::probe) && hash==selected_shader;}
     const fs::path &path() const {return directory;}
-    void cancel(){recording=waiting=internal=false;entries.clear();resource_ids.clear();held_resources.clear();done.Reset();final_image={};}
-    void arm(const fs::path &root,Mode requested=Mode::marker,const std::string &shader="",UINT skip=0,const std::string &vertex="",UINT elements=0) {
+    void cancel(){recording=waiting=internal=false;if(tracker)tracker->set_enabled(false);tracker=nullptr;entries.clear();producers.clear();resource_ids.clear();held_resources.clear();done.Reset();final_image={};}
+    void arm(const fs::path &root,Mode requested=Mode::marker,const std::string &shader="",UINT skip=0,const std::string &vertex="",UINT elements=0,Diagnostic *history=nullptr) {
         if(active())throw std::runtime_error("output audit already active");
         cancel();bytes=observed=0;
         mode=requested;selected_shader=shader;skip_draws=skip;selected_vertex=vertex;selected_elements=elements;
         directory=root/("output-audit-"+number(GetCurrentProcessId())+"-"+number(GetTickCount64()));
         if(!fs::create_directory(directory))throw std::runtime_error("output audit directory exists");
-        recording=true;
+        recording=true;producer_bytes=producer_candidates=0;producer_truncated=false;
+        if(mode==Mode::probe && history){tracker=history;tracker->captured_frame=tracker->frame;tracker->set_enabled(true);}
+    }
+    void observe_producer(ID3D11DeviceContext *ctx,const char *kind,UINT count,UINT instances) {
+        if(!recording || mode!=Mode::probe || !tracker || internal || ctx->GetType()!=D3D11_DEVICE_CONTEXT_IMMEDIATE || !instances || count==UINT_MAX)return;
+        ID3D11RenderTargetView *raw[2]={};ctx->OMGetRenderTargets(2,raw,nullptr);ComPtr<ID3D11RenderTargetView> views[2];views[0].Attach(raw[0]);views[1].Attach(raw[1]);
+        if(!views[0] || !views[1])return;
+        D3D11_RENDER_TARGET_VIEW_DESC desc[2];views[0]->GetDesc(&desc[0]);views[1]->GetDesc(&desc[1]);
+        if(desc[0].Format!=DXGI_FORMAT_R11G11B10_FLOAT || desc[1].Format!=DXGI_FORMAT_R11G11B10_FLOAT)return;
+        ComPtr<ID3D11BlendState> blend;FLOAT factors[4];UINT sample_mask;ctx->OMGetBlendState(&blend,factors,&sample_mask);D3D11_BLEND_DESC bd={};if(blend)blend->GetDesc(&bd);
+        for(UINT i=0;i<2;++i)if(blend && !(bd.RenderTarget[bd.IndependentBlendEnable?i:0].RenderTargetWriteMask&7))return;
+        ++producer_candidates;if(producers.size()>=128){producer_truncated=true;return;}
+        Entry entry;auto &j=entry.meta;j.num("frame",tracker->frame);j.num("draw",tracker->draw);j.text("call",kind);j.num("elements",count);j.num("instances",instances);
+        ComPtr<ID3D11PixelShader> ps;ComPtr<ID3D11VertexShader> vs;ctx->PSGetShader(&ps,nullptr,nullptr);ctx->VSGetShader(&vs,nullptr,nullptr);
+        auto shader=[&](uint64_t pointer){auto it=tracker->shaders.find(pointer);return it==tracker->shaders.end()?"unknown":it->second.second;};
+        j.text("pixel_sha256",shader(reinterpret_cast<uint64_t>(ps.Get())));j.text("vertex_sha256",shader(reinterpret_cast<uint64_t>(vs.Get())));
+        std::vector<std::string> outputs;
+        for(UINT i=0;i<2;++i){ComPtr<ID3D11Resource> r;views[i]->GetResource(&r);auto m=tracker->resource_meta(r.Get(),"producer-o"+number(i),"RTV_write_intent_not_pixel_provenance");m.num("resource",id(r.Get()));m.num("slot",i);m.num("view_format",desc[i].Format);outputs.push_back(m.str());}
+        j.fields["outputs"]=array(outputs);
+        internal=true;try{capture_inputs(ctx,entry,true,"producer-"+number(tracker->draw));internal=false;}catch(...){internal=false;throw;}
+        producers.push_back(std::move(entry));
     }
     template<class F> bool draw(ID3D11DeviceContext *ctx,UINT count,UINT instances,F call,
             const std::string &pixel_hash="",const std::string &packages="",const std::string &vertex_sha="") {
@@ -178,6 +218,7 @@ public:
         }
         ++observed;if(observed<=skip_draws || entries.size()>=(mode==Mode::census?512u:mode==Mode::probe?2u:128u))return call();
         Entry entry;auto &j=entry.meta;j.num("ordinal",observed);j.num("elements",count);j.num("instances",instances);
+        if(tracker){j.num("frame",tracker->frame);j.num("draw",tracker->draw);}
         j.text("pixel_shader",pixel_hash);j.text("packages",packages);j.text("vertex_sha256",vertex_sha);
         j.fields["shader_replaced"]=mode==Mode::marker?"true":"false";
         ID3D11RenderTargetView *raw[8]={};ComPtr<ID3D11DepthStencilView> depth;ctx->OMGetRenderTargets(8,raw,&depth);
@@ -217,6 +258,11 @@ public:
         for(UINT i=0;i<n;++i)rects.push_back(array({number(scissors[i].left),number(scissors[i].top),number(scissors[i].right),number(scissors[i].bottom)}));j.fields["scissors"]=array(rects);
         n=16;D3D11_VIEWPORT vp[16];ctx->RSGetViewports(&n,vp);rects.clear();for(UINT i=0;i<n;++i)rects.push_back(array({number(vp[i].TopLeftX),number(vp[i].TopLeftY),number(vp[i].Width),number(vp[i].Height),number(vp[i].MinDepth),number(vp[i].MaxDepth)}));j.fields["viewports"]=array(rects);
         ComPtr<ID3D11Predicate> predicate;BOOL predicateValue;ctx->GetPredication(&predicate,&predicateValue);j.num("predication_bound",predicate?1:0);j.num("predicate_value",predicateValue);
+        if(mode==Mode::probe){
+            ComPtr<ID3D11SamplerState> sampler;ctx->PSGetSamplers(0,1,&sampler);Json state;
+            if(sampler){D3D11_SAMPLER_DESC sd;sampler->GetDesc(&sd);state.num("filter",sd.Filter);state.num("address_u",sd.AddressU);state.num("address_v",sd.AddressV);state.num("address_w",sd.AddressW);state.num("min_lod",sd.MinLOD);state.num("max_lod",sd.MaxLOD);state.num("mip_lod_bias",sd.MipLODBias);state.num("max_anisotropy",sd.MaxAnisotropy);state.num("comparison",sd.ComparisonFunc);}
+            else state.text("status","null_default_sampler");j.fields["sampler0"]=state.str();
+        }
         ComPtr<ID3D11Device> device;ctx->GetDevice(&device);D3D11_QUERY_DESC q={D3D11_QUERY_OCCLUSION,0};check(device->CreateQuery(&q,&entry.query));
         internal=true;
         bool replaced=false;
@@ -241,7 +287,7 @@ public:
                 ComPtr<ID3D11Device> device;ctx->GetDevice(&device);D3D11_QUERY_DESC q={D3D11_QUERY_EVENT,0};check(device->CreateQuery(&q,&done));ctx->End(done.Get());
                 internal=false;
             }catch(...){internal=false;throw;}
-            recording=false;waiting=true;started=GetTickCount64();return;
+            recording=false;if(tracker)tracker->set_enabled(false);waiting=true;started=GetTickCount64();return;
         }
         BOOL ready=FALSE;HRESULT hr=ctx->GetData(done.Get(),&ready,sizeof(ready),D3D11_ASYNC_GETDATA_DONOTFLUSH);check(hr);
         if(hr==S_OK && ready){write_report(ctx,"complete");cancel();}

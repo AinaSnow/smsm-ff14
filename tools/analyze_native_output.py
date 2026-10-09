@@ -25,10 +25,9 @@ def analyze(directory):
         pixels=item['width']*item['height']
         if pixels<=0 or len(raw)%pixels:raise ValueError('Invalid snapshot layout')
         return np.frombuffer(raw,np.uint8).reshape(item['height'],item['width'],-1)
-    results=[]
-    for draw in report['draws']:
-        row={k:v for k,v in draw.items() if k not in ('images','inputs')}
-        for item in draw.get('inputs',[]):
+    def read_inputs(items):
+        nonlocal total
+        for item in items:
             if item.get('phase')!='pre_draw':raise ValueError('Input snapshot is not pre-draw')
             if item.get('status')!='captured':continue
             if 'width' in item:read(item)
@@ -39,6 +38,10 @@ def analyze(directory):
                 raw=payload.read_bytes()
                 if len(raw)!=item['bytes'] or hashlib.sha256(raw).hexdigest()!=item['sha256']:raise ValueError('Damaged constant snapshot')
                 total+=len(raw)
+    results=[]
+    for draw in report['draws']:
+        row={k:v for k,v in draw.items() if k not in ('images','inputs')}
+        read_inputs(draw.get('inputs',[]))
         images=draw.get('images',[]);raw=[read(i) for i in images]
         if len(raw)==3 and all(r is not None for r in raw):
             if len({(i['width'],i['height'],i['format'],i['resource'],i['subresource']) for i in images})!=1:
@@ -60,6 +63,7 @@ def analyze(directory):
                     rgb_draw_changed_pixels_altered_later=int((rgb_changed&rgb_later).sum()))
             else:row['comparison']['rgb_only_status']='unsupported_format; do not infer RGB change from alpha-inclusive comparison'
         results.append(row)
+    for producer in report.get('producer_records',[]):read_inputs(producer.get('inputs',[]))
     read(report['present_backbuffer'])
     if total!=report['selected_bytes']:raise ValueError('Captured bytes differ from selected budget')
     return {'scope':'same-target raw pixel byte comparisons; not proof of player identity or final compositing',

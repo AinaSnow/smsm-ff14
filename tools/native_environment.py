@@ -139,6 +139,7 @@ def with_receipt(files, meta):
                             "coverage_shader_sha256": meta.get('coverage_shader_sha256'),
                             "output_audit":meta.get('output_audit',False),
                             "material_input_probe":meta.get('material_input_probe',False),
+                            "material_producer_trace":meta.get('material_producer_trace',False),
                             "material_roster_sha256":meta.get('material_roster_sha256'),
                             "ambient_variants":meta.get('ambient_variants',[]),
                             "package_sha256": digest(encoded(meta))})

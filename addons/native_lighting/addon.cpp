@@ -141,6 +141,9 @@ template<class F> bool native_draw(command_list *cmd,const char *kind,uint32_t c
     guarded(cmd->get_device(),[&](State &s){
         auto *ctx=reinterpret_cast<ID3D11DeviceContext *>(cmd->get_native());
         s.diagnostic.before_draw(ctx,kind,count,instances);
+#ifdef SMSM_NATIVE_COVERAGE
+        s.output_audit.observe_producer(ctx,kind,count,instances);
+#endif
 #ifdef SMSM_NATIVE_AMBIENT_EXPERIMENT
 #ifdef SMSM_NATIVE_COVERAGE
 #ifdef SMSM_MATERIAL_ROSTER
@@ -250,7 +253,7 @@ void present(command_queue *queue,swapchain *sc,const rect *,const rect *,uint32
                     if(std::none_of(native_material_roster.begin(),native_material_roster.end(),[&](const auto &entry){return entry.second.hash==hash;}))throw std::runtime_error("Sample shader is not in verified material roster");
                 }
                 d.stop();s.ambient.disable();
-                s.output_audit.arm(d.root,value=="census"?smsm::OutputAudit::Mode::census:probe?smsm::OutputAudit::Mode::probe:smsm::OutputAudit::Mode::sample,hash,skip,vertex,elements);
+                s.output_audit.arm(d.root,value=="census"?smsm::OutputAudit::Mode::census:probe?smsm::OutputAudit::Mode::probe:smsm::OutputAudit::Mode::sample,hash,skip,vertex,elements,probe?&d:nullptr);
             }
             else
 #endif

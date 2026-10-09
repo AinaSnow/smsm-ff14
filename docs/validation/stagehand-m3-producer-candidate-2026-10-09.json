@@ -1,0 +1,100 @@
+{
+  "native_addon_sha256": "8b2752d5b432593714000420f9eeaa28bec51314373f08ba4a2e5779b5539fd6",
+  "installed": false,
+  "default_enabled": false,
+  "probe_compatible_with_bridge": "0.2.1.0",
+  "producer_filter": "two RGB-enabled R11G11B10_FLOAT RTV slots on immediate context",
+  "maximum_producer_records": 128,
+  "producer_constant_budget_bytes": 33554432,
+  "shared_total_budget_bytes": 268435456,
+  "same_frame_trace_only": true,
+  "consumer_sampler0_recorded": true,
+  "native_warp": {
+    "passed": true,
+    "cases": [
+      {
+        "case": "normal",
+        "verified_bytes": 30248,
+        "recorded_producers": 1
+      },
+      {
+        "case": "stale",
+        "verified_bytes": 23080,
+        "recorded_producers": 0
+      },
+      {
+        "case": "capped",
+        "verified_bytes": 940584,
+        "recorded_producers": 128
+      }
+    ],
+    "early_depth_draws_filtered": 520,
+    "snapshot_lifetime_verified": true,
+    "cancel_disables_tracking": true
+  },
+  "reshade_hardware": {
+    "original_inputs_exact": true,
+    "maximum_original_pixel_error": 2.9802322387695312e-08,
+    "sampler_point_clamp_verified": true,
+    "producer_trace_fields_present": true,
+    "positive_dual_target_producer_in_hardware_fixture": false
+  },
+  "upgrade_recovery_r10_roundtrip_simulation_passed": true,
+  "historical_producer_layouts_verified": [
+    {
+      "shader": "8b384acd7a03c836",
+      "sha256": "1558ba1e6024ac23232a43231116412fcdb081fdc5968d3c7d8e8827c349c5d8",
+      "layout": {
+        "status": "reflected",
+        "hash": "8b384acd7a03c836",
+        "constant_slot": 2,
+        "fields": {
+          "m_Position": 0,
+          "m_Direction": 16,
+          "m_DiffuseColor": 32,
+          "m_SpecularColor": 48,
+          "m_Attenuation": 64,
+          "m_ClipMin": 80,
+          "m_ClipMax": 96,
+          "m_PlaneFadeScale": 112,
+          "m_ShadowTexMask": 128,
+          "m_PlaneRayDirection": 144,
+          "m_LightFadeValueStatic": 384,
+          "m_LightFadeValueDynamic": 388
+        }
+      }
+    },
+    {
+      "shader": "e9f57e0834b642f5",
+      "sha256": "018fe447f81f49a1c428035920f6b2cf8fc54cab6ba9220267c7017e72b34cdd",
+      "layout": {
+        "status": "reflected",
+        "hash": "e9f57e0834b642f5",
+        "constant_slot": 2,
+        "fields": {
+          "m_Position": 0,
+          "m_Direction": 16,
+          "m_DiffuseColor": 32,
+          "m_SpecularColor": 48,
+          "m_Attenuation": 64,
+          "m_ClipMin": 80,
+          "m_ClipMax": 96,
+          "m_PlaneFadeScale": 112,
+          "m_ShadowTexMask": 128,
+          "m_PlaneRayDirection": 144,
+          "m_LightFadeValueStatic": 384,
+          "m_LightFadeValueDynamic": 388
+        }
+      }
+    }
+  ],
+  "live_producer_identity_verified": false,
+  "live_stagehand_parameter_correspondence_verified": false,
+  "performance_work_deferred": true,
+  "limits": [
+    "Dual R11G11B10 draw filter can miss other producer formats or paths",
+    "RTV binding intent does not prove successful writes or full coverage",
+    "Compute/UAV/indirect and complete copy lineage are not captured",
+    "Truncated trace cannot establish a complete producer set"
+  ]
+}

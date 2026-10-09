@@ -39,3 +39,5 @@ flowchart LR
 两轮结束后所属灯、持久所有权、采集锁与待处理命令均清空，r8/marker/audit 关闭，r10 校验不变。原始画面、空间位置、资源内容和指纹只保存在本地忽略目录。性能工作按用户要求暂缓。
 
 分析工具：`tools/analyze_stagehand_probe.py`；汇总证据：[两轮实机结果](validation/stagehand-m3-input-output-live-2026-10-09.json)。
+
+后续已准备 [上游绘制与常量追踪候选](STAGEHAND-M3-PRODUCER-TRACE.md)，继续补齐图中的未知环节；候选验证不替代新一轮实机参数对应。
