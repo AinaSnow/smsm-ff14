@@ -51,7 +51,19 @@
     "supported_srv": "Texture2D; other views explicitly marked unsupported"
   },
   "default_light_count": 0,
-  "installed": false,
+  "installed": true,
+  "installation_verified": {
+    "game_stopped": true,
+    "native_addon_and_bridge_hashes_match": true,
+    "probe_capability_in_receipt": true,
+    "native_runtime_retained": true,
+    "reshade_settings_retained": true,
+    "bridge_identity_and_profiles_retained": true,
+    "pending_commands_absent": true,
+    "owned_stages": 0,
+    "old_packages_and_backups_preserved": true,
+    "r10_archive_unchanged": true
+  },
   "live_capture_verified": false,
   "m3_correspondence_passed": false,
   "performance_work_deferred": true
