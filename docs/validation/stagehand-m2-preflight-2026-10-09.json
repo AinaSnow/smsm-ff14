@@ -1,0 +1,31 @@
+{
+  "bridge_version": "0.1.0.0",
+  "bridge_dll_sha256": "a1e37b0580d15726451b39c5a9d347fb6f9437c22ce38129b71dbd3e5dd5bf22",
+  "dalamud_api": 15,
+  "stagehand_version": "0.5.5.0",
+  "required_ipc": "1.2",
+  "default_light_count": 0,
+  "manual_start_only": true,
+  "maximum_captures": 3,
+  "shader_target": "e86f0d4916054deb",
+  "build_zero_warnings": true,
+  "offline_checks_passed": 14,
+  "registry_simulation": {
+    "existing_config_preserved": true,
+    "bridge_autostart_disabled": true,
+    "running_client_rejected": true
+  },
+  "actual_ipc_verified": false,
+  "actual_three_captures_verified": false,
+  "live_cleanup_verified": false,
+  "registered": false,
+  "shader_modified": false,
+  "new_gpu_data_association": false,
+  "r8_disabled_required": true,
+  "r10_preserved": true,
+  "limits": [
+    "Session and failure paths tested against simulated IPC client; actual provider still needs runtime check",
+    "Transport checked using fake native status/report files; actual report identity and directories must be verified",
+    "Fixed draw selection is a capture hint, not universal character or GPU light correspondence"
+  ]
+}
