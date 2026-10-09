@@ -19,23 +19,24 @@
   "initial_stage_light_count": 0,
   "auto_show_conditions": 0,
   "m0_offline_checks_passed": true,
-  "m0_live_acceptance_passed": false,
-  "m1_visual_acceptance_passed": false,
+  "m0_live_acceptance_passed": true,
+  "m1_visual_acceptance_passed": true,
   "r8_kept_off": true,
   "r10_frozen_zip_sha256": "4e8bd8172abbcdd411c739b76bcb6434a05ac7a5d00b18ea0c69dad2205e3914",
   "game_dll_files_modified": false,
   "custom_dalamud_bridge_created": false,
   "gpu_data_association_developed": false,
   "remaining": [
-    "Verify official plugin loads and /stagehand opens in ordinary gameplay",
-    "Repeatedly create/hide/destroy exactly one native point light and verify restoration",
-    "Test one parameter at a time and record hair/dress/skin/floor response",
-    "Verify location-change and plugin-disable cleanup in game"
+    "Map-change and game-exit cleanup remain source-reviewed only",
+    "Shadow/GPose/performance not measured",
+    "New light integration does not accept original map-light improvement"
   ],
   "ui_open_and_empty_stage_show_reported": true,
   "native_light_created": false,
   "normal_gameplay_confirmed_by_user": true,
   "single_point_definition_saved": true,
   "initial_brightening_reported": true,
-  "brightness_persistence_verified": false
+  "brightness_persistence_verified": true,
+  "m0_core_live_acceptance_passed": true,
+  "cleanup_evidence_limit": "Three visible on/off restorations and plugin-disable restoration; no native-memory object enumeration"
 }

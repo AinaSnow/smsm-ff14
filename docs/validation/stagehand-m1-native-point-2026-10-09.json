@@ -1,0 +1,94 @@
+{
+  "stagehand_version": "0.5.5.0",
+  "ordinary_gameplay_confirmed": true,
+  "scene": "witch cafe interior",
+  "test_light_count": 1,
+  "fixed_parameters": {
+    "shape": "Point",
+    "color": [
+      1,
+      1,
+      1
+    ],
+    "intensity": 8,
+    "range": 10,
+    "falloff": "Quadratic",
+    "falloff_factor": 1,
+    "extra_shadows": false,
+    "projected_texture": ""
+  },
+  "fixed_light_position_recorded_locally": true,
+  "position_not_published": true,
+  "role_and_camera_fixed_by_protocol": true,
+  "user_reported_stable_brightness": true,
+  "on_off_cycles": 3,
+  "user_reported_repeatable_on_off_and_restore": true,
+  "on_off_material_response": {
+    "hair": true,
+    "dress": true,
+    "skin": true,
+    "nearby_floor": true
+  },
+  "color_test": {
+    "values": [
+      [
+        1,
+        0.35,
+        0.1
+      ],
+      [
+        0.1,
+        0.35,
+        1
+      ]
+    ],
+    "only_changed_parameter": "Color",
+    "user_reported_visible_response": true
+  },
+  "position_test": {
+    "world_axis": "X",
+    "offsets": [
+      -2,
+      2
+    ],
+    "only_changed_parameter": "Position",
+    "user_reported_spatial_response_and_restore": true
+  },
+  "range_test": {
+    "values": [
+      10,
+      2,
+      10
+    ],
+    "only_changed_parameter": "Range",
+    "repeat_performed": true,
+    "user_reported_visible_response": true
+  },
+  "plugin_disable_cleanup": {
+    "user_disabled_plugin": true,
+    "user_reported_baseline_restored": true
+  },
+  "m0_native_point_core_acceptance": true,
+  "m1_basic_single_light_acceptance": true,
+  "light_definition_disabled_at_end": true,
+  "stagehand_disabled_by_user_at_end": true,
+  "r8_disabled": true,
+  "r10_baseline_preserved": true,
+  "ipc_bridge_implemented": false,
+  "gpu_data_association_performed": false,
+  "smsm_shader_changes_this_round": false,
+  "remaining": [
+    "Live map-change and game-exit cleanup have not been separately tested",
+    "Shadow-enabled behavior not tested; kept off in this round",
+    "GPose not tested",
+    "GPU/frametime cost not measured",
+    "Original map-light improvement not accepted"
+  ],
+  "evidence_limits": [
+    "Results rely on controlled parameter submissions and user visual reports; no synchronized screenshot pairs or GPU data captured",
+    "Color/position/range feedback was aggregate, not individually quantified per material",
+    "Native object memory enumeration was not performed; cleanup evidence is repeated visible restoration and official unload logs"
+  ],
+  "upstream_model_bvh_errors_observed": true,
+  "upstream_bvh_error_impact_on_light_not_established": true
+}
