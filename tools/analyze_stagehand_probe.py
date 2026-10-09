@@ -64,11 +64,13 @@ def compare(root):
         differences={key:{rows[i]['state']+'_vs_Off0_mean_abs_rgb':np.abs(arr[i]-arr[0]).mean(axis=0,dtype=np.float64).tolist() for i in (1,2,3)} for key,arr in planes.items()}
         regions[name]={'pixels':int(mask.sum()),'mean_linear_rgb':records,'absolute_differences':differences}
     cb_changes={str(slot):{'reflected_bytes':size,'equal_to_Off0':[r['cb'][slot]==rows[0]['cb'][slot] for r in rows]} for slot,size in enumerate(CB_SIZES)}
+    sampler_verified=all(r['draw'].get('sampler0',{}).get('filter')==0 and r['draw']['sampler0'].get('address_u')==3 and r['draw']['sampler0'].get('address_v')==3 for r in rows)
     return {'scope':'one inspected skirt draw; input/output association, no upstream light-buffer identity',
             'states':[r['state'] for r in rows],'verified_bytes_per_state':[r['bytes'] for r in rows],
             'regions':regions,'constant_buffer_comparison':cb_changes,
             'view_inverse_view_first_96_bytes_equal':[r['cb'][3][:96]==rows[0]['cb'][3][:96] for r in rows],
-            'limitations':['Pixel-coordinate observations do not reproduce the unrecorded sampler state',
+            'sampler0_point_clamp_recorded':sampler_verified,
+            'limitations':[('Point/clamp sampler recorded; full original shader replay not performed' if sampler_verified else 'Pixel-coordinate observations do not reproduce the unrecorded sampler state'),
                            'Residual pose, environment and time-dependent changes remain; inspect returning OFF error',
                            'Same mesh still requires spatial-mask inspection; head/skin are separate targets']}
 

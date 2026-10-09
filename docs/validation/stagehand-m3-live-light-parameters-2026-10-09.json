@@ -1,0 +1,298 @@
+{
+  "scope": "one known Stagehand point light and current skirt; not complete scene provenance",
+  "point_pixel_shader": "6fe15fe7984aeff9",
+  "point_pixel_sha256": "3d4b9ee8a82e81665d57ddc271e3f38abad71e318b728dc8ca7028081931db36",
+  "light_constant_slot": 2,
+  "states": [
+    {
+      "state": "Off0",
+      "verified_bytes": 91403312,
+      "producer_records": 77,
+      "matched_point_light_paths": [],
+      "consumer_sampler0": {
+        "address_u": 3,
+        "address_v": 3,
+        "address_w": 3,
+        "comparison": 1,
+        "filter": 0,
+        "max_anisotropy": 0,
+        "max_lod": 3.40282346639e+38,
+        "min_lod": 0,
+        "mip_lod_bias": 0
+      },
+      "t0_writer_identity_summary_truncated": true
+    },
+    {
+      "state": "Warm",
+      "verified_bytes": 91406544,
+      "producer_records": 79,
+      "matched_point_light_paths": [
+        {
+          "position_error": 5.70581521804754e-06,
+          "diffuse_rgb": [
+            8.0,
+            2.799999952316284,
+            0.800000011920929
+          ],
+          "specular_rgb": [
+            8.0,
+            2.799999952316284,
+            0.800000011920929
+          ],
+          "inverse_range_squared": 0.009999999776482582,
+          "draw_parameter_semistransparency": 0.0,
+          "outputs_match_current_skirt_inputs": true
+        },
+        {
+          "position_error": 5.70581521804754e-06,
+          "diffuse_rgb": [
+            8.0,
+            2.799999952316284,
+            0.800000011920929
+          ],
+          "specular_rgb": [
+            8.0,
+            2.799999952316284,
+            0.800000011920929
+          ],
+          "inverse_range_squared": 0.009999999776482582,
+          "draw_parameter_semistransparency": 1.0,
+          "outputs_match_current_skirt_inputs": false
+        }
+      ],
+      "consumer_sampler0": {
+        "address_u": 3,
+        "address_v": 3,
+        "address_w": 3,
+        "comparison": 1,
+        "filter": 0,
+        "max_anisotropy": 0,
+        "max_lod": 3.40282346639e+38,
+        "min_lod": 0,
+        "mip_lod_bias": 0
+      },
+      "t0_writer_identity_summary_truncated": true
+    },
+    {
+      "state": "Cool",
+      "verified_bytes": 91406544,
+      "producer_records": 79,
+      "matched_point_light_paths": [
+        {
+          "position_error": 5.70581521804754e-06,
+          "diffuse_rgb": [
+            0.800000011920929,
+            2.799999952316284,
+            8.0
+          ],
+          "specular_rgb": [
+            0.800000011920929,
+            2.799999952316284,
+            8.0
+          ],
+          "inverse_range_squared": 0.009999999776482582,
+          "draw_parameter_semistransparency": 0.0,
+          "outputs_match_current_skirt_inputs": true
+        },
+        {
+          "position_error": 5.70581521804754e-06,
+          "diffuse_rgb": [
+            0.800000011920929,
+            2.799999952316284,
+            8.0
+          ],
+          "specular_rgb": [
+            0.800000011920929,
+            2.799999952316284,
+            8.0
+          ],
+          "inverse_range_squared": 0.009999999776482582,
+          "draw_parameter_semistransparency": 1.0,
+          "outputs_match_current_skirt_inputs": false
+        }
+      ],
+      "consumer_sampler0": {
+        "address_u": 3,
+        "address_v": 3,
+        "address_w": 3,
+        "comparison": 1,
+        "filter": 0,
+        "max_anisotropy": 0,
+        "max_lod": 3.40282346639e+38,
+        "min_lod": 0,
+        "mip_lod_bias": 0
+      },
+      "t0_writer_identity_summary_truncated": true
+    },
+    {
+      "state": "Off1",
+      "verified_bytes": 91403312,
+      "producer_records": 77,
+      "matched_point_light_paths": [],
+      "consumer_sampler0": {
+        "address_u": 3,
+        "address_v": 3,
+        "address_w": 3,
+        "comparison": 1,
+        "filter": 0,
+        "max_anisotropy": 0,
+        "max_lod": 3.40282346639e+38,
+        "min_lod": 0,
+        "mip_lod_bias": 0
+      },
+      "t0_writer_identity_summary_truncated": true
+    }
+  ],
+  "position_tolerance": 0.001,
+  "controlled_parameter_correspondence_verified": true,
+  "full_m3_complete": false,
+  "limits": [
+    "Two render paths are not evidence of double-counted lighting",
+    "Later writes and partial coverage remain; no exclusive pixel attribution",
+    "Hair/skin, other maps, shadows and selection limits require separate checks"
+  ],
+  "bridge_version": "0.2.1.0",
+  "stagehand_ipc": "1.2",
+  "detailed_producer_records_truncated": false,
+  "resource_history_shader_summary_truncated": true,
+  "input_output_summary": {
+    "pixels": 1667,
+    "mean_linear_rgb": [
+      {
+        "state": "Off0",
+        "output": [
+          0.30895798379386624,
+          0.300414965834958,
+          0.3075005360256074
+        ],
+        "t0_diffuse": [
+          0.14084497553614278,
+          0.09829215797465507,
+          0.03646013961270246
+        ],
+        "t1_specular": [
+          0.003748861128653176,
+          0.0030223935681613677,
+          0.0018473203552648845
+        ]
+      },
+      {
+        "state": "Warm",
+        "output": [
+          0.7780457092175315,
+          0.5526637836495201,
+          0.44634002886922614
+        ],
+        "t0_diffuse": [
+          1.1858936806388722,
+          0.4650897945410918,
+          0.1399911423965207
+        ],
+        "t1_specular": [
+          0.03408925148564037,
+          0.013642117157623163,
+          0.004835663116400157
+        ]
+      },
+      {
+        "state": "Cool",
+        "output": [
+          0.3867921239970756,
+          0.5525174750206209,
+          1.055568720240327
+        ],
+        "t0_diffuse": [
+          0.2483720052864427,
+          0.4649579849655069,
+          1.0682972780443911
+        ],
+        "t1_specular": [
+          0.006691583131127681,
+          0.013523461079268521,
+          0.031474845167685214
+        ]
+      },
+      {
+        "state": "Off1",
+        "output": [
+          0.3102983407224805,
+          0.30148599186412717,
+          0.3081073726660918
+        ],
+        "t0_diffuse": [
+          0.14311766552939412,
+          0.0997959587769946,
+          0.037083891815386925
+        ],
+        "t1_specular": [
+          0.0037206639482650346,
+          0.0030046862331635235,
+          0.001840977019439862
+        ]
+      }
+    ],
+    "absolute_differences": {
+      "output": {
+        "Warm_vs_Off0_mean_abs_rgb": [
+          0.4690877254236653,
+          0.2522488178145621,
+          0.13883949284361877
+        ],
+        "Cool_vs_Off0_mean_abs_rgb": [
+          0.0781179701559688,
+          0.25210250918566285,
+          0.7480681842147195
+        ],
+        "Off1_vs_Off0_mean_abs_rgb": [
+          0.003615536658293341,
+          0.0030683804645320937,
+          0.0023093769917891423
+        ]
+      },
+      "t0_diffuse": {
+        "Warm_vs_Off0_mean_abs_rgb": [
+          1.0450487051027295,
+          0.3667976365664367,
+          0.10353100278381823
+        ],
+        "Cool_vs_Off0_mean_abs_rgb": [
+          0.10794647711082783,
+          0.3666658269908518,
+          1.0318371384316887
+        ],
+        "Off1_vs_Off0_mean_abs_rgb": [
+          0.004716732434763047,
+          0.0030286911367726453,
+          0.0010979737646220756
+        ]
+      },
+      "t1_specular": {
+        "Warm_vs_Off0_mean_abs_rgb": [
+          0.030360015338240946,
+          0.010631293541096468,
+          0.002988708898845231
+        ],
+        "Cool_vs_Off0_mean_abs_rgb": [
+          0.003013688644107116,
+          0.010507767831199385,
+          0.029627524812420328
+        ],
+        "Off1_vs_Off0_mean_abs_rgb": [
+          0.00013239081919944135,
+          8.987307763056764e-05,
+          4.234382615664367e-05
+        ]
+      }
+    }
+  },
+  "current_skirt_spatial_mask_inspected": true,
+  "negative_checks_passed": [
+    "wrong color",
+    "shifted world position",
+    "wrong resource generation"
+  ],
+  "final_owned_stages": 0,
+  "final_r8_marker_audit_disabled": true,
+  "r10_archive_preserved": true,
+  "performance_work_deferred": true
+}

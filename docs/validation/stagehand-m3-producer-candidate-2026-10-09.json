@@ -99,8 +99,9 @@
       }
     }
   ],
-  "live_producer_identity_verified": false,
-  "live_stagehand_parameter_correspondence_verified": false,
+  "live_producer_identity_verified": true,
+  "live_stagehand_parameter_correspondence_verified": true,
+  "live_result": "stagehand-m3-live-light-parameters-2026-10-09.json",
   "performance_work_deferred": true,
   "limits": [
     "Dual R11G11B10 draw filter can miss other producer formats or paths",
