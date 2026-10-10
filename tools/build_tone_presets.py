@@ -25,9 +25,25 @@ key = ctrl no_shift no_alt VK_F7
 type = cycle
 y7 = 1, 0
 '''
+# Daily default chosen from the T1 scenes: A at startup, label hidden, Ctrl+F8 toggles A/R10.
+# The list starts with R10 so the first press switches even without 3DMigoto smart cycling.
+INI_A = b'''
+; Tone A default (T1 choice). Independent keys work with hunting disabled. No persistence or reload.
+[Constants]
+x7 = 1
+y7 = 0
+[KeySMSMTonePreset]
+key = ctrl no_shift no_alt VK_F8
+type = cycle
+x7 = 0, 1
+[KeySMSMCompareLabel]
+key = ctrl no_shift no_alt VK_F7
+type = cycle
+y7 = 1, 0
+'''
 
 
-def build(baseline, output):
+def build(baseline, output, default_a=False):
     original, receipt = read_package(baseline)
     if digest(receipt) != BASELINE:
         raise ValueError('Expected unchanged c2 baseline')
@@ -39,7 +55,7 @@ def build(baseline, output):
     patch = (ROOT/'tools/patches/tone_presets_t1.hlsl').read_text(encoding='utf-8')
     source = source.replace(marker, '  #endif\n'+patch+'}\n\nvoid orig_dec')
     files[SOURCE] = source.encode()
-    files['d3dx.ini'] += INI
+    files['d3dx.ini'] += INI_A if default_a else INI
     output.mkdir(parents=True, exist_ok=False)
     for name, data in files.items():
         path = output/name
@@ -69,6 +85,17 @@ def build(baseline, output):
         'problem_hypothesis': '100% SMSM looked too white because the curve is per-channel and the game tone LUT is ignored',
         'output_ceiling': 'none (same as R10)', 'visual_improvement_verified': False,
         'game_verified': False}
+    if default_a:
+        manifest['effects']['tone']['status'] = 'tone-a-default-scene-chosen'
+        manifest['compatibility_candidate']['id'] = 'r11-tone-a-default'
+        manifest['compatibility_candidate']['stage'] = 'T1-chosen-default'
+        manifest['compatibility_candidate']['acceptance'] = 'user chose A from 3-scene comparison on 2026-10-10'
+        manifest['tone_experiment'].update(
+            id='tone-a-default',
+            comparison={'key': 'Ctrl+F8', 'states': [MODES[0], MODES[1]], 'startup': MODES[1],
+                        'label_key': 'Ctrl+F7', 'label_startup': False, 'label_bounds': [24, 24, 72, 46],
+                        'resource': 'IniParams t120[7].xy'},
+            scene_choice='docs/validation/tone-presets-t1-scene-2026-10-10.json')
     (output/RECEIPT).write_bytes(encoded(manifest))
     read_package(output)
     return manifest
@@ -78,6 +105,8 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('baseline', type=Path)
     p.add_argument('output', type=Path)
+    p.add_argument('--default-a', action='store_true', help='daily package: start in A, label hidden, Ctrl+F8 toggles A/R10')
     a = p.parse_args()
-    build(a.baseline, a.output)
-    print(f'Prepared {a.output}; startup mode R10, Ctrl+F8 cycles R10/A/B/C')
+    build(a.baseline, a.output, a.default_a)
+    print(f'Prepared {a.output}; ' + ('startup mode A, Ctrl+F8 toggles A/R10' if a.default_a
+                                      else 'startup mode R10, Ctrl+F8 cycles R10/A/B/C'))

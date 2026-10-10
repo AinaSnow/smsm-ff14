@@ -1,5 +1,6 @@
 """Real WARP draws of T1 modes against an independent numpy reference; not game captures."""
 import argparse
+import re
 import copy
 from pathlib import Path
 import numpy as np
@@ -140,7 +141,9 @@ def validate(baseline, candidate, output, runtime_check=False):
             manifest = copy.deepcopy(original)
             for name in manifest['files']:
                 data = (candidate/name).read_bytes()
-                if name == 'd3dx.ini': data = data.replace(b'x7 = 0\ny7 = 1', f'x7 = {mode}\ny7 = 1'.encode())
+                if name == 'd3dx.ini':
+                    data = re.sub(rb'\[Constants\]\r?\nx7 = \d\r?\ny7 = \d', f'[Constants]\nx7 = {mode}\ny7 = 1'.encode(), data)
+                    assert f'x7 = {mode}\ny7 = 1'.encode() in data, 'Startup constants not found'
                 path = package/name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(data)
                 manifest['files'][name] = digest(data)
             manifest['isolated_test_fixture'] = True
@@ -151,6 +154,15 @@ def validate(baseline, candidate, output, runtime_check=False):
             assert np.allclose(actual, labelled[mode], atol=2e-5, rtol=3e-6), 'Runtime IniParams output mismatch'
             results.append({'initial_x7': mode, 'max_error_vs_warp': float(np.max(np.abs(actual-labelled[mode])))})
         report['official_1_3_16_runtime_startup_checks'] = results
+        # The package as shipped (its own x7/y7), not a fixture.
+        comparison = new['tone_experiment']['comparison']
+        mode = MODES.index(comparison['startup'])
+        shipped = render(candidate/BINARY, output/'runtime-draw-shipped', len(levels), 64,
+                         textures={0: source, 1: lut}, constants=constants, runtime_package=candidate)[0, 0]
+        plain = draw(candidate, 'shipped-reference', constants, lut, (mode, 1 if comparison['label_startup'] else 0))
+        assert np.allclose(shipped, plain, atol=2e-5, rtol=3e-6), 'Shipped startup state mismatch'
+        report['shipped_startup'] = {'mode': comparison['startup'], 'label': comparison['label_startup'],
+                                     'max_error_vs_warp': float(np.max(np.abs(shipped-plain)))}
         report['runtime_note'] = 'Separate child processes verify real IniParams initialization; no key presses synthesized'
     (output/'report.json').write_bytes(encoded(report))
     print(encoded(report).decode())

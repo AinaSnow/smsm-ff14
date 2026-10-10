@@ -47,6 +47,31 @@ class TonePresetPackageTests(unittest.TestCase):
         self.assertEqual(m.read_package(baseline)[1], base_receipt)
         self.assertEqual(m.read_package(h3)[1], old_receipt)
 
+    def test_a_default_only_changes_ini_from_t1_and_rolls_back(self):
+        baseline = m.ROOT/'artifacts/r11-compat-c2'
+        t1 = m.ROOT/'artifacts/r11-tone-presets-t1'
+        old, old_receipt = m.read_package(t1)
+        with tempfile.TemporaryDirectory(dir=m.ROOT/'artifacts', prefix='a-default-test-') as temp:
+            root = Path(temp); candidate = root/'candidate'
+            build(baseline, candidate, default_a=True)
+            manifest, receipt = m.read_package(candidate)
+            self.assertEqual({n for n in manifest['files'] if manifest['files'][n] != old['files'][n]}, {'d3dx.ini'})
+            comparison = manifest['tone_experiment']['comparison']
+            self.assertEqual(comparison['startup'], 'a-hue-preserving')
+            self.assertFalse(comparison['label_startup'])
+            self.assertEqual(manifest['compatibility_candidate']['id'], 'r11-tone-a-default')
+            ini = (candidate/'d3dx.ini').read_text()
+            self.assertIn('[Constants]\nx7 = 1\ny7 = 0', ini)
+            self.assertIn('x7 = 0, 1\n', ini)
+            self.assertEqual(ini.count('[Constants]'), 1)
+            game = root/'game'; game.mkdir()
+            before = m.desired_package(t1, old, old_receipt, ['tone'], 'daily')
+            after = m.desired_package(candidate, manifest, receipt, ['tone'], 'daily')
+            m.transition(game, {}, before, root/'backups')
+            backup = m.transition(game, before, after, root/'backups')
+            m.transition(game, after, m.read_backup(backup, game), root/'backups')
+            self.assertEqual(m.snapshot(game)[0], before)
+
 
 if __name__ == '__main__':
     unittest.main()
