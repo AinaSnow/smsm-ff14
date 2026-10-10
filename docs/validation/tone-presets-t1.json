@@ -1,0 +1,124 @@
+{
+  "status": "pass",
+  "source": "synthetic HDR ramps and constant-gain LUTs; not game captures",
+  "baseline_shader_sha256": "ec061a76417a656ec3315b0a07601b31a18090145ad16256ecc1bae84795b465",
+  "candidate_shader_sha256": "855e1a2097aa34b680cb22a11a2406e4db4446d2bc616214f1adb960755d4e51",
+  "modes": [
+    "r10-baseline",
+    "a-hue-preserving",
+    "b-game-colour-smsm-brightness",
+    "c-hue-preserving-highlight-rolloff"
+  ],
+  "mode0_equals_r10_exactly": true,
+  "output_ceiling": "none",
+  "label_bounds": [
+    24,
+    24,
+    72,
+    46
+  ],
+  "label_alpha_unchanged": true,
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "cases": [
+    {
+      "exposure": 0.25,
+      "synthetic_lut_gain": 1,
+      "reference_vs_r10_max_error": 1.332538734910571e-07,
+      "a-hue-preserving": {
+        "max_relative_error_vs_reference": 1.7715396449791143e-07,
+        "peak": 1.0200551748275757,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "b-game-colour-smsm-brightness": {
+        "max_relative_error_vs_reference": 2.841136116222515e-07,
+        "peak": 6.17255973815918,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "c-hue-preserving-highlight-rolloff": {
+        "max_relative_error_vs_reference": 4.623641241541243e-07,
+        "peak": 1.0200551748275757,
+        "pixels_equal_to_A_below_roll": 15708
+      }
+    },
+    {
+      "exposure": 1,
+      "synthetic_lut_gain": 1,
+      "reference_vs_r10_max_error": 6.432864871896982e-07,
+      "a-hue-preserving": {
+        "max_relative_error_vs_reference": 1.6456968054461913e-07,
+        "peak": 1.1784533262252808,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "b-game-colour-smsm-brightness": {
+        "max_relative_error_vs_reference": 3.10038858596256e-07,
+        "peak": 7.131058692932129,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "c-hue-preserving-highlight-rolloff": {
+        "max_relative_error_vs_reference": 3.5674116127815125e-07,
+        "peak": 1.1784533262252808,
+        "pixels_equal_to_A_below_roll": 15246
+      }
+    },
+    {
+      "exposure": 4,
+      "synthetic_lut_gain": 1,
+      "reference_vs_r10_max_error": 2.0789195005477268e-06,
+      "a-hue-preserving": {
+        "max_relative_error_vs_reference": 2.4079321814252097e-07,
+        "peak": 2.0473713874816895,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "b-game-colour-smsm-brightness": {
+        "max_relative_error_vs_reference": 3.4242851709670665e-07,
+        "peak": 12.389058113098145,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "c-hue-preserving-highlight-rolloff": {
+        "max_relative_error_vs_reference": 5.70231483587591e-07,
+        "peak": 2.0473713874816895,
+        "pixels_equal_to_A_below_roll": 14112
+      }
+    },
+    {
+      "exposure": 1,
+      "synthetic_lut_gain": 0.25,
+      "reference_vs_r10_max_error": 2.7314147565959956e-07,
+      "a-hue-preserving": {
+        "max_relative_error_vs_reference": 1.6456968054461913e-07,
+        "peak": 1.1784533262252808,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "b-game-colour-smsm-brightness": {
+        "max_relative_error_vs_reference": 3.10038858596256e-07,
+        "peak": 7.131058692932129,
+        "hue_ratio_max_error": 5.960464477539063e-08
+      },
+      "c-hue-preserving-highlight-rolloff": {
+        "max_relative_error_vs_reference": 3.5674116127815125e-07,
+        "peak": 1.1784533262252808,
+        "pixels_equal_to_A_below_roll": 15246
+      }
+    }
+  ],
+  "official_1_3_16_runtime_startup_checks": [
+    {
+      "initial_x7": 0,
+      "max_error_vs_warp": 4.76837158203125e-07
+    },
+    {
+      "initial_x7": 1,
+      "max_error_vs_warp": 2.384185791015625e-07
+    },
+    {
+      "initial_x7": 2,
+      "max_error_vs_warp": 1.430511474609375e-06
+    },
+    {
+      "initial_x7": 3,
+      "max_error_vs_warp": 6.556510925292969e-07
+    }
+  ],
+  "runtime_note": "Separate child processes verify real IniParams initialization; no key presses synthesized"
+}

@@ -35,9 +35,8 @@
       float t1Roll = saturate((t1Mapped - 0.7f) / 0.3f);
       t1Out = lerp(t1Hue, t1Mapped.xxx, 0.5f * t1Roll * t1Roll);
     }
-    // Hue-preserving ceiling instead of per-channel clipping.
-    float t1Max = max(max(t1Out.r, t1Out.g), t1Out.b);
-    o0.rgb = t1Max > 1.0f ? t1Out / t1Max : max(t1Out, 0);
+    // No output ceiling: like R10, values above 1 pass through to later passes.
+    o0.rgb = max(t1Out, 0);
   }
 
   // Mode label: "R10" in blue for mode 0, a single letter A/B/C otherwise.

@@ -67,6 +67,7 @@ def build(baseline, output):
                        'label_key': 'Ctrl+F7', 'label_startup': True, 'label_bounds': [24, 24, 72, 46],
                        'resource': 'IniParams t120[7].xy'},
         'problem_hypothesis': '100% SMSM looked too white because the curve is per-channel and the game tone LUT is ignored',
+        'output_ceiling': 'none (same as R10)', 'visual_improvement_verified': False,
         'game_verified': False}
     (output/RECEIPT).write_bytes(encoded(manifest))
     read_package(output)
