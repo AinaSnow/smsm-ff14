@@ -1,9 +1,9 @@
-"""Check the T2 dither package boundaries, effect selection and exact rollback to tone A."""
+"""Check the T2b dither package boundaries, effect selection and exact rollback to tone A."""
 import tempfile
 from pathlib import Path
 import unittest
 import manage_preview as m
-from build_dither_t2 import FIXES, OUTPUT, VIGNETTE, build
+from build_dither_t2 import FIXES, TONE, VIGNETTE, build
 
 
 class DitherPackageTests(unittest.TestCase):
@@ -15,19 +15,21 @@ class DitherPackageTests(unittest.TestCase):
             build(baseline, candidate)
             manifest, receipt = m.read_package(candidate)
             added = set(manifest['files']) - set(old['files'])
-            self.assertEqual(added, {f'{FIXES}/{h}-ps_replace.{e}' for h in (OUTPUT, VIGNETTE) for e in ('txt', 'bin')})
-            self.assertEqual({n for n in old['files'] if manifest['files'][n] != old['files'][n]}, {'d3dx.ini'})
+            self.assertEqual(added, {f'{FIXES}/{VIGNETTE}-ps_replace.{e}' for e in ('txt', 'bin')})
+            self.assertEqual({n for n in old['files'] if manifest['files'][n] != old['files'][n]},
+                             {'d3dx.ini'} | {f'{FIXES}/{TONE}-ps_replace.{e}' for e in ('txt', 'bin')})
+            self.assertNotIn('23d27700572e0c4d', ''.join(manifest['files']))
             self.assertEqual(manifest['profiles'], {'vanilla': [], 'daily': ['tone', 'dithering']})
             self.assertEqual(manifest['default_profile'], 'vanilla')
             self.assertFalse(manifest['dither_experiment']['visual_improvement_verified'])
             ini = (candidate/'d3dx.ini').read_text()
-            self.assertIn('[Constants]\nx7 = 1\ny7 = 0\nz7 = 1\nx = 0\n', ini)
-            for section in ('[Present]', '[KeySMSMDither]', '[ShaderOverrideSMSMOutputArm]',
-                            '[ShaderOverrideSMSMOutputConsume]', '[Constants]'):
+            self.assertIn('[Constants]\nx7 = 1\ny7 = 0\nz7 = 1\n', ini)
+            for section in ('[KeySMSMDither]', '[Constants]'):
                 self.assertEqual(ini.count(section), 1, section)
+            self.assertNotIn('ShaderOverrideSMSMOutput', ini)
             self.assertIn('hunting=0', ini)
             # Tone only selection must leave the dither shaders out.
-            self.assertNotIn(f'{FIXES}/{OUTPUT}-ps_replace.bin', m.selected_files(manifest, ['tone']))
+            self.assertNotIn(f'{FIXES}/{VIGNETTE}-ps_replace.bin', m.selected_files(manifest, ['tone']))
             game = root/'game'; game.mkdir()
             before = m.desired_package(baseline, old, old_receipt, ['tone'], 'daily')
             after = m.desired_package(candidate, manifest, receipt, ['tone', 'dithering'], 'daily')

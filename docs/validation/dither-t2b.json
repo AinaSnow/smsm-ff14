@@ -1,0 +1,35 @@
+{
+  "status": "pass",
+  "source": "synthetic HDR ramps and constants; not game captures",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "off_identical_to_a_default": {
+    "modes": 4,
+    "label_states": 2
+  },
+  "tone_a": {
+    "equals_r10_output_dither_exactly": true,
+    "max_abs_noise": 0.003921583294868469,
+    "mid_tone_mean_bias": 3.6717713669531804e-07,
+    "column_mean_error_8bit_off": 0.2419900745153427,
+    "column_mean_error_8bit_on": 0.09443320333957672
+  },
+  "indicator": {
+    "bounds": [
+      40,
+      28,
+      50,
+      42
+    ],
+    "only_when_label_and_dither_on": true
+  },
+  "vignette": {
+    "off_equals_game": true,
+    "on_equals_r10_exactly": true,
+    "max_alpha_noise": 0.007812514901161194
+  },
+  "official_1_3_16_runtime": {
+    "startup": "A, label hidden, dither on",
+    "tone_max_error_vs_warp": 2.384185791015625e-06
+  }
+}
