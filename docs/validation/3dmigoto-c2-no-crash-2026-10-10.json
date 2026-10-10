@@ -1,0 +1,18 @@
+{
+  "recorded_at_utc": "2026-10-10T12:33:13.043824+00:00",
+  "source": "user feedback in chat",
+  "user_statement": "不会崩溃",
+  "scenario": "post-launch compatibility feedback",
+  "human_observed_outcome": "no crash reported",
+  "package_sha256": "850f6ea5017ad97a8f3a435af8cb8dedc989b9522562e3b3c094272959e99c27",
+  "effects": [
+    "tone"
+  ],
+  "disk_integrity": "verified",
+  "actual_loaded_modules_verified": false,
+  "individual_ui_actions_confirmed": false,
+  "visual_tone_confirmed": false,
+  "teleport_confirmed": false,
+  "shader_reload_confirmed": false,
+  "global_runtime_verified": false
+}
