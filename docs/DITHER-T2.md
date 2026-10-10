@@ -1,7 +1,7 @@
 # T2：去色带抖动对比
 
 2026-10-11。候选包 `artifacts/r11-dither-t2`（`tools/build_dither_t2.py`），基于已部署的色调 A 默认版，
-加入 r10 已移植、当前管线实际执行的两个抖动 shader。**已构建并离线验证，尚未部署。**
+加入 r10 已移植、当前管线实际执行的两个抖动 shader。**已部署，下次启动生效：色调 A + 抖动开。**
 
 | shader | 作用 |
 |---|---|
@@ -38,6 +38,14 @@
 - `test_dither_t2.py`：相对 A 默认版只新增两组 shader 文件并改 INI；仅选色调时不安装抖动 shader；A → T2 → A 精确回退。
 
 **已知：** r10 的暗角抖动在暗角强度为 0 时仍会给约一半像素加最多 1/128 的暗角颜色（平均约 0.2%）。属于 r10 原行为，未修改。
+
+## 安装与回退
+
+2026-10-11 00:44（上海时间）游戏退出状态由 A 默认版切换（`--profile daily` = 色调 + 抖动）。
+清单 SHA-256：`696d9478733955b70a1df36f1893573cf7218a8537a985ffd5bac56d00ba15fc`；`IsDisableViewport=true` 保持。
+记录：`artifacts/return-deployment/t2-install.json`。回到 A 默认版的备份：
+`artifacts/install-backups/20261010T164402Z-700f138698c747289e98d07404b71994`（退出游戏后 `manage_preview.py rollback`）。
+只想临时关抖动按 Ctrl＋F6。
 
 ## 实景对照（待做）
 
