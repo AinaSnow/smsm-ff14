@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-10",
+  "source": "user-provided screenshots",
+  "candidate": "r11-tone-highlights-h2",
+  "frames": [
+    {
+      "mode": "R10",
+      "file": "ffxiv_20261010_212533_138.png",
+      "sha256": "a1fcb5daea06c5305d1190179b66e7092051298539d8e021f21ff50e90c2b358"
+    },
+    {
+      "mode": "H1",
+      "file": "ffxiv_20261010_212537_765.png",
+      "sha256": "15c09953212f4174a8c76b79b57a19a6c59916c17c2031467342e2b2335005bf"
+    }
+  ],
+  "comparison_modes_observed_in_game": true,
+  "target_shader_labels_visible": true,
+  "visual_observations": [
+    "H1 hair highlight contrast appears reduced; bright strands are less distinct",
+    "H1 blue lamp has a weaker luminous core",
+    "No clear scene-quality gain demonstrated in this pair"
+  ],
+  "limitations": [
+    "Character pose, rain and animated light may differ between frames; no strict per-pixel attribution",
+    "Visible changes demonstrate effect activity, not stability or teleport acceptance"
+  ],
+  "assessment": "highlight compression too strong in this sample; do not promote H1 to default",
+  "assessment_author": "assistant visual review; user preference not yet stated",
+  "game_settings_changed": false,
+  "visual_improvement_verified": false
+}
