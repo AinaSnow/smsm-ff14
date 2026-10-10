@@ -1,7 +1,7 @@
 # T2：去色带抖动对比
 
 2026-10-11。当前候选 **T2b**：`artifacts/r11-dither-t2b`（`tools/build_dither_t2.py`），基于色调 A 默认版。
-**已构建并离线验证，尚未部署。**
+**已部署，下次启动生效：色调 A + 抖动开。**
 
 ## 想解决的问题
 
@@ -44,6 +44,16 @@
 
 **已知：** r10 的暗角抖动在暗角强度为 0 时仍给约一半像素加最多 1/128 的暗角颜色（平均约 0.2%），未修改。
 色调输出之后若还有更低精度的中间格式，±1/255 的噪点可能被部分吞掉，需要实景确认。
+
+## 安装与回退
+
+2026-10-11 01:21（上海时间）游戏退出状态由诊断版切换。清单 SHA-256：
+`b6cbe48cc1ccf0fb9e045889ce03a47fd973908504e3e657578e28b586f2b0b4`；`23d2…` 文件与 INI 阶段标记已从游戏目录移除；
+`IsDisableViewport=true` 保持。记录：`artifacts/return-deployment/t2b-install.json`。
+
+回到 A 默认版（无抖动）：退出游戏后
+`python tools/manage_preview.py install --client-root '<客户端根目录>' --package artifacts/r11-tone-a-default --profile daily`。
+临时关闭抖动按 Ctrl＋F6。
 
 ## 实景对照（待做）
 
