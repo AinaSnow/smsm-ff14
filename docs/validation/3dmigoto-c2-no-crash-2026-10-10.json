@@ -20,5 +20,11 @@
     "user_statement": "我看似乎没问题",
     "assessment": "tentative visual appearance normal",
     "comparison_performed": false
+  },
+  "ui_followup": {
+    "recorded_at_utc": "2026-10-10T12:48:13.380460+00:00",
+    "user_statement": "只操作过 Dalamud 窗口，尚未切图",
+    "window_operations_normal": true,
+    "teleport_confirmed": false
   }
 }

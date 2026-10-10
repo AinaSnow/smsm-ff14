@@ -1,4 +1,4 @@
-"""Package the local, explicitly unverified compatibility candidate without user data."""
+"""Package supported unverified compatibility or tone candidates without user data."""
 import argparse
 from pathlib import Path
 import zipfile
@@ -8,8 +8,12 @@ from manage_preview import ROOT, RECEIPT, digest, encoded, read_package
 def package_preview(package, output):
     manifest, receipt = read_package(package)
     candidate = manifest.get('compatibility_candidate', {})
-    if candidate.get('id') != 'r11-compat-c2' or candidate.get('game_verified') is not False:
-        raise ValueError('Expected the explicitly unverified c2 candidate')
+    identifier = candidate.get('id')
+    if identifier not in {'r11-compat-c2', 'r11-tone-highlights-h1'} or candidate.get('game_verified') is not False:
+        raise ValueError('Expected a supported explicitly unverified candidate')
+    highlights = identifier == 'r11-tone-highlights-h1'
+    if highlights and manifest.get('tone_experiment', {}).get('visual_improvement_verified') is not False:
+        raise ValueError('Highlight experiment must retain its unverified status')
     if manifest['profiles'][manifest['default_profile']] != []:
         raise ValueError('Compatibility package must default to zero replacements')
     entries = {'package/'+n: (package/n).read_bytes() for n in manifest['files']}
@@ -18,7 +22,9 @@ def package_preview(package, output):
         entries['tools/'+name] = (ROOT/'tools'/name).read_bytes()
     for name in ('MANAGEMENT.md', '3DMIGOTO-COMPATIBILITY.md', 'PLAN-3DMIGOTO-RETURN-2026-10-10.md'):
         entries['docs/'+name] = (ROOT/'docs'/name).read_bytes()
-    entries['README.md'] = (ROOT/'README.md').read_bytes()
+    if highlights:
+        entries['docs/TONE-HIGHLIGHTS-H1.md'] = (ROOT/'docs/TONE-HIGHLIGHTS-H1.md').read_bytes()
+    entries['README.md'] = (ROOT/('docs/TONE-HIGHLIGHTS-H1.md' if highlights else 'README.md')).read_bytes()
     checksums = {n: digest(v) for n, v in entries.items()}
     entries['SHA256SUMS.json'] = encoded(checksums)
     output.parent.mkdir(parents=True, exist_ok=True)

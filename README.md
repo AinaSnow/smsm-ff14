@@ -15,7 +15,7 @@
 独立复现发现 1.3.11 和 1.3.16 都会在额外窗口的 DirectComposition
 `SetContent` 路径崩溃，升级本身没有解决该问题。
 用户已接受暂时将 Dalamud 窗口留在游戏内。当前客户端已安装此候选并开启色调；
-用户已反馈本轮不会崩溃、色调初步看起来正常；具体 UI 操作、切图、开关和重载仍待确认，不是稳定版发布。
+用户已反馈本轮不会崩溃、色调初步看起来正常；Dalamud 窗口操作正常，切图及其他分项仍待确认，不是稳定版发布。
 
 候选包默认 `vanilla`（零替换），只提供 `daily`（色调）作为另一预设。
 其他历史效果没有加入此候选。Hunting、导出、持续详细日志均关闭。
@@ -44,3 +44,5 @@ DLL 切换必须退出游戏；当前候选的 F9/F10 行为尚未实测。
 源自 [Silent's Messy Shader Mod](https://github.com/s-ilent/smsm-ff14)。
 项目适用部分遵循 [MIT](LICENSE)；3DMigoto 遵循 [GPLv3](COPYING)，
 对应源码见 [官方 1.3.16 标签](https://github.com/bo3b/3Dmigoto/tree/1.3.16)。
+
+高光方向已准备[独立 H1 离线候选](docs/TONE-HIGHLIGHTS-H1.md)，默认关闭且未安装，实景收益待确认。
