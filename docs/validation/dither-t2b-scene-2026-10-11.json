@@ -1,0 +1,27 @@
+{
+ "date": "2026-10-11",
+ "scene": "dusk sky over wooden bridge, DLSS",
+ "files": {
+  "on": "ffxiv_20261011_012828_202.png",
+  "off": "ffxiv_20261011_012848_570.png"
+ },
+ "indicator": "user confirmed A D shown; on-shot has white D (28 px), off-shot none",
+ "sky_region_px": [
+  1150,
+  80,
+  1850,
+  560
+ ],
+ "mean_vertical_same_level_run_px": {
+  "off": 5.87,
+  "on": 1.27
+ },
+ "sky_highpass_std_levels": {
+  "off": 3.72,
+  "on": 3.89
+ },
+ "visual": "x20 contrast stretch of smooth sky: off shows contour bands, on shows a smooth gradient; at normal contrast the noise is not visible",
+ "caveat": "camera/clouds moved slightly between shots; not a pixel-aligned pair",
+ "conclusion": "dither reaches the display and removes sky banding",
+ "user_note": "hair edges look blurry from this angle (both on and off; unrelated to per-pixel tone/dither)"
+}
