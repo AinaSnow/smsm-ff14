@@ -1,0 +1,70 @@
+{
+  "status": "pass",
+  "source": "synthetic Gaussian-softened (sigma 1.2) inputs; not game captures",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "off_identical_to_t2b": true,
+  "levels": {
+    "mode0": {
+      "off": {
+        "edge_width_px": 3.0517787162765337,
+        "strand_contrast": 0.27300357818603516,
+        "texture_std": 0.01575220748782158
+      },
+      "medium": {
+        "edge_width_px": 2.1734642859683007,
+        "edge_halo_pct": 4.202549457550049,
+        "strand_contrast": 0.3290436565876007,
+        "texture_std": 0.02129383198916912,
+        "highlight_max": 5.224697113037109,
+        "highlight_max_off": 4.58614444732666
+      },
+      "strong": {
+        "edge_width_px": 1.5638400259397294,
+        "edge_halo_pct": 12.615984916687012,
+        "strand_contrast": 0.39392873644828796,
+        "texture_std": 0.026527727022767067,
+        "highlight_max": 5.925398349761963,
+        "highlight_max_off": 4.58614444732666
+      }
+    },
+    "mode1": {
+      "off": {
+        "edge_width_px": 3.094916376714144,
+        "strand_contrast": 0.320830374956131,
+        "texture_std": 0.01793254166841507
+      },
+      "medium": {
+        "edge_width_px": 2.0887105968241357,
+        "edge_halo_pct": 5.277740955352783,
+        "strand_contrast": 0.38196510076522827,
+        "texture_std": 0.024243222549557686,
+        "highlight_max": 1.1742205619812012,
+        "highlight_max_off": 1.172289252281189
+      },
+      "strong": {
+        "edge_width_px": 1.5395525089199786,
+        "edge_halo_pct": 12.445466995239258,
+        "strand_contrast": 0.45357853174209595,
+        "texture_std": 0.03020308166742325,
+        "highlight_max": 1.1756818294525146,
+        "highlight_max_off": 1.172289252281189
+      }
+    }
+  },
+  "flat_image_max_change": 0.0,
+  "indicator": {
+    "bounds": [
+      52,
+      28,
+      62,
+      42
+    ],
+    "medium": "light blue",
+    "strong": "orange"
+  },
+  "official_1_3_16_runtime": {
+    "startup": "A, dither on, sharpening medium, labels hidden",
+    "max_error_vs_warp": 4.231929779052734e-06
+  }
+}
