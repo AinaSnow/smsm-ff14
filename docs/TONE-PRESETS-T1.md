@@ -86,7 +86,12 @@ T1 实际加载，Ctrl＋F8 四种模式均可切换。记录：`docs/validation
 2026-10-10 23:49（上海时间）游戏退出状态由 T1 切换。清单 SHA-256：
 `e0804b681fcd63abc6f8b0792c5e6548478bd5f15e1f3dcf60329ec716322617`；`IsDisableViewport=true` 保持。
 回到 T1 的备份：`artifacts/install-backups/20261010T154913Z-edbc829d5de44feb862dc0d0216077ae`。
-记录：`artifacts/return-deployment/a-default-install.json`。待实机确认：启动即 A、Ctrl＋F8 首按切到 R10。
+记录：`artifacts/return-deployment/a-default-install.json`。2026-10-11 用户实机确认：Ctrl＋F7 标签、Ctrl＋F8 切换 A / R10 均有效；反馈“A 比 R10 亮一些”（与截图平均亮度略高一致）。
+切图（R1 收尾）尚未单独确认。
+
+本地发布包：`artifacts/releases/smsm-r11-tone-a-default.zip`，
+SHA-256 `8311f5e30b0a0c03dd8f700d35e55990e7f3821133aa93109c78b40494ea1973`（未推送、未建 GitHub Release）。
+ZIP 安装默认零替换，需 `--profile daily` 才启用色调 A。
 
 ## 原待办
 
