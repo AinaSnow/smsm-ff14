@@ -1,7 +1,7 @@
 # T1：色调曲线预设对比
 
 2026-10-10。候选包 `artifacts/r11-tone-presets-t1`，基于 c2，只改 tone shader
-（`72a656dfd52149ad`）和 INI 按键。**已构建并离线验证，尚未部署。**
+（`72a656dfd52149ad`）和 INI 按键。**已部署，下次启动生效，默认 R10。**
 
 Ctrl＋F8 循环 R10 → A → B → C，Ctrl＋F7 隐藏左上角标签；启动默认 R10。
 
@@ -46,6 +46,21 @@ python tools/test_tone_presets.py -v
 ```
 
 输出目录必须不存在。
+
+## 安装与回退
+
+2026-10-10 22:58（上海时间）在游戏退出状态由管理器从 H3 切换到 T1（`--profile daily`）。
+清单 SHA-256：`b1a3b5d067f37f03216c31525f41fc1c5af82e5b2645d8749c99b76fb125cd51`；
+Dalamud `IsDisableViewport=true` 已确认保持。安装记录：`artifacts/return-deployment/t1-install.json`。
+
+退出游戏后回到 H3：
+
+```powershell
+python tools/manage_preview.py rollback --client-root '<客户端目录>' --backup '<备份绝对路径>'
+```
+
+备份目录为 `artifacts/install-backups/20261010T145824Z-94f938b34508443ebd2aca5db61dfca0`。
+只想看 R10 时，按 Ctrl＋F8 循环回蓝色 R10 即可。
 
 ## 实景对照（待做）
 
