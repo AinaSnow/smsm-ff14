@@ -16,6 +16,8 @@
 
 **当前已部署 A 默认版**（[T1](docs/TONE-PRESETS-T1.md) 三场景对比后用户选定 A）：启动即 A（100% SMSM 曲线、保持色相），Ctrl＋F8 切换 A / R10，Ctrl＋F7 显示标签。取代上面的 H3；H1–H3 高光衰减已停止。
 
+下一项 [T2 去色带抖动](docs/DITHER-T2.md)：候选已构建并离线验证（Ctrl＋F6 开关），待部署对照。
+
 ## c2 基线记录
 
 `r11-compat-c2` 使用官方 3DMigoto 1.3.16，复用 r10 色调二进制。

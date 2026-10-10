@@ -1,0 +1,35 @@
+{
+  "status": "pass",
+  "source": "synthetic ramps and constants; not game captures",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "output_copy": {
+    "off_equals_game_copy": true,
+    "on_equals_r10_exactly": true,
+    "unarmed_copies_unchanged": true,
+    "max_abs_noise": 0.003921598196029663,
+    "mid_tone_mean_bias": 1.6449801023554755e-06,
+    "column_mean_error_8bit_off": 0.2502182424068451,
+    "column_mean_error_8bit_on": 0.08280553668737411
+  },
+  "indicator": {
+    "bounds": [
+      40,
+      28,
+      50,
+      42
+    ],
+    "only_when_label_and_dither_on": true
+  },
+  "vignette": {
+    "off_vs_game_max_error": 0.0,
+    "on_equals_r10_exactly": true,
+    "max_alpha_noise": 0.007812514901161194,
+    "note": "with zero vignette strength the r10 dither still adds up to 1/128 alpha of the vignette colour"
+  },
+  "official_1_3_16_runtime": {
+    "copy_without_tone_stage_plain": true,
+    "vignette_startup_dither_on": true,
+    "note": "separate child processes; stage marker arming needs the real frame and is not exercised here"
+  }
+}
