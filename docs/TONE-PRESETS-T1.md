@@ -75,7 +75,18 @@ T1 实际加载，Ctrl＋F8 四种模式均可切换。记录：`docs/validation
 | C | 0.36% / 0.87% | 裁切同 A，但灯芯和亮玻璃泛白、天空偏灰 |
 
 近景场景镜头和表情有变化，肤色只作定性参考，四种模式差别不大。
-初步建议 A；等待用户确认。
+初步建议 A；**用户选定 A。**
+
+## A 默认版（已部署）
+
+`artifacts/r11-tone-a-default`（`build_tone_presets.py --default-a`）：shader 与 T1 逐字节相同，只改 INI——
+启动 A、标签隐藏，Ctrl＋F8 在 A / R10 间切换，Ctrl＋F7 显示标签。官方 1.3.16 按原包启动输出与 WARP 的 A 一致
+（`docs/validation/tone-a-default.json`）。
+
+2026-10-10 23:49（上海时间）游戏退出状态由 T1 切换。清单 SHA-256：
+`e0804b681fcd63abc6f8b0792c5e6548478bd5f15e1f3dcf60329ec716322617`；`IsDisableViewport=true` 保持。
+回到 T1 的备份：`artifacts/install-backups/20261010T154913Z-edbc829d5de44feb862dc0d0216077ae`。
+记录：`artifacts/return-deployment/a-default-install.json`。待实机确认：启动即 A、Ctrl＋F8 首按切到 R10。
 
 ## 原待办
 

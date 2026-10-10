@@ -37,7 +37,7 @@ c2 配置规避（Dalamud `IsDisableViewport=true` + 3DMigoto 1.3.16）已实际
 
 ### T1 色调曲线预设（当前）
 
-候选包 `r11-tone-presets-t1`（`tools/build_tone_presets.py`，记录见 [TONE-PRESETS-T1](TONE-PRESETS-T1.md)；已离线验证并部署，待实景选择），基于 c2，只改 tone shader 和 INI 按键。Ctrl+F8 循环四种模式，
+候选包 `r11-tone-presets-t1`（`tools/build_tone_presets.py`，记录见 [TONE-PRESETS-T1](TONE-PRESETS-T1.md)；用户已选定 A，A 默认版已部署），基于 c2，只改 tone shader 和 INI 按键。Ctrl+F8 循环四种模式，
 左上角标签显示当前模式（Ctrl+F7 隐藏）：
 
 | 标签 | 内容 | 要验证的假设 |
