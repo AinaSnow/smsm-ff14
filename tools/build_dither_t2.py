@@ -43,6 +43,15 @@ EDITS = {
     ],
 }
 
+# Diagnostic indicator: drawn on every copy while labels are shown; colour reports the state.
+# white = armed + dither on, yellow = armed + dither off, red = copy ran without the tone marker.
+DIAGNOSTIC_INDICATOR = (
+    '    if (smsmFinal && smsmControls.y > 0.5 && smsmControls.z > 0.5 &&\n',
+    '    if (smsmControls.y > 0.5 &&\n')
+DIAGNOSTIC_COLOUR = (
+    'value.rgb = float3(0.95, 0.95, 0.95);',
+    'value.rgb = !smsmFinal ? float3(1, 0.1, 0.1) : smsmControls.z > 0.5 ? float3(0.95, 0.95, 0.95) : float3(1, 0.85, 0.1);')
+
 INI_REPLACE = ('[Constants]\nx7 = 1\ny7 = 0\n',
                '[Constants]\nx7 = 1\ny7 = 0\nz7 = 1\nx = 0\n')
 INI_APPEND = b'''
@@ -70,7 +79,7 @@ def fnv(data):
     return f'{value:016x}'
 
 
-def build(baseline, output, r10=ROOT/R10, extraction=EXTRACTION):
+def build(baseline, output, r10=ROOT/R10, extraction=EXTRACTION, diagnostic=False):
     original, receipt = read_package(baseline)
     if digest(receipt) != A_DEFAULT:
         raise ValueError('Expected the deployed tone A default package')
@@ -88,6 +97,11 @@ def build(baseline, output, r10=ROOT/R10, extraction=EXTRACTION):
             if source.count(old) != 1:
                 raise ValueError(f'{hash_value}: edit anchor changed')
             source = source.replace(old, new)
+        if diagnostic and hash_value == OUTPUT:
+            for old, new in (DIAGNOSTIC_INDICATOR, DIAGNOSTIC_COLOUR):
+                if source.count(old) != 1:
+                    raise ValueError('Diagnostic anchor changed')
+                source = source.replace(old, new)
         files[f'{FIXES}/{hash_value}-ps_replace.txt'] = source.encode()
     output.mkdir(parents=True, exist_ok=False)
     for name, data in files.items():
@@ -130,6 +144,10 @@ def build(baseline, output, r10=ROOT/R10, extraction=EXTRACTION):
         'stage_marker': 'IniParams t120[0].x armed by 72a656dfd52149ad, consumed by 23d27700572e0c4d, reset at Present',
         'excluded': {'12dd4d7295446a19': 'not executed in the 2026.09.15 capture'},
         'game_verified': False, 'visual_improvement_verified': False}
+    if diagnostic:
+        manifest['compatibility_candidate']['id'] = 'r11-dither-t2-diagnostic'
+        manifest['dither_experiment']['diagnostic_indicator'] = (
+            'D drawn on every output copy while labels are shown: white armed+on, yellow armed+off, red unarmed')
     (output/RECEIPT).write_bytes(encoded(manifest))
     read_package(output)
     return manifest
@@ -139,6 +157,7 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('baseline', type=Path)
     p.add_argument('output', type=Path)
+    p.add_argument('--diagnostic', action='store_true', help='colour-coded D on every copy (white/yellow/red)')
     a = p.parse_args()
-    build(a.baseline, a.output)
+    build(a.baseline, a.output, diagnostic=a.diagnostic)
     print(f'Prepared {a.output}; tone A + dithering on, Ctrl+F6 toggles dithering')
