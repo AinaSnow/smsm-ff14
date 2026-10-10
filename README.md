@@ -16,7 +16,9 @@
 
 **当前已部署 A 默认版**（[T1](docs/TONE-PRESETS-T1.md) 三场景对比后用户选定 A）：启动即 A（100% SMSM 曲线、保持色相），Ctrl＋F8 切换 A / R10，Ctrl＋F7 显示标签。取代上面的 H3；H1–H3 高光衰减已停止。
 
-**[T2 去色带抖动](docs/DITHER-T2.md)**：r10 的输出拷贝抖动在 DLSS/FSR 下不到达屏幕，改为放进色调 shader（T2b，Ctrl＋F6），已部署，待实景对照。R1 兼容验收已关闭（切图正常）。
+[T2 去色带抖动](docs/DITHER-T2.md) 完成：抖动放在色调 shader 内，默认开（Ctrl＋F6）。
+
+**当前已部署 [S1 锐化](docs/SHARPEN-S1.md) 对照版**：色调 A + 抖动 + 锐化中，Ctrl＋F4 循环 关/中/强，待实景对照。R1 兼容验收已关闭（切图正常）。
 
 ## c2 基线记录
 

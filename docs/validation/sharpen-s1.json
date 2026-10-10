@@ -1,0 +1,41 @@
+{
+  "status": "pass",
+  "source": "synthetic inputs; not game captures",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "off_identical_to_t2b": true,
+  "edges": {
+    "mean_abs_horizontal_gradient": {
+      "mode0": {
+        "off": 0.04237644001841545,
+        "0.5": 0.04388190060853958,
+        "max_overshoot_0.5": 9.5367431640625e-07,
+        "1.0": 0.04445035755634308,
+        "max_overshoot_1.0": 9.5367431640625e-07
+      },
+      "mode1": {
+        "off": 0.04412283003330231,
+        "0.5": 0.04592491686344147,
+        "max_overshoot_0.5": 1.4901161193847656e-07,
+        "1.0": 0.046606626361608505,
+        "max_overshoot_1.0": 1.4901161193847656e-07
+      }
+    },
+    "flat_image_max_change": 8.940696716308594e-08,
+    "halo_check": "output within tone-mapped min/max of the 5-tap input cross"
+  },
+  "indicator": {
+    "bounds": [
+      52,
+      28,
+      62,
+      42
+    ],
+    "medium": "light blue",
+    "strong": "orange"
+  },
+  "official_1_3_16_runtime": {
+    "startup": "A, dither on, sharpening 0.5, labels hidden",
+    "max_error_vs_warp": 1.3709068298339844e-06
+  }
+}
