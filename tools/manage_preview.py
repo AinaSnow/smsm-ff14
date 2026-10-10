@@ -183,7 +183,8 @@ def desired_package(package, manifest, receipt, effects, label):
     data[RECEIPT] = receipt
     data[STATE] = encoded({"schema_version": 1, "package_path": str(package.resolve()),
                            "package_sha256": digest(receipt), "effects": sorted(effects), "selection": label,
-                           "files": files, "application": "pending-restart-or-F10",
+                           "files": files, "application": ("pending-restart" if manifest.get("reload", {}).get("method") ==
+                               "stopped-client-selection-until-live-verified" else "pending-restart-or-F10"),
                            "runtime_verified": False})
     return data
 
@@ -372,6 +373,8 @@ def main():
             package = args.package
         manifest, receipt = read_package(package)
         check_build(game, manifest)
+        if args.live and manifest.get("reload", {}).get("method") == "stopped-client-selection-until-live-verified":
+            raise ValueError("This candidate requires stopped-client selection; shader reload has not been verified")
         if (args.action == "select" and digest(receipt) != state["package_sha256"] and
                 (args.package is None or package.resolve() == Path(state["package_path"]).resolve())):
             raise ValueError("Immutable package was modified; install an explicitly reviewed new package")
