@@ -1,0 +1,45 @@
+{
+ "date": "2026-10-11",
+ "anti_aliasing": "DLAA",
+ "sets": [
+  {
+   "order": [
+    "medium",
+    "strong",
+    "off"
+   ],
+   "files": [
+    "ffxiv_20261011_014548_837.png",
+    "ffxiv_20261011_014555_803.png",
+    "ffxiv_20261011_014557_952.png"
+   ],
+   "scene": "full body"
+  },
+  {
+   "order": [
+    "medium",
+    "strong",
+    "off"
+   ],
+   "files": [
+    "ffxiv_20261011_014637_821.png",
+    "ffxiv_20261011_014639_671.png",
+    "ffxiv_20261011_014641_437.png"
+   ],
+   "scene": "face close-up, rock wall behind"
+  }
+ ],
+ "indicator": "S light blue / orange / absent detected as expected; switching works",
+ "static_rock_laplacian_energy": {
+  "off": 32.66,
+  "medium": 39.67,
+  "strong": 43.09
+ },
+ "static_rock_mean_abs_change_levels": {
+  "medium": 2.11,
+  "strong": 3.0
+ },
+ "character": "head/idle animation moved between shots; not comparable pixel-wise",
+ "user_feedback": "cannot see a difference between off/medium/strong",
+ "conclusion": "works (+21%/+32% detail energy on static texture) but below visible threshold; 1-px CAS radius too small for 2-3 px soft edges after DLAA"
+}
