@@ -1,3 +1,5 @@
+> **已归档（2026-10-10）**：以下为历史记录，不继续执行其中的下一步。当前以 [回归 3DMigoto 计划](PLAN-3DMIGOTO-RETURN-2026-10-10.md) 为准。完整灯光支线见 `archive/reshade-native-lighting-2026-10-10`。
+
 # 原生场景光照改进与 ReShade 插件验证计划
 
 日期：2026-10-08。状态：开发计划，尚未实施 ReShade 迁移。
