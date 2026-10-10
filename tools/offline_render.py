@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import numpy as np
 from manage_preview import ROOT
 
@@ -48,7 +49,7 @@ def unpack_r11(words):
 
 
 def render(shader, output, width, height, textures=None, constants=None, structured=None,
-           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f",cubes=None):
+           targets=1, animation=None, viewport=None, vertex=None, draws=1, blend="overwrite",target_format="rgba32f",cubes=None,textures1d=None,runtime_package=None):
     """Inputs and every raw float32 output remain on disk for replay/diff.
 
     animation is (constant slot, frames x vectors x float4); updated on the SAME
@@ -64,14 +65,33 @@ def render(shader, output, width, height, textures=None, constants=None, structu
     if target_format not in ("rgba32f","r11g11b10","rgba16f"): raise ValueError("Invalid target format")
     if set(textures or {})&set(cubes or {}) or (set(textures or {})|set(cubes or {}))&set(structured or {}):
         raise ValueError("Resource slots overlap")
+    if set(textures1d or {}) & (set(textures or {})|set(cubes or {})|set(structured or {})):
+        raise ValueError("Resource slots overlap")
     output.mkdir(parents=True, exist_ok=False)
     quote = lambda p: json.dumps(str(Path(p).resolve()).replace("\\", "/"), ensure_ascii=False)
     lines = [f"size {width} {height} {targets}", "shader " + quote(shader), "output " + quote(output / "pixels")]
+    executable = build_renderer()
+    if runtime_package is not None:
+        # Explicit isolated runtime test, never the default WARP path or live game.
+        from manage_preview import read_package
+        read_package(runtime_package)
+        host = output/'runtime-host'; host.mkdir()
+        shutil.copyfile(executable,host/executable.name)
+        executable = host/executable.name
+        for name in ('d3d11.dll','nvapi64.dll','d3dcompiler_46.dll','d3dx.ini'):
+            shutil.copyfile(runtime_package/name,host/name)
+        lines.append('runtime '+quote(host/'d3d11.dll'))
     lines.extend([f"draws {draws}", f"blend {blend}",f"format {target_format}"])
     if vertex:
         lines.append("vertex " + quote(vertex))
     if viewport:
         lines.append("viewport " + " ".join(map(str, viewport)))
+    for slot, array in (textures1d or {}).items():
+        array = np.ascontiguousarray(array, dtype='<f4')
+        if array.ndim != 2 or array.shape[1] != 4:
+            raise ValueError('1D textures must be width x RGBA')
+        path = output/f't{slot}-1d.f32'; array.tofile(path)
+        lines.append(f'texture1d {slot} {len(array)} '+quote(path))
     for slot, array in (textures or {}).items():
         array = np.ascontiguousarray(array, dtype="<f4")
         if array.ndim != 3 or array.shape[2] != 4:
@@ -100,7 +120,8 @@ def render(shader, output, width, height, textures=None, constants=None, structu
         path = output / f"animation-b{slot}.f32"; array.tofile(path)
         lines.extend([f"frames {frames}", f"animation {slot} " + quote(path)])
     job = output / "job.txt"; job.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    result = subprocess.run([str(build_renderer()), str(job.resolve())], capture_output=True, text=True, timeout=120)
+    result = subprocess.run([str(executable), str(job.resolve())], cwd=executable.parent,
+                            capture_output=True, text=True, timeout=30 if runtime_package else 120)
     (output / "render.log").write_text(result.stdout + result.stderr, encoding="utf-8")
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)

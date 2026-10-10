@@ -1,0 +1,27 @@
+{
+  "status": "pass",
+  "off_equals_r10_exactly": true,
+  "on_equals_h1_exactly": true,
+  "return_to_off_exact": true,
+  "label_bounds": [
+    24,
+    24,
+    72,
+    46
+  ],
+  "label_alpha_unchanged": true,
+  "control_resource": "Texture1D float4 t120[7].xy",
+  "note": "Separate WARP draws verify shader states; actual game keyboard input remains unverified",
+  "game_keyboard_verified": false,
+  "official_1_3_16_runtime_startup_checks": [
+    {
+      "initial_x7": 0,
+      "max_error_vs_warp": 4.76837158203125e-07
+    },
+    {
+      "initial_x7": 1,
+      "max_error_vs_warp": 1.7881393432617188e-07
+    }
+  ],
+  "runtime_note": "Separate child processes verify real IniParams initialization; no key presses synthesized"
+}

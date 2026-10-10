@@ -27,13 +27,14 @@ struct Input { std::string kind, path; unsigned slot=0, width=0, height=0, strid
 int wmain(int argc, wchar_t** argv) try {
     if (argc != 2) throw std::runtime_error("Usage: render_ps.exe <UTF-8 job.txt>");
     std::ifstream job{fs::path(argv[1])}; if (!job) throw std::runtime_error("Cannot open job");
-    unsigned width=0,height=0,targets=1,frames=1,draws=1; std::string shader,vertex,output,key,blend="overwrite",format="rgba32f";
+    unsigned width=0,height=0,targets=1,frames=1,draws=1; std::string shader,vertex,output,key,runtime,blend="overwrite",format="rgba32f";
     float vx=0,vy=0,vw=0,vh=0; std::vector<Input> inputs;
     while (job >> key) {
         if (key == "size") job >> width >> height >> targets;
         else if (key == "shader") job >> std::quoted(shader);
         else if (key == "vertex") job >> std::quoted(vertex);
         else if (key == "output") job >> std::quoted(output);
+        else if (key == "runtime") job >> std::quoted(runtime);
         else if (key == "viewport") job >> vx >> vy >> vw >> vh;
         else if (key == "frames") job >> frames;
         else if (key == "draws") job >> draws;
@@ -42,6 +43,7 @@ int wmain(int argc, wchar_t** argv) try {
         else {
             Input item; item.kind=key;
             if (key == "texture") job >> item.slot >> item.width >> item.height >> std::quoted(item.path);
+            else if (key == "texture1d") job >> item.slot >> item.width >> std::quoted(item.path);
             else if (key == "cube") { job >> item.slot >> item.width >> std::quoted(item.path); item.height=item.width; }
             else if (key == "structured") job >> item.slot >> item.stride >> std::quoted(item.path);
             else if (key == "constant" || key == "animation") job >> item.slot >> std::quoted(item.path);
@@ -60,12 +62,15 @@ int wmain(int argc, wchar_t** argv) try {
     if (!vw) { vw=float(width); vh=float(height); }
     if (vx<0 || vy<0 || vw<=0 || vh<=0 || vx+vw>width || vy+vh>height) throw std::runtime_error("Invalid viewport");
     wchar_t system[MAX_PATH]; GetSystemDirectoryW(system, MAX_PATH);
-    auto library = LoadLibraryExW((fs::path(system)/L"d3d11.dll").c_str(), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    auto library = runtime.empty() ? LoadLibraryExW((fs::path(system)/L"d3d11.dll").c_str(), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32)
+                                  : LoadLibraryW(fs::u8path(runtime).c_str());
     if (!library) throw std::runtime_error("Cannot load system D3D11");
     auto create = reinterpret_cast<decltype(&D3D11CreateDevice)>(GetProcAddress(library, "D3D11CreateDevice"));
     if (!create) throw std::runtime_error("Missing D3D11CreateDevice");
     ComPtr<ID3D11Device> device; ComPtr<ID3D11DeviceContext> context; D3D_FEATURE_LEVEL level;
-    check(create(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0, nullptr, 0, D3D11_SDK_VERSION, &device, &level, &context), "WARP device");
+    check(create(nullptr, runtime.empty()?D3D_DRIVER_TYPE_WARP:D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
+                 D3D11_SDK_VERSION, &device, &level, &context), "render device");
     auto psBytes=read(shader); ComPtr<ID3D11PixelShader> ps;
     check(device->CreatePixelShader(psBytes.data(), psBytes.size(), nullptr, &ps), "pixel shader");
     ComPtr<ID3DBlob> vsCode, errors; std::vector<char> vsBytes;
@@ -115,7 +120,14 @@ int wmain(int argc, wchar_t** argv) try {
         }
         if (input.slot>=128) throw std::runtime_error("Invalid SRV slot");
         ComPtr<ID3D11ShaderResourceView> view;
-        if (input.kind=="texture" || input.kind=="cube") {
+        if (input.kind=="texture1d") {
+            if (!input.width || input.width>4096 || bytes.size()!=size_t(input.width)*16) throw std::runtime_error("Invalid RGBA32F 1D texture size");
+            D3D11_TEXTURE1D_DESC td{}; td.Width=input.width; td.MipLevels=1; td.ArraySize=1;
+            td.Format=DXGI_FORMAT_R32G32B32A32_FLOAT; td.Usage=D3D11_USAGE_IMMUTABLE; td.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+            D3D11_SUBRESOURCE_DATA data{bytes.data(),0,0}; ComPtr<ID3D11Texture1D> tex;
+            check(device->CreateTexture1D(&td,&data,&tex),"input 1D texture");
+            check(device->CreateShaderResourceView(tex.Get(),nullptr,&view),"1D texture SRV"); resources.push_back(tex);
+        } else if (input.kind=="texture" || input.kind=="cube") {
             unsigned faces=input.kind=="cube"?6:1;
             if (!input.width || !input.height || input.width>4096 || input.height>4096 || bytes.size()!=size_t(input.width)*input.height*16*faces) throw std::runtime_error("Invalid RGBA32F texture size");
             D3D11_TEXTURE2D_DESC td{}; td.Width=input.width; td.Height=input.height; td.MipLevels=1; td.ArraySize=faces; td.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -161,6 +173,6 @@ int wmain(int argc, wchar_t** argv) try {
             context->Unmap(staging[i].Get(),0); if (!out) throw std::runtime_error("Readback write failed");
         }
     }
-    std::cout << "WARP Draw/CopyResource/Map complete: " << frames << " frames, " << draws << " draws/frame, blend=" << blend << ", " << targets << " MRTs, " << width << "x" << height << "\n";
+    std::cout << (runtime.empty()?"WARP":"Isolated runtime hardware") << " Draw/CopyResource/Map complete: " << frames << " frames, " << draws << " draws/frame, blend=" << blend << ", " << targets << " MRTs, " << width << "x" << height << "\n";
     return 0;
 } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

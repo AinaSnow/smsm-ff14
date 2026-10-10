@@ -8,13 +8,18 @@
 历史源码和未完成冷光校准位于 `archive/reshade-native-lighting-2026-10-10`，
 原工作区及忽略的配置、画面、GPU 数据、插件包和安装备份留在原位置。
 
-## 当前候选
+## 当前快捷对比版
+
+已按用户要求部署 [H2](docs/TONE-COMPARE-H2.md)：Ctrl＋F8 对比 r10 / H1，Ctrl＋F7 隐藏标签。
+启动默认 r10，游戏实际按键响应待确认；保留窗口在游戏内的兼容设置。
+
+## c2 基线记录
 
 `r11-compat-c2` 使用官方 3DMigoto 1.3.16，复用 r10 色调二进制。
 **必须关闭 Dalamud 的外部窗口功能（`IsDisableViewport=true`）。**
 独立复现发现 1.3.11 和 1.3.16 都会在额外窗口的 DirectComposition
 `SetContent` 路径崩溃，升级本身没有解决该问题。
-用户已接受暂时将 Dalamud 窗口留在游戏内。当前客户端已安装此候选并开启色调；
+用户已接受暂时将 Dalamud 窗口留在游戏内。此前客户端安装此候选并开启色调；
 用户已反馈本轮不会崩溃、色调初步看起来正常；Dalamud 窗口操作正常，切图及其他分项仍待确认，不是稳定版发布。
 
 候选包默认 `vanilla`（零替换），只提供 `daily`（色调）作为另一预设。
@@ -45,4 +50,4 @@ DLL 切换必须退出游戏；当前候选的 F9/F10 行为尚未实测。
 项目适用部分遵循 [MIT](LICENSE)；3DMigoto 遵循 [GPLv3](COPYING)，
 对应源码见 [官方 1.3.16 标签](https://github.com/bo3b/3Dmigoto/tree/1.3.16)。
 
-高光方向已准备[独立 H1 离线候选](docs/TONE-HIGHLIGHTS-H1.md)，默认关闭且未安装，实景收益待确认。
+H1 已纳入 H2 的独立开关，启动默认关闭，实景收益待确认。

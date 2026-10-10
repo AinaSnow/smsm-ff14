@@ -9,9 +9,10 @@ def package_preview(package, output):
     manifest, receipt = read_package(package)
     candidate = manifest.get('compatibility_candidate', {})
     identifier = candidate.get('id')
-    if identifier not in {'r11-compat-c2', 'r11-tone-highlights-h1'} or candidate.get('game_verified') is not False:
+    if identifier not in {'r11-compat-c2', 'r11-tone-highlights-h1', 'r11-tone-highlights-h2'} or candidate.get('game_verified') is not False:
         raise ValueError('Expected a supported explicitly unverified candidate')
-    highlights = identifier == 'r11-tone-highlights-h1'
+    highlights = identifier in {'r11-tone-highlights-h1', 'r11-tone-highlights-h2'}
+    highlight_doc = 'TONE-COMPARE-H2.md' if identifier == 'r11-tone-highlights-h2' else 'TONE-HIGHLIGHTS-H1.md'
     if highlights and manifest.get('tone_experiment', {}).get('visual_improvement_verified') is not False:
         raise ValueError('Highlight experiment must retain its unverified status')
     if manifest['profiles'][manifest['default_profile']] != []:
@@ -24,7 +25,8 @@ def package_preview(package, output):
         entries['docs/'+name] = (ROOT/'docs'/name).read_bytes()
     if highlights:
         entries['docs/TONE-HIGHLIGHTS-H1.md'] = (ROOT/'docs/TONE-HIGHLIGHTS-H1.md').read_bytes()
-    entries['README.md'] = (ROOT/('docs/TONE-HIGHLIGHTS-H1.md' if highlights else 'README.md')).read_bytes()
+        entries['docs/'+highlight_doc] = (ROOT/'docs'/highlight_doc).read_bytes()
+    entries['README.md'] = (ROOT/('docs/'+highlight_doc if highlights else 'README.md')).read_bytes()
     checksums = {n: digest(v) for n, v in entries.items()}
     entries['SHA256SUMS.json'] = encoded(checksums)
     output.parent.mkdir(parents=True, exist_ok=True)
