@@ -7,6 +7,28 @@ from build_tone_highlights import BINARY, SOURCE, build
 
 
 class HighlightPackageTests(unittest.TestCase):
+    def test_h3_preserves_installed_controls_and_exact_h2_rollback(self):
+        baseline = m.ROOT/'artifacts/r11-compat-c2'
+        h2 = m.ROOT/'artifacts/r11-tone-highlights-h2'
+        old, old_receipt = m.read_package(h2)
+        with tempfile.TemporaryDirectory(dir=m.ROOT/'artifacts', prefix='gentle-test-') as temp:
+            root=Path(temp); candidate=root/'candidate'
+            build(baseline,candidate,toggle=True,curve='gentle')
+            manifest,receipt=m.read_package(candidate)
+            self.assertEqual({n for n in manifest['files'] if manifest['files'][n]!=old['files'][n]},
+                             {SOURCE,BINARY})
+            self.assertEqual(manifest['default_profile'],'vanilla')
+            self.assertEqual(manifest['tone_experiment']['comparison']['states'],['r10-baseline','h3-highlights'])
+            self.assertFalse(manifest['tone_experiment']['visual_improvement_verified'])
+            game=root/'game'; game.mkdir()
+            before=m.desired_package(h2,old,old_receipt,['tone'],'daily')
+            after=m.desired_package(candidate,manifest,receipt,['tone'],'daily')
+            m.transition(game,{},before,root/'backups')
+            backup=m.transition(game,before,after,root/'backups')
+            m.transition(game,after,m.read_backup(backup,game),root/'backups')
+            self.assertEqual(m.snapshot(game)[0],before)
+            self.assertEqual(m.read_package(h2)[1],old_receipt)
+
     def test_toggle_package_adds_only_control_resource_and_ini(self):
         baseline = m.ROOT/'artifacts/r11-compat-c2'
         old, old_receipt = m.read_package(baseline)

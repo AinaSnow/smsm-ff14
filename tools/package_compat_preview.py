@@ -9,10 +9,11 @@ def package_preview(package, output):
     manifest, receipt = read_package(package)
     candidate = manifest.get('compatibility_candidate', {})
     identifier = candidate.get('id')
-    if identifier not in {'r11-compat-c2', 'r11-tone-highlights-h1', 'r11-tone-highlights-h2'} or candidate.get('game_verified') is not False:
+    if identifier not in {'r11-compat-c2', 'r11-tone-highlights-h1', 'r11-tone-highlights-h2', 'r11-tone-highlights-h3'} or candidate.get('game_verified') is not False:
         raise ValueError('Expected a supported explicitly unverified candidate')
-    highlights = identifier in {'r11-tone-highlights-h1', 'r11-tone-highlights-h2'}
-    highlight_doc = 'TONE-COMPARE-H2.md' if identifier == 'r11-tone-highlights-h2' else 'TONE-HIGHLIGHTS-H1.md'
+    highlights = identifier != 'r11-compat-c2'
+    highlight_doc = {'r11-tone-highlights-h2':'TONE-COMPARE-H2.md',
+                     'r11-tone-highlights-h3':'TONE-HIGHLIGHTS-H3.md'}.get(identifier,'TONE-HIGHLIGHTS-H1.md')
     if highlights and manifest.get('tone_experiment', {}).get('visual_improvement_verified') is not False:
         raise ValueError('Highlight experiment must retain its unverified status')
     if manifest['profiles'][manifest['default_profile']] != []:
@@ -24,8 +25,8 @@ def package_preview(package, output):
     for name in ('MANAGEMENT.md', '3DMIGOTO-COMPATIBILITY.md', 'PLAN-3DMIGOTO-RETURN-2026-10-10.md'):
         entries['docs/'+name] = (ROOT/'docs'/name).read_bytes()
     if highlights:
-        entries['docs/TONE-HIGHLIGHTS-H1.md'] = (ROOT/'docs/TONE-HIGHLIGHTS-H1.md').read_bytes()
-        entries['docs/'+highlight_doc] = (ROOT/'docs'/highlight_doc).read_bytes()
+        for name in {'TONE-HIGHLIGHTS-H1.md', 'TONE-COMPARE-H2.md', highlight_doc}:
+            entries['docs/'+name] = (ROOT/'docs'/name).read_bytes()
     entries['README.md'] = (ROOT/('docs/'+highlight_doc if highlights else 'README.md')).read_bytes()
     checksums = {n: digest(v) for n, v in entries.items()}
     entries['SHA256SUMS.json'] = encoded(checksums)

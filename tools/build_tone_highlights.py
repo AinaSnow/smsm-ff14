@@ -12,7 +12,9 @@ SOURCE = f'SMSM-ShaderFixes/{HASH}-ps_replace.txt'
 BINARY = f'SMSM-ShaderFixes/{HASH}-ps_replace.bin'
 
 
-def build(baseline, output, toggle=False):
+def build(baseline, output, toggle=False, curve='h1'):
+    if curve not in ('h1', 'gentle'):
+        raise ValueError('Unknown highlight curve')
     original, receipt = read_package(baseline)
     if digest(receipt) != BASELINE:
         raise ValueError('Expected unchanged c2 baseline')
@@ -21,11 +23,26 @@ def build(baseline, output, toggle=False):
     marker = '  #endif\n}\n\nvoid orig_dec'
     if source.count(marker) != 1:
         raise ValueError('Tone output boundary changed')
-    patch = (ROOT/'tools/patches/tone_highlights.hlsl').read_text(encoding='utf-8')
+    patch_name = 'tone_highlights_gentle.hlsl' if curve == 'gentle' else 'tone_highlights.hlsl'
+    patch = (ROOT/'tools/patches'/patch_name).read_text(encoding='utf-8')
     if toggle:
+        label = (ROOT/'tools/patches/tone_compare_label.hlsl').read_text(encoding='utf-8')
+        if curve == 'gentle':
+            # Add digit 3 separately so R10's digit 1 stays unchanged.
+            replacements = {
+                'uint glyphs[28]': 'uint glyphs[35]',
+                '17,17,17,31,17,17,17\n': '17,17,17,31,17,17,17, 30,1,1,14,1,1,30\n',
+                '(letter == 0 ? 3 : 1)': '(letter == 0 ? 3 : 4)',
+                'min(glyph,3u)': 'min(glyph,4u)',
+                'five pixels wide: R, 1, 0, H.': 'five pixels wide: R, 1, 0, H, 3.',
+            }
+            for old, new in replacements.items():
+                if label.count(old) != 1:
+                    raise ValueError('Comparison label template changed')
+                label = label.replace(old, new)
         patch = ('  float4 smsmControls = IniParams.Load(int2(7,0));\n'
                  '  if (smsmControls.x > 0.5f)\n  {\n'+patch+'  }\n' +
-                 (ROOT/'tools/patches/tone_compare_label.hlsl').read_text(encoding='utf-8'))
+                 label)
         files['d3dx.ini'] += b'''
 ; Independent keys work with hunting disabled. No persistence or reload.
 [Constants]
@@ -76,6 +93,16 @@ y7 = 1, 0
             'key': 'Ctrl+F8', 'states': ['r10-baseline', 'h1-highlights'], 'startup': 'r10-baseline',
             'label_key': 'Ctrl+F7', 'label_startup': True, 'label_bounds': [24,24,72,46],
             'resource': 'IniParams t120[7].xy', 'keyboard_game_verified': False}
+    if curve == 'gentle':
+        manifest['compatibility_candidate']['id'] = 'r11-tone-highlights-h3' if toggle else 'r11-tone-highlights-h3-reference'
+        manifest['tone_experiment'].update({
+            'id': 'highlights-h3', 'curve': 'bounded-gentle', 'knee': 0.95,
+            'transition_width': 0.75, 'max_relative_attenuation': 0.06,
+            'fixed_output_ceiling': False,
+            'problem_hypothesis': 'H1 over-compresses hair highlights and emissive cores in the first live comparison',
+            'risk': 'may be too subtle to improve the scene; does not guarantee recovery of clipped detail'})
+        if toggle:
+            manifest['tone_experiment']['comparison']['states'] = ['r10-baseline', 'h3-highlights']
     # Keep vanilla default; the existing installed c2 package is never altered.
     (output/RECEIPT).write_bytes(encoded(manifest))
     read_package(output)
@@ -86,7 +113,8 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('baseline', type=Path)
     p.add_argument('output', type=Path)
-    p.add_argument('--toggle', action='store_true', help='Build H2 with direct comparison keys and a mode label')
+    p.add_argument('--toggle', action='store_true', help='Add comparison keys and a mode label (H2 for h1, H3 for gentle)')
+    p.add_argument('--curve', choices=('h1', 'gentle'), default='h1', help='gentle selects the bounded H3 revision')
     a = p.parse_args()
-    build(a.baseline, a.output, a.toggle)
+    build(a.baseline, a.output, a.toggle, a.curve)
     print(f'Prepared {a.output}; default OFF, not installed, scene acceptance pending')

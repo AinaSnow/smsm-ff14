@@ -1,0 +1,63 @@
+{
+  "status": "numerical-checks-pass",
+  "source": "synthetic HDR ramps and constant-gain LUTs; not game captures",
+  "baseline_shader_sha256": "ec061a76417a656ec3315b0a07601b31a18090145ad16256ecc1bae84795b465",
+  "candidate_shader_sha256": "64f96229b0b238c067f55e26cb2366a102d2daf4bc34901a120b805ce02cb54c",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "curve": "bounded-gentle",
+  "cases": [
+    {
+      "exposure": 0.25,
+      "synthetic_lut_gain": 1,
+      "dark_mid_max_error": 0.0,
+      "alpha_max_error": 0.0,
+      "rgb_ratio_max_error": 5.960464477539063e-08,
+      "baseline_peak": 2.5100276470184326,
+      "candidate_peak": 2.387699842453003,
+      "baseline_display_highlight_steps": 0,
+      "candidate_display_highlight_steps": 0,
+      "minimum_neutral_local_slope": 0.9017035365104675,
+      "max_relative_attenuation": 0.048735618591308594
+    },
+    {
+      "exposure": 1,
+      "synthetic_lut_gain": 1,
+      "dark_mid_max_error": 0.0,
+      "alpha_max_error": 0.0,
+      "rgb_ratio_max_error": 5.960464477539063e-08,
+      "baseline_peak": 8.589226722717285,
+      "candidate_peak": 8.078792572021484,
+      "baseline_display_highlight_steps": 0,
+      "candidate_display_highlight_steps": 0,
+      "minimum_neutral_local_slope": 0.9017049670219421,
+      "max_relative_attenuation": 0.05942726135253906
+    },
+    {
+      "exposure": 4,
+      "synthetic_lut_gain": 1,
+      "dark_mid_max_error": 0.0,
+      "alpha_max_error": 0.0,
+      "rgb_ratio_max_error": 5.960464477539063e-08,
+      "baseline_peak": 33.023685455322266,
+      "candidate_peak": 31.043346405029297,
+      "baseline_display_highlight_steps": 0,
+      "candidate_display_highlight_steps": 0,
+      "minimum_neutral_local_slope": 0.901694655418396,
+      "max_relative_attenuation": 0.059967219829559326
+    },
+    {
+      "exposure": 1,
+      "synthetic_lut_gain": 0.25,
+      "dark_mid_max_error": 0.0,
+      "alpha_max_error": 0.0,
+      "rgb_ratio_max_error": 5.960464477539063e-08,
+      "baseline_peak": 4.589226722717285,
+      "candidate_peak": 4.325091361999512,
+      "baseline_display_highlight_steps": 0,
+      "candidate_display_highlight_steps": 0,
+      "minimum_neutral_local_slope": 0.901694655418396,
+      "max_relative_attenuation": 0.057555556297302246
+    }
+  ]
+}

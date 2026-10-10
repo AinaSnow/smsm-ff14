@@ -1,4 +1,4 @@
-"""Draw the exact H2 shader with its real Texture1D control resource."""
+"""Compare a switchable shader with its static reference and real Texture1D controls."""
 import argparse
 from pathlib import Path
 import numpy as np
@@ -10,6 +10,8 @@ from manage_preview import encoded, read_package, digest, RECEIPT
 
 def validate(base, h1, h2, output, runtime_check=False):
     for package in (base,h1,h2): read_package(package)
+    reference_manifest,_=read_package(h1)
+    candidate_manifest,_=read_package(h2)
     output.mkdir(parents=True, exist_ok=False)
     width,height=256,64
     texture=np.ones((height,width,4),dtype=np.float32)
@@ -28,7 +30,7 @@ def validate(base, h1, h2, output, runtime_check=False):
     baseline=draw(base,'baseline'); high=draw(h1,'h1')
     off=draw(h2,'off',(0,0)); on=draw(h2,'on',(1,0)); back=draw(h2,'back',(0,0))
     assert np.array_equal(off,baseline), 'OFF must exactly reproduce accepted r10 output'
-    assert np.array_equal(on,high), 'ON must exactly reproduce H1 output'
+    assert np.array_equal(on,high), 'ON must exactly reproduce static reference output'
     assert np.array_equal(back,baseline), 'Return to OFF must restore baseline'
     labels=[draw(h2,'label-off',(0,1)),draw(h2,'label-on',(1,1))]
     mask=np.zeros((height,width),dtype=bool); mask[24:46,24:72]=True
@@ -37,11 +39,19 @@ def validate(base, h1, h2, output, runtime_check=False):
         assert np.array_equal(labelled[:,:,3],reference[:,:,3]), 'Label changed alpha'
         assert np.isfinite(labelled).all()
     assert not np.array_equal(labels[0][mask],labels[1][mask]), 'Mode labels must differ'
-    report={'status':'pass','off_equals_r10_exactly':True,'on_equals_h1_exactly':True,
+    report={'status':'pass','off_equals_r10_exactly':True,'on_equals_reference_exactly':True,
+            'reference':reference_manifest['compatibility_candidate']['id'],
+            'candidate':candidate_manifest['compatibility_candidate']['id'],
             'return_to_off_exact':True,'label_bounds':[24,24,72,46],'label_alpha_unchanged':True,
             'control_resource':'Texture1D float4 t120[7].xy',
             'note':'Separate WARP draws verify shader states; actual game keyboard input remains unverified',
             'game_keyboard_verified':False}
+    if candidate_manifest['tone_experiment'].get('curve') == 'bounded-gentle':
+        # Check the new 3 glyph in H3; baseline R10 still uses the original 1.
+        for y,bits in enumerate((30,1,1,14,1,1,30)):
+            for x in range(5):
+                expected=[1,.45,.12] if (bits>>(4-x))&1 else [.025,.025,.025]
+                assert np.allclose(labels[1][28+y*2,40+x*2,:3],expected,atol=1e-6), 'H3 glyph mismatch'
     if runtime_check:
         original, _ = read_package(h2)
         results=[]
