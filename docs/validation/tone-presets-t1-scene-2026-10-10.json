@@ -1,0 +1,131 @@
+{
+ "date": "2026-10-10",
+ "source": "user in-game screenshots, 1920x1080, label visible; artifacts/t1-scenes/raw",
+ "scenes": [
+  "outdoor daylight (Kugane-style street)",
+  "character close-up outdoors",
+  "indoor warm lamps + stained glass"
+ ],
+ "labels_detected_in_order": [
+  "R10",
+  "A",
+  "B",
+  "C",
+  "R10",
+  "A",
+  "B",
+  "C",
+  "R10",
+  "A",
+  "B",
+  "C"
+ ],
+ "per_shot": [
+  {
+   "file": "ffxiv_20261010_233238_052.png",
+   "mode": "R10",
+   "meanL": 0.495,
+   "p99": 0.945,
+   "clip": 0.96,
+   "sat": 0.1
+  },
+  {
+   "file": "ffxiv_20261010_233246_632.png",
+   "mode": "A",
+   "meanL": 0.507,
+   "p99": 0.928,
+   "clip": 0.36,
+   "sat": 0.111
+  },
+  {
+   "file": "ffxiv_20261010_233249_418.png",
+   "mode": "B",
+   "meanL": 0.513,
+   "p99": 0.945,
+   "clip": 4.72,
+   "sat": 0.11
+  },
+  {
+   "file": "ffxiv_20261010_233252_837.png",
+   "mode": "C",
+   "meanL": 0.51,
+   "p99": 0.939,
+   "clip": 0.36,
+   "sat": 0.104
+  },
+  {
+   "file": "ffxiv_20261010_233307_019.png",
+   "mode": "R10",
+   "meanL": 0.521,
+   "p99": 0.902,
+   "clip": 0.41,
+   "sat": 0.07
+  },
+  {
+   "file": "ffxiv_20261010_233309_778.png",
+   "mode": "A",
+   "meanL": 0.541,
+   "p99": 0.892,
+   "clip": 0.28,
+   "sat": 0.079
+  },
+  {
+   "file": "ffxiv_20261010_233311_843.png",
+   "mode": "B",
+   "meanL": 0.546,
+   "p99": 0.914,
+   "clip": 0.61,
+   "sat": 0.079
+  },
+  {
+   "file": "ffxiv_20261010_233313_739.png",
+   "mode": "C",
+   "meanL": 0.542,
+   "p99": 0.905,
+   "clip": 0.28,
+   "sat": 0.076
+  },
+  {
+   "file": "ffxiv_20261010_233434_240.png",
+   "mode": "R10",
+   "meanL": 0.312,
+   "p99": 0.954,
+   "clip": 1.74,
+   "sat": 0.16
+  },
+  {
+   "file": "ffxiv_20261010_233440_297.png",
+   "mode": "A",
+   "meanL": 0.313,
+   "p99": 0.89,
+   "clip": 0.88,
+   "sat": 0.153
+  },
+  {
+   "file": "ffxiv_20261010_233442_368.png",
+   "mode": "B",
+   "meanL": 0.306,
+   "p99": 0.923,
+   "clip": 1.57,
+   "sat": 0.148
+  },
+  {
+   "file": "ffxiv_20261010_233444_254.png",
+   "mode": "C",
+   "meanL": 0.313,
+   "p99": 0.926,
+   "clip": 0.87,
+   "sat": 0.147
+  }
+ ],
+ "metric_notes": "clip = % pixels with max channel >= 0.995 below the top 8% of the frame; sat = mean(max-min)",
+ "observations": {
+  "A": "near lamp keeps warm hue and inner structure instead of R10's white blown core; stained glass shows separate orange/red flowers; sky slightly bluer; clipped pixels roughly halved vs R10 in all scenes",
+  "B": "close to R10 look; scene 1 clip 4.72% vs R10 0.96%, mostly a flat saturated sky channel plus white roof and dress",
+  "C": "same clip as A, but lamp core and bright glass go pale/whitish and sky looks hazier",
+  "scene_2": "camera moved between shots and expression differs; used for skin/cloth only qualitatively"
+ },
+ "game_runtime": "T1 loaded (labels present, Ctrl+F8 cycled all four modes); no crash reported",
+ "assistant_recommendation": "A",
+ "user_choice": null
+}
