@@ -20,6 +20,9 @@ VARIANTS = {
     's2': {'patch': 'tone_sharpen_s2.hlsl', 'startup': '1', 'cycle': '0, 1, 2', 'strong_threshold': '1.5',
            'id': 'r11-sharpen-s2', 'experiment': 'sharpen-s2', 'states': ['off', 'medium-2x-k0.2', 'strong-4x-k0.4'],
            'method': 'radius-2 13-tap unsharp mask on HDR input in u=c/(1+c); overshoot limited to k*(max-min) in linear HDR'},
+    's2b': {'patch': 'tone_sharpen_s2b.hlsl', 'startup': '1', 'cycle': '0, 1, 2', 'strong_threshold': '1.5',
+            'id': 'r11-sharpen-s2b', 'experiment': 'sharpen-s2b', 'states': ['off', 'medium-2x-k0.2', 'strong-4x-k0.4'],
+            'method': 'S2 plus highlight protection: amount *= 1 - smoothstep(0.9, 1.05, SMSM display brightness of the 13-tap peak)'},
 }
 
 SAMPLE_ANCHOR = '  color = sInput.T.Sample(sInput.S_s, v1.xy);\n  float3 sourceColor = color.rgb;\n'

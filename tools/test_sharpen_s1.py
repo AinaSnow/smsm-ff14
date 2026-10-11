@@ -55,6 +55,21 @@ class SharpenPackageTests(unittest.TestCase):
             self.assertIn('S2 unsharp mask', source)
             self.assertIn('s1Level > 1.5', source)
 
+    def test_s2b_adds_only_highlight_fade(self):
+        baseline = m.ROOT/'artifacts/r11-dither-t2b'
+        with tempfile.TemporaryDirectory(dir=m.ROOT/'artifacts', prefix='sharpen-s2b-test-') as temp:
+            candidate = Path(temp)/'candidate'
+            build(baseline, candidate, variant='s2b')
+            manifest, _ = m.read_package(candidate)
+            self.assertEqual(manifest['sharpen_experiment']['id'], 'sharpen-s2b')
+            self.assertEqual(manifest['sharpen_experiment']['comparison']['startup'], 'medium-2x-k0.2')
+            source = (candidate/f'{FIXES}/{TONE}-ps_replace.txt').read_text()
+            self.assertIn('s2Amount *= 1 - smoothstep(0.9, 1.05, s2Display);', source)
+            s2 = (m.ROOT/'tools/patches/tone_sharpen_s2.hlsl').read_text()
+            for line in s2.splitlines():
+                if line.strip() and not line.strip().startswith('//'):
+                    self.assertIn(line, source)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,0 +1,45 @@
+{
+  "status": "pass",
+  "source": "synthetic Gaussian-softened scene with glowing lamps; not game captures",
+  "fade": "smoothstep(0.9, 1.05) of SMSM display brightness of the 13-tap peak",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "modes": {
+    "mode0": {
+      "medium": {
+        "normal_max_diff_vs_s2": 0.0,
+        "bright_max_diff_vs_off": 2.86102294921875e-06,
+        "lamp_rim_darkening_s2": 0.15107041597366333,
+        "lamp_rim_darkening_s2b": 0.07864537835121155
+      },
+      "strong": {
+        "normal_max_diff_vs_s2": 0.0,
+        "bright_max_diff_vs_off": 2.86102294921875e-06,
+        "lamp_rim_darkening_s2": 0.2995356023311615,
+        "lamp_rim_darkening_s2b": 0.15670794248580933
+      }
+    },
+    "mode1": {
+      "medium": {
+        "normal_max_diff_vs_s2": 0.0,
+        "bright_max_diff_vs_off": 1.0728836059570312e-06,
+        "lamp_rim_darkening_s2": 0.12466266751289368,
+        "lamp_rim_darkening_s2b": 0.07040077447891235
+      },
+      "strong": {
+        "normal_max_diff_vs_s2": 0.0,
+        "bright_max_diff_vs_off": 1.0728836059570312e-06,
+        "lamp_rim_darkening_s2": 0.25488725304603577,
+        "lamp_rim_darkening_s2b": 0.14353245496749878
+      }
+    }
+  },
+  "pixels": {
+    "normal_brightness": 32210,
+    "overbright_neighbourhood": 500
+  },
+  "official_1_3_16_runtime": {
+    "startup": "A, dither on, S2b medium, labels hidden",
+    "max_error_vs_warp": 2.682209014892578e-06
+  }
+}
