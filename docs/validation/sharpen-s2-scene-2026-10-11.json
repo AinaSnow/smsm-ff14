@@ -1,0 +1,47 @@
+{
+ "date": "2026-10-11",
+ "anti_aliasing": "DLAA",
+ "scene": "night bridge with lamps, character mid shot",
+ "files": {
+  "medium": "ffxiv_20261011_141621_478.png",
+  "strong": "ffxiv_20261011_141627_586.png",
+  "off": "ffxiv_20261011_141631_377.png"
+ },
+ "label_colours_measured": {
+  "medium": [
+   157,
+   209,
+   237
+  ],
+  "strong": [
+   228,
+   161,
+   95
+  ]
+ },
+ "laplacian_detail": {
+  "lamp": [
+   14.83,
+   29.44,
+   41.63
+  ],
+  "face_hair": [
+   18.2,
+   30.42,
+   39.91
+  ],
+  "boards_static": [
+   8.91,
+   15.32,
+   20.7
+  ]
+ },
+ "observations": {
+  "medium": "hair strands, collar, board grain clearly crisper; mild dark rim at bright lamp glass; lamp glow edge firmer",
+  "strong": "over-sharpened look: harsh outlines on lips/face, grainy metal and wood, visible dark rim around lamp glass",
+  "glow": "sharpening runs before tone mapping on the HDR input, so soft bloom/glow falloff is also steepened"
+ },
+ "caveat": "character moved slightly between shots; boards are static",
+ "assistant_recommendation": "medium as default",
+ "user_choice": null
+}
