@@ -54,7 +54,7 @@ DLAA，两组各 中 / 强 / 关。S 标签颜色正确，开关有效。用户�
 
 结论：S1 有效但低于肉眼可辨，按计划原则不作为默认。
 
-## S2：半径 2 的反锐化掩模（当前候选，未部署）
+## S2：半径 2 的反锐化掩模（当前候选，已部署）
 
 用户选择做加强版。`artifacts/r11-sharpen-s2`（`build_sharpen_s1.py --variant s2`），同样基于 T2b，替换 S1。
 
@@ -82,6 +82,11 @@ DLAA，两组各 中 / 强 / 关。S 标签颜色正确，开关有效。用户�
 - 合成对比图 `docs/validation/sharpen-s2-synthetic.png`：发丝条纹从糊变清楚，差别一眼可见。
   **强档在很亮的高光周围会出现一圈暗边**，纹理颗粒也更明显，实景需要注意。
 - S1 构建器改为可选 S1/S2；重建 S1 时 shader 逐字节相同，仅 INI 注释文字不同。
+
+S2 部署：2026-10-11 14:11（上海时间）游戏退出状态由 S1 切换。清单 SHA-256：
+`4b8ab6b28dd7f8bf9adf4197695b980e5a5f1920f0bf120afdc772dd2cc4b9dd`。记录：`artifacts/return-deployment/s2-install.json`。
+回到 S1 的备份：`artifacts/install-backups/20261011T061155Z-c7aceec1eada4f39ab5d9679d4123ae0`；
+回到无锐化的 T2b：退出游戏后 `manage_preview.py install --package artifacts/r11-dither-t2b --profile daily`。
 
 ## S2 实景对照（待做）
 
