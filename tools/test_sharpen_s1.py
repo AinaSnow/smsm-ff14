@@ -70,6 +70,27 @@ class SharpenPackageTests(unittest.TestCase):
                 if line.strip() and not line.strip().startswith('//'):
                     self.assertIn(line, source)
 
+    def test_s2c_four_levels_default_light(self):
+        baseline = m.ROOT/'artifacts/r11-dither-t2b'
+        with tempfile.TemporaryDirectory(dir=m.ROOT/'artifacts', prefix='sharpen-s2c-test-') as temp:
+            candidate = Path(temp)/'candidate'
+            build(baseline, candidate, variant='s2c')
+            manifest, _ = m.read_package(candidate)
+            self.assertEqual(manifest['sharpen_experiment']['comparison']['states'],
+                             ['off', 'light-1.2x-k0.1', 'medium-2x-k0.2', 'strong-4x-k0.4'])
+            self.assertEqual(manifest['sharpen_experiment']['comparison']['startup'], 'light-1.2x-k0.1')
+            ini = (candidate/'d3dx.ini').read_text()
+            self.assertIn('[Constants]\nx7 = 1\ny7 = 0\nz7 = 1\nx6 = 1\n', ini)
+            self.assertIn('x6 = 0, 1, 2, 3\n', ini)
+            source = (candidate/f'{FIXES}/{TONE}-ps_replace.txt').read_text()
+            self.assertIn('s2Level > 2.5 ? 4.0 : s2Level > 1.5 ? 2.0 : 1.2', source)
+            self.assertIn('smoothstep(0.9, 1.05, s2Display)', source)
+            s2 = (m.ROOT/'tools/patches/tone_sharpen_s2b.hlsl').read_text()
+            s2 = '\n'.join(l for l in s2.splitlines() if 's2Amount = ' not in l and 's2Overshoot = ' not in l)
+            for line in s2.splitlines():
+                if line.strip() and not line.strip().startswith('//'):
+                    self.assertIn(line, source)
+
 
 if __name__ == '__main__':
     unittest.main()

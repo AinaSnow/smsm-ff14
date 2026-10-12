@@ -23,6 +23,11 @@ VARIANTS = {
     's2b': {'patch': 'tone_sharpen_s2b.hlsl', 'startup': '1', 'cycle': '0, 1, 2', 'strong_threshold': '1.5',
             'id': 'r11-sharpen-s2b', 'experiment': 'sharpen-s2b', 'states': ['off', 'medium-2x-k0.2', 'strong-4x-k0.4'],
             'method': 'S2 plus highlight protection: amount *= 1 - smoothstep(0.9, 1.05, SMSM display brightness of the 13-tap peak)'},
+    's2c': {'patch': 'tone_sharpen_s2c.hlsl', 'startup': '1', 'cycle': '0, 1, 2, 3', 'ini_names': 'off, light, medium, strong',
+            'colour': 's1Level > 2.5 ? float3(1.0, 0.55, 0.15) : s1Level > 1.5 ? float3(0.45, 0.8, 1.0) : float3(0.5, 1.0, 0.45)',
+            'id': 'r11-sharpen-s2c', 'experiment': 'sharpen-s2c',
+            'states': ['off', 'light-1.2x-k0.1', 'medium-2x-k0.2', 'strong-4x-k0.4'],
+            'method': 'S2b with a lighter default level: 0 off, 1 light, 2 medium (= S2b medium), 3 strong (= S2b strong)'},
 }
 
 SAMPLE_ANCHOR = '  color = sInput.T.Sample(sInput.S_s, v1.xy);\n  float3 sourceColor = color.rgb;\n'
@@ -36,12 +41,12 @@ INDICATOR = ('    if ((rowsD[cellD.y] >> (4u - cellD.x)) & 1u) o0.rgb = float3(0
              '    static const uint rowsS[7] = {15, 16, 16, 14, 1, 1, 30};\n'
              '    uint2 cellS = (smsmPixel - uint2(52, 28)) / 2;\n'
              '    if ((rowsS[cellS.y] >> (4u - cellS.x)) & 1u)\n'
-             '      o0.rgb = s1Level > STRONG ? float3(1.0, 0.55, 0.15) : float3(0.45, 0.8, 1.0);\n'
+             '      o0.rgb = COLOUR;\n'
              '  }\n'
              '}\n\nvoid orig_dec')
 INI_ANCHOR = '[Constants]\nx7 = 1\ny7 = 0\nz7 = 1\n'
 INI_APPEND = '''
-; {name} sharpening in tone mapping. x6 = level: {cycle} (off, medium, strong; Ctrl+F4).
+; {name} sharpening in tone mapping. x6 = level: {cycle} ({names}; Ctrl+F4).
 [KeySMSMSharpen]
 key = ctrl no_shift no_alt VK_F4
 type = cycle
@@ -59,13 +64,15 @@ def build(baseline, output, extraction=EXTRACTION, variant='s1'):
     if 'KeySMSMSharpen' in ini or 'x6' in ini:
         raise ValueError('Unexpected T2b INI')
     ini = edit_once(ini, INI_ANCHOR, INI_ANCHOR + 'x6 = ' + v['startup'] + '\n', 'INI')
-    files['d3dx.ini'] = (ini + INI_APPEND.format(name=variant.upper(), cycle=v['cycle'])).encode()
+    names = v.get('ini_names', 'off, medium, strong')
+    files['d3dx.ini'] = (ini + INI_APPEND.format(name=variant.upper(), cycle=v['cycle'], names=names)).encode()
     name = f'{FIXES}/{TONE}-ps_replace'
     source = files[name+'.txt'].decode().replace('\r\n', '\n')
     patch = (ROOT/'tools/patches'/v['patch']).read_text(encoding='utf-8')
     head, tail = SAMPLE_ANCHOR.split('\n', 1)
     source = edit_once(source, SAMPLE_ANCHOR, head + '\n' + patch + tail, 'tone sample')
-    source = edit_once(source, INDICATOR[0], INDICATOR[1].replace('STRONG', v['strong_threshold']), 'tone indicator')
+    colour = v.get('colour', f"s1Level > {v.get('strong_threshold')} ? float3(1.0, 0.55, 0.15) : float3(0.45, 0.8, 1.0)")
+    source = edit_once(source, INDICATOR[0], INDICATOR[1].replace('COLOUR', colour), 'tone indicator')
     files[name+'.txt'] = source.encode()
 
     output.mkdir(parents=True, exist_ok=False)
@@ -93,7 +100,7 @@ def build(baseline, output, extraction=EXTRACTION, variant='s1'):
     manifest['sharpen_experiment'] = {
         'id': v['experiment'], 'baseline_manifest_sha256': T2B, 'method': v['method'],
         'comparison': {'key': 'Ctrl+F4', 'states': v['states'], 'startup': v['states'][1],
-                       'resource': 'IniParams t120[6].x', 'indicator': 'S after the tone letters: light blue medium, orange strong'},
+                       'resource': 'IniParams t120[6].x', 'indicator': 'S after the tone letters: ' + ('green light, ' if variant == 's2c' else '') + 'light blue medium, orange strong'},
         'note': 'inside the tone effect; manager effect selection does not separate it',
         'game_verified': False, 'visual_improvement_verified': False}
     (output/RECEIPT).write_bytes(encoded(manifest))
@@ -108,4 +115,5 @@ if __name__ == '__main__':
     p.add_argument('--variant', choices=sorted(VARIANTS), default='s1')
     a = p.parse_args()
     build(a.baseline, a.output, variant=a.variant)
-    print(f'Prepared {a.output} ({a.variant}); sharpening medium, Ctrl+F4 cycles off/medium/strong')
+    states = VARIANTS[a.variant]['states']
+    print(f'Prepared {a.output} ({a.variant}); startup {states[1]}, Ctrl+F4 cycles ' + ' / '.join(s.split('-')[0] for s in states))
