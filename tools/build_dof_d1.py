@@ -43,7 +43,8 @@ z6 = 1, 0
 '''
 
 
-def build(baseline, output, extraction=EXTRACTION):
+def build(baseline, output, extraction=EXTRACTION, startup='normal'):
+    level = {'normal': '1', 'strong': '2'}[startup]
     original, receipt = read_package(baseline)
     if digest(receipt) != T2D:
         raise ValueError('Expected the deployed T2d (2026.10.06) package')
@@ -51,7 +52,7 @@ def build(baseline, output, extraction=EXTRACTION):
     ini = files['d3dx.ini'].decode().replace('\r\n', '\n')
     if 'KeySMSMBokeh' in ini or 'y6' in ini or 'z6' in ini:
         raise ValueError('Unexpected base INI')
-    files['d3dx.ini'] = edit_once(ini, INI_ANCHOR, INI_ANCHOR + 'y6 = 1\nz6 = 0\n', 'INI').encode() + INI_APPEND
+    files['d3dx.ini'] = edit_once(ini, INI_ANCHOR, INI_ANCHOR + f'y6 = {level}\nz6 = 0\n', 'INI').encode() + INI_APPEND
     tone_name = f'{FIXES}/{TONE}-ps_replace'
     source = files[tone_name+'.txt'].decode().replace('\r\n', '\n')
     files[tone_name+'.txt'] = edit_once(source, *TONE_EDIT, 'tone indicator').encode()
@@ -89,13 +90,14 @@ def build(baseline, output, extraction=EXTRACTION):
     manifest['effects']['dof'] = {'shaders': [BLUR], 'status': 'experimental-d1-highlight-bokeh',
                                   'execution_verified': False, 'performance_verified': False}
     manifest['profiles']['daily'] = ['tone', 'dithering', 'radial', 'dof']
-    manifest['compatibility_candidate']['id'] = 'r11-dof-d1-2026.10.06'
+    manifest['compatibility_candidate']['id'] = 'r11-dof-d1-2026.10.06' + ('' if startup == 'normal' else '-strong')
     manifest['compatibility_candidate']['stage'] = 'D0-D1-gpose-bokeh'
     manifest['compatibility_candidate']['acceptance'] = 'D0 purple proves execution; user compares D1 off/normal/strong in /gpose'
     manifest['radial_experiment']['status'] = 'accepted-default-smsm'
     manifest['dof_experiment'] = {
         'id': 'dof-d1', 'baseline_manifest_sha256': T2D,
-        'comparison': {'key': 'Ctrl+F2', 'states': ['off', 'normal-k6', 'strong-k16'], 'startup': 'normal-k6',
+        'comparison': {'key': 'Ctrl+F2', 'states': ['off', 'normal-k6', 'strong-k16'],
+                       'startup': 'normal-k6' if startup == 'normal' else 'strong-k16',
                        'resource': 'IniParams t120[6].y', 'indicator': 'B after R: pale yellow normal, orange strong'},
         'diagnostic': {'key': 'Ctrl+F3', 'resource': 'IniParams t120[6].z', 'startup': 'off', 'effect': 'purple tint on this pass'},
         'label_box': [24, 24, 90, 46], 'indicator_box': [76, 28, 86, 42],
@@ -109,6 +111,7 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('baseline', type=Path)
     p.add_argument('output', type=Path)
+    p.add_argument('--startup', choices=['normal', 'strong'], default='normal')
     a = p.parse_args()
-    build(a.baseline, a.output)
+    build(a.baseline, a.output, startup=a.startup)
     print(f'Prepared {a.output}; highlight bokeh normal, Ctrl+F2 cycles, Ctrl+F3 purple diagnostic')

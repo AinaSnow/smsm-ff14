@@ -1,0 +1,60 @@
+{
+  "status": "pass",
+  "source": "synthetic HDR scenes with CoC alpha and a 16-tap ring pattern; not game captures",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "blur": {
+    "full": {
+      "off_vs_game_max_error": 1.430511474609375e-06,
+      "normal": {
+        "alpha_max_error": 1.1920928955078125e-07,
+        "non_highlight_max_error": 2.384185791015625e-07,
+        "light_disc_mean": 0.7645416259765625,
+        "light_disc_mean_off": 0.29755130410194397,
+        "light_disc_area_above_half_peak_px": 56,
+        "light_disc_area_above_half_peak_px_off": 56
+      },
+      "strong": {
+        "alpha_max_error": 1.1920928955078125e-07,
+        "non_highlight_max_error": 2.384185791015625e-07,
+        "light_disc_mean": 1.1388988494873047,
+        "light_disc_mean_off": 0.29755130410194397,
+        "light_disc_area_above_half_peak_px": 58,
+        "light_disc_area_above_half_peak_px_off": 56
+      }
+    },
+    "dynamic-75": {
+      "off_vs_game_max_error": 1.430511474609375e-06,
+      "normal": {
+        "alpha_max_error": 5.960464477539063e-08,
+        "non_highlight_max_error": 1.7881393432617188e-07,
+        "light_disc_mean": 0.7561876773834229,
+        "light_disc_mean_off": 0.30244937539100647,
+        "light_disc_area_above_half_peak_px": 83,
+        "light_disc_area_above_half_peak_px_off": 83
+      },
+      "strong": {
+        "alpha_max_error": 5.960464477539063e-08,
+        "non_highlight_max_error": 1.7881393432617188e-07,
+        "light_disc_mean": 1.123496651649475,
+        "light_disc_mean_off": 0.30244937539100647,
+        "light_disc_area_above_half_peak_px": 93,
+        "light_disc_area_above_half_peak_px_off": 83
+      }
+    }
+  },
+  "tone_indicator": {
+    "box": [
+      76,
+      28,
+      86,
+      42
+    ],
+    "background_extended_to": 90
+  },
+  "official_1_3_16_runtime": {
+    "startup": "D1 strong-k16, diagnostic off",
+    "max_error_vs_warp": 9.5367431640625e-07,
+    "max_error_vs_off": 3.575335741043091
+  }
+}

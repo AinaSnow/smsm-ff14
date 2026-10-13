@@ -128,16 +128,18 @@ def validate(baseline, candidate, output, runtime_check=False, extraction=EXTRAC
     report['tone_indicator'] = {'box': [76, 28, 86, 42], 'background_extended_to': 90}
 
     if runtime_check:
+        startup = new['dof_experiment']['comparison']['startup']
+        startup_level = new['dof_experiment']['comparison']['states'].index(startup)
         constants = {0: [[1, 1, 1, 1], [0, 0, 0, 0]]}
         shipped = render(blur_new, output/'runtime-blur', W, H, textures={0: scene}, constants=constants,
                          vertex=output/'vs.bin', runtime_package=candidate)[0, 0]
         expected = render(blur_new, output/'runtime-blur-ref', W, H, textures={0: scene}, constants=constants,
-                          vertex=output/'vs.bin', textures1d=params(bokeh=1))[0, 0]
+                          vertex=output/'vs.bin', textures1d=params(bokeh=startup_level))[0, 0]
         off = render(blur_new, output/'runtime-blur-off', W, H, textures={0: scene}, constants=constants,
                      vertex=output/'vs.bin', textures1d=params())[0, 0]
         error = float(np.abs(shipped - expected).max()); error_off = float(np.abs(shipped - off).max())
-        assert error < 1e-4 * max(1, float(expected.max())) and error < error_off / 10, 'Runtime must start with D1 normal'
-        report['official_1_3_16_runtime'] = {'startup': 'D1 normal, diagnostic off', 'max_error_vs_warp': error,
+        assert error < 1e-4 * max(1, float(expected.max())) and error < error_off / 10, f'Runtime must start with {startup}'
+        report['official_1_3_16_runtime'] = {'startup': f'D1 {startup}, diagnostic off', 'max_error_vs_warp': error,
                                              'max_error_vs_off': error_off}
     (output/'report.json').write_bytes(encoded(report))
     print(encoded(report).decode())
