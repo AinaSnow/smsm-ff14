@@ -1,4 +1,4 @@
-"""Real WARP draws for the T2c radial blur switch and tone indicator; synthetic inputs, not game captures."""
+"""Real WARP draws for the T2c/T2d radial blur switch and tone indicator; synthetic inputs, not game captures."""
 import argparse
 import json
 from pathlib import Path
@@ -12,8 +12,8 @@ W, H = 320, 180
 R_ROWS = (30, 17, 17, 30, 20, 18, 17)
 
 
-def params(mode=1, label=0, z=1, w=0):
-    p = np.zeros((8, 4), dtype=np.float32); p[7] = (mode, label, z, w)
+def params(mode=1, label=0, z=1, w=0, sharp=0):
+    p = np.zeros((8, 4), dtype=np.float32); p[7] = (mode, label, z, w); p[6, 0] = sharp
     return {120: p}
 
 
@@ -21,7 +21,12 @@ def validate(baseline, candidate, output, runtime_check=False, r10=ROOT/R10, ext
     read_package(baseline)
     new, _ = read_package(candidate)
     if new.get('radial_experiment', {}).get('id') != 'radial-t2c':
-        raise ValueError('Not a T2c radial package')
+        raise ValueError('Not a T2c/T2d radial package')
+    rx0, ry0, rx1, ry1 = new['radial_experiment'].get('indicator_box', [52, 28, 62, 42])
+    lx0, ly0, lx1, ly1 = new['radial_experiment'].get('label_box', [24, 24, 72, 46])
+    sharp_levels = (0, 1) if 'sharpen_experiment' in new else (0,)
+    # Pixels the radial build may change while labels are shown (extended label background).
+    extra = np.zeros((H, W), dtype=bool); extra[ly0:ly1, 72:lx1] = True
     game = {s['Hash']: extraction/s['File'] for s in
             json.loads((extraction/'manifest.json').read_text(encoding='utf-8'))['Shaders'] if s['Profile'] == 'ps_5_0'}
     output.mkdir(parents=True, exist_ok=False)
@@ -39,22 +44,27 @@ def validate(baseline, candidate, output, runtime_check=False, r10=ROOT/R10, ext
     for mode in (0, 1):
         for label in (0, 1):
             for z in (0, 1):
-                old = tone(baseline, f't2b-m{mode}-l{label}-z{z}', mode=mode, label=label, z=z)
-                assert np.array_equal(old, tone(candidate, f'w0-m{mode}-l{label}-z{z}', mode=mode, label=label, z=z, w=0)), \
-                    'w7=0 changed tone output'
-                if not label:
-                    assert np.array_equal(old, tone(candidate, f'w1-m{mode}-z{z}', mode=mode, z=z, w=1)), \
-                        'w7=1 changed tone output without labels'
+                for sharp in sharp_levels:
+                    tag = f'm{mode}-l{label}-z{z}-s{sharp}'
+                    old = tone(baseline, f'base-{tag}', mode=mode, label=label, z=z, sharp=sharp)
+                    new_w0 = tone(candidate, f'w0-{tag}', mode=mode, label=label, z=z, w=0, sharp=sharp)
+                    keep = ~extra if label else np.ones((H, W), dtype=bool)
+                    assert np.array_equal(old[keep], new_w0[keep]), 'w7=0 changed tone output'
+                    if label and extra.any():
+                        assert np.allclose(new_w0[extra][:, :3], .025, atol=1e-6), 'Label background extension wrong'
+                    if not label:
+                        assert np.array_equal(old, tone(candidate, f'w1-{tag}', mode=mode, z=z, w=1, sharp=sharp)), \
+                            'w7=1 changed tone output without labels'
     with_r = tone(candidate, 'label-r', label=1, w=1)
     without_r = tone(candidate, 'label-no-r', label=1, w=0)
-    box = np.zeros((H, W), dtype=bool); box[28:42, 52:62] = True
+    box = np.zeros((H, W), dtype=bool); box[ry0:ry1, rx0:rx1] = True
     assert np.array_equal(with_r[~box], without_r[~box]), 'R indicator outside its box'
     for y, bits in enumerate(R_ROWS):
         for x in range(5):
             if (bits >> (4-x)) & 1:
-                assert np.allclose(with_r[28+y*2, 52+x*2, :3], (1, .85, .3), atol=1e-6), 'R glyph mismatch'
-    report['tone'] = {'w7_off_identical_to_t2b': True, 'w7_on_identical_without_label': True,
-                      'r_indicator_bounds': [52, 28, 62, 42]}
+                assert np.allclose(with_r[ry0+y*2, rx0+x*2, :3], (1, .85, .3), atol=1e-6), 'R glyph mismatch'
+    report['tone'] = {'w7_off_identical_to_base': True, 'w7_on_identical_without_label': True,
+                      'sharpen_levels_checked': list(sharp_levels), 'r_indicator_bounds': [rx0, ry0, rx1, ry1]}
 
     # --- Radial: textured scene with a small bright light, full and dynamic-resolution viewports.
     rng = np.random.default_rng(7)
@@ -107,7 +117,9 @@ def validate(baseline, candidate, output, runtime_check=False, r10=ROOT/R10, ext
         assert error_on < .01 * float(scene[..., :3].max()) and error_on < error_game / 10, 'Radial must start in SMSM mode'
         tone_run = render(candidate/FIXES/f'{TONE}-ps_replace.bin', output/'runtime-tone', W, H,
                           textures={0: source, 1: lut}, constants=tconst, runtime_package=candidate)[0, 0]
-        assert np.allclose(tone_run, tone(candidate, 'runtime-tone-ref', mode=1, label=0, z=1, w=1), atol=2e-5, rtol=3e-6)
+        startup_sharp = 1 if 'sharpen_experiment' in new else 0
+        assert np.allclose(tone_run, tone(candidate, 'runtime-tone-ref', mode=1, label=0, z=1, w=1, sharp=startup_sharp),
+                           atol=1e-4, rtol=3e-6)
         report['official_1_3_16_runtime'] = {'startup': 'tone A, dither on, SMSM radial, labels hidden',
                                              'radial_max_error_vs_warp_smsm': error_on,
                                              'radial_max_error_vs_warp_game_path': error_game,

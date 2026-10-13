@@ -151,7 +151,7 @@ Ctrl＋F4 循环 关 / 轻 / 中 / 强（INI 0 / 1 / 2 / 3），启动为轻；�
 `ecee36231ad82d5018db0abd43fac9bd6a4284631066bf47177049bdc0eeaa2f`。记录：`artifacts/return-deployment/s2c-install.json`。
 回到 S2b 的备份：`artifacts/install-backups/20261012T052450Z-9b539dce45114d059369ca1f2414bf06`。
 
-待用户实机确认轻档是否合适；确认后锐化项结束，默认档位按用户选择。
+**2026-10-13 用户确认默认轻档，锐化项结束。**
 
 ## 原 S2 待办
 

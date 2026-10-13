@@ -1,0 +1,46 @@
+{
+  "status": "pass",
+  "source": "synthetic inputs; not game captures",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "tone": {
+    "w7_off_identical_to_base": true,
+    "w7_on_identical_without_label": true,
+    "sharpen_levels_checked": [
+      0,
+      1
+    ],
+    "r_indicator_bounds": [
+      64,
+      28,
+      74,
+      42
+    ]
+  },
+  "radial": [
+    {
+      "viewport": "full",
+      "game_path_max_error": 0.0,
+      "smsm_equals_r10_exactly": true,
+      "energy_ratio_smsm_over_game": 0.993229329586029,
+      "streak_peaks_game": 0,
+      "streak_peaks_smsm": 0,
+      "mean_abs_difference": 0.027664057910442352
+    },
+    {
+      "viewport": "dynamic-75",
+      "game_path_max_error": 0.0,
+      "smsm_equals_r10_exactly": true,
+      "energy_ratio_smsm_over_game": 0.9843355417251587,
+      "streak_peaks_game": 1,
+      "streak_peaks_smsm": 0,
+      "mean_abs_difference": 0.042965881526470184
+    }
+  ],
+  "official_1_3_16_runtime": {
+    "startup": "tone A, dither on, SMSM radial, labels hidden",
+    "radial_max_error_vs_warp_smsm": 0.0256747305393219,
+    "radial_max_error_vs_warp_game_path": 0.7746455669403076,
+    "note": "hardware bilinear filtering differs from WARP by <1% of peak"
+  }
+}

@@ -1,0 +1,18 @@
+{
+ "from_build": "2026.09.15.0000.0000",
+ "to_build": "2026.10.06.0000.0000",
+ "old_unique_shaders": 31018,
+ "new_unique_shaders": 31018,
+ "removed": 0,
+ "added": 0,
+ "old_extraction_manifest_sha256": "57239336fb057f2cc7412bb9a8456f87f1400dd01574dba46024a8ce549ebda8",
+ "new_extraction_manifest_sha256": "ab2c84b9f2786ad971ea8a4cac9938c169a6c93b8a0e5c4fbdfdbdbedbeaadff",
+ "replaced_shaders_unchanged": {
+  "72a656dfd52149ad": "885358753b343a8ba464ecfa730228f4176b1c13203e0a0156f7c89007e86bd0",
+  "782e995758bf001d": "ea5cb8e415295645e2b50cff00578085534e608c122b0770fee2e04ab67b31ef",
+  "91f970e6bbe57d99": "3fe784d4b6ea652265eb6ec34c3b4f044b84a79bd3e7e98f6351c1082c7ce353"
+ },
+ "source_package_build": "2026.09.15.0000.0000",
+ "date": "2026-10-13",
+ "note": "All 31018 unique shaders identical (hash, profile, SHA-256); packages retargeted with tools/retarget_client_build.py"
+}
