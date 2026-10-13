@@ -1,0 +1,31 @@
+{
+ "date": "2026-10-13",
+ "client_build": "2026.10.06.0000.0000",
+ "scene": "looking up at the sun, tropical palms, daytime",
+ "files": {
+  "smsm": "ffxiv_20261013_235039_364.png",
+  "game": "ffxiv_20261013_235042_692.png"
+ },
+ "indicators": "A D S(green, light) R present on SMSM shot; R absent on game shot",
+ "region_means": {
+  "open_sky_far": [
+   144.9,
+   143.8,
+   1.15
+  ],
+  "near_sun_ring": [
+   181.8,
+   179.0,
+   7.46
+  ],
+  "sun_core": [
+   242.7,
+   241.5,
+   1.28
+  ]
+ },
+ "region_means_format": "[game mean, smsm mean, mean abs diff] in 8-bit levels",
+ "observation": "only the sun glare changes: game has short bright crisp star spikes; SMSM spikes are softer, longer and fade gradually with faint radial streaks; rest of frame unchanged (palms moved in wind)",
+ "conclusion": "works and reaches the screen; preference, not a clarity gain",
+ "user_choice": null
+}
