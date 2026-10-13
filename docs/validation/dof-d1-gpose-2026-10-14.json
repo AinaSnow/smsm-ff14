@@ -1,0 +1,33 @@
+{
+ "date": "2026-10-14",
+ "client_build": "2026.10.06.0000.0000",
+ "gpose": "DOF on, aperture F0.5 (strongest), auto focus",
+ "files": {
+  "d0_purple": "ffxiv_20261014_001048_247.png",
+  "off": "ffxiv_20261014_001050_834.png",
+  "normal": "ffxiv_20261014_001053_773.png",
+  "strong": "ffxiv_20261014_001056_076.png"
+ },
+ "d0": "blurred background fully purple, in-focus character essentially unchanged: 00f2b6068017c6c6 executes in /gpose (G/R ratio 0.47 vs 0.97)",
+ "lights_region": {
+  "px_ge_240": {
+   "off": 4924,
+   "normal": 6043,
+   "strong": 7103
+  },
+  "px_ge_200": {
+   "off": 13635,
+   "normal": 13905,
+   "strong": 14805
+  },
+  "mean": {
+   "off": 82.9,
+   "normal": 83.1,
+   "strong": 82.8
+  }
+ },
+ "whole_frame_mean_abs_diff_off_vs_normal": 1.04,
+ "observation": "bokeh cores brighter and larger (+23%/+44% very bright pixels); edges remain a soft falloff, not a hard-edged disc; character/hair edges unchanged",
+ "conclusion": "execution proven; D1 effect visible but modest; disc shape needs kernel changes beyond brightness weighting",
+ "user_choice": null
+}
