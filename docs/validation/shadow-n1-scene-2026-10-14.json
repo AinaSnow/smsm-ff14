@@ -1,0 +1,20 @@
+{
+ "date": "2026-10-14",
+ "client_build": "2026.10.06.0000.0000",
+ "scene": "sunny outdoor stone path, low sun, character mid shot",
+ "files": {
+  "n0": "ffxiv_20261014_010152_168.png",
+  "n1_on": "ffxiv_20261014_010202_397.png",
+  "n1_off": "ffxiv_20261014_010210_230.png"
+ },
+ "n0": "direct sunlight and tree shadow vanish (frame mean 112 vs 130; 56% of pixels darker >10): both sun-light shaders execute",
+ "n1_static_stone_region": {
+  "darkened_gt4": 0.06,
+  "brightened_gt4": 0.033,
+  "mean_darkening_levels": 0.58
+ },
+ "n1_observation": "deeper, defined shadows on the away-from-sun side of stone seams; more shading under dress frills and folds; slight grain / stepping on new shadow edges from per-pixel jitter",
+ "caveat": "willow and character idle animation moved between shots; whole-frame stats include motion",
+ "user_feedback": "some places get natural shadows when on",
+ "user_choice": null
+}
