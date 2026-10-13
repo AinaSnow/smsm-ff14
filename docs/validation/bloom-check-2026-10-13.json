@@ -1,0 +1,17 @@
+{
+ "date": "2026-10-13",
+ "file": "ffxiv_20261013_235349_060.png",
+ "scene": "rainy night, lamps on the bridge; tone A, dither, sharpen light, SMSM light shafts",
+ "glow_falloff_above_flame_mean_levels": {
+  "0-10": 183.5,
+  "10-20": 180.5,
+  "20-30": 168.8,
+  "30-40": 142.0,
+  "45-55": 80.4,
+  "60-70": 43.3,
+  "80-90": 31.4,
+  "110-120": 34.7
+ },
+ "observation": "soft, short, smooth glow (30-60 px); no blockiness, haze or banding; lamp shapes stay clear",
+ "decision": "keep game Bloom; SMSM Bloom not ported (old blur radius/energy differ, new extraction adds sqrt)"
+}
