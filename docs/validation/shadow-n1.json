@@ -1,0 +1,95 @@
+{
+  "status": "pass",
+  "source": "synthetic G-buffer (plane, tilted plane, sphere, normal-map ridges); not game captures",
+  "game_verified": false,
+  "visual_improvement_verified": false,
+  "hosts": {
+    "8b384acd7a03c836": {
+      "plane": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 0,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.0
+      },
+      "tilt": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 0,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.0
+      },
+      "sphere": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 0,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.0
+      },
+      "bumps": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 107,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.005290134344249964
+      }
+    },
+    "e9f57e0834b642f5": {
+      "plane": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 0,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.0
+      },
+      "tilt": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 0,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.0
+      },
+      "sphere": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 0,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.0
+      },
+      "bumps": {
+        "off_equals_game": true,
+        "n0_equals_game_without_sun": true,
+        "n1_vs_r10_max_error": 0.0,
+        "n1_changed_pixels": 107,
+        "pixels_lit_by_sun": 6144,
+        "n1_mean_darkening": 0.005290134344249964
+      }
+    }
+  },
+  "tone_indicator": {
+    "box": [
+      88,
+      28,
+      98,
+      42
+    ],
+    "background_extended_to": 102
+  },
+  "official_1_3_16_runtime": {
+    "8b384acd7a03c836": {
+      "max_error_vs_warp_on": 2.849847078323364e-07,
+      "max_error_vs_off": 1.0
+    },
+    "e9f57e0834b642f5": {
+      "max_error_vs_warp_on": 2.849847078323364e-07,
+      "max_error_vs_off": 1.0
+    }
+  }
+}
