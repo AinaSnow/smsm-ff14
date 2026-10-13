@@ -16,5 +16,6 @@
  "n1_observation": "deeper, defined shadows on the away-from-sun side of stone seams; more shading under dress frills and folds; slight grain / stepping on new shadow edges from per-pixel jitter",
  "caveat": "willow and character idle animation moved between shots; whole-frame stats include motion",
  "user_feedback": "some places get natural shadows when on",
- "user_choice": null
+ "user_choice": "default on",
+ "motion_check": "user saw no flicker while moving"
 }
