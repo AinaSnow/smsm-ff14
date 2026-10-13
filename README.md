@@ -8,23 +8,16 @@
 历史源码和未完成冷光校准位于 `archive/reshade-native-lighting-2026-10-10`，
 原工作区及忽略的配置、画面、GPU 数据、插件包和安装备份留在原位置。
 
-## 当前快捷对比版
+## 当前状态：r11 本地最终版
 
-当前已部署 [H3](docs/TONE-HIGHLIGHTS-H3.md)：Ctrl＋F8 对比 r10 / H3，Ctrl＋F7 隐藏标签。
-根据 H1 实景过压问题，H3 提高起点并将 RGB 衰减限制为最多 6%，取消固定输出上限。
-启动默认 r10；离线验证通过，新版实景收益待确认。保留窗口在游戏内的兼容设置。
+**[r11 发布说明](docs/RELEASE-r11.md)**：色调 A、去色带抖动、轻锐化、SMSM 光束、GPose 高光散景（强）、法线阴影，
+全部经用户在游戏内对比后选定默认值；每项有开关，关闭时与游戏原版逐位一致。Bloom、反射保留游戏原版。
+包 `artifacts/r11-final`，本地 ZIP `artifacts/releases/smsm-r11.zip`；**未推送、未发布**（全部结束后再决定）。
+客户端 2026.10.06（shader 与 2026.09.15 完全一致，包已重标签）。待做：帧率与长时间稳定性确认。
 
-**当前已部署 A 默认版**（[T1](docs/TONE-PRESETS-T1.md) 三场景对比后用户选定 A）：启动即 A（100% SMSM 曲线、保持色相），Ctrl＋F8 切换 A / R10，Ctrl＋F7 显示标签。取代上面的 H3；H1–H3 高光衰减已停止。
-
-[T2 去色带抖动](docs/DITHER-T2.md) 完成：抖动放在色调 shader 内，默认开（Ctrl＋F6）。
-
-[锐化](docs/SHARPEN-S1.md)：S1 看不出区别；S2 实景明显，用户选默认“中”。锐化完成：亮处少锐化，四档 关/轻/中/强，默认轻。
-
-[T2 光束](docs/RADIAL-T2.md) 完成：默认 SMSM（Ctrl＋F5）；Bloom 保留游戏原版。
-
-[景深 D0/D1](docs/DOF-D1.md) 完成：GPose 高光散景默认强（Ctrl＋F2），Ctrl＋F3 紫色诊断。反射保留游戏原版。
-
-**当前已部署 [法线阴影 N0/N1](docs/SHADOW-N1.md)**：Ctrl＋F1 开关（默认开），Ctrl＋F11 去除阳光诊断，待游戏内测试。客户端 2026.10.06 的 shader 与 2026.09.15 完全一致，包已重标签。Ctrl＋F4 循环。R1 兼容验收已关闭（切图正常）。
+各项记录：[色调 T1](docs/TONE-PRESETS-T1.md) · [抖动 T2](docs/DITHER-T2.md) · [锐化 S1/S2](docs/SHARPEN-S1.md) ·
+[光束 T2](docs/RADIAL-T2.md) · [景深 D0/D1](docs/DOF-D1.md) · [法线阴影 N0/N1](docs/SHADOW-N1.md)。
+较早的 H1–H3 高光衰减已停止，见 [H3](docs/TONE-HIGHLIGHTS-H3.md)。
 
 ## c2 基线记录
 
