@@ -55,7 +55,7 @@
 
 2026-10-14 用户选择保留 D1、默认强，景深项收尾。`artifacts/r11-dof-d1-strong`（`build_dof_d1.py --startup strong`）：
 shader 与 `r11-dof-d1` 逐字节相同，INI 只把 `y6` 启动值从 1 改为 2。官方 1.3.16 按原包启动为强，与 WARP 差 `9.5e-7`
-（`docs/validation/dof-d1-strong.json`）。部署时游戏正在运行，待退出后安装。
+（`docs/validation/dof-d1-strong.json`）。2026-10-14 随 `r11-shadow-n1`（基于本包）一起部署。
 如需硬边圆盘散景（D2：替换采样核，需先抓帧确认各模糊 pass 的作用）留到反射和法线阴影之后再考虑。
 
 ## 原待办
