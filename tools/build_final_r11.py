@@ -78,7 +78,8 @@ def package_zip(package, archive):
             if digest(z.read(name)) != sha:
                 raise ValueError('Archive verification failed: ' + name)
     sha = digest(archive.read_bytes())
-    archive.with_suffix(archive.suffix + '.sha256').write_text(f'{sha}  {archive.name}\n')
+    # LF only, so `sha256sum -c` works on any platform.
+    archive.with_suffix(archive.suffix + '.sha256').write_bytes(f'{sha}  {archive.name}\n'.encode())
     return len(checksums), sha
 
 
