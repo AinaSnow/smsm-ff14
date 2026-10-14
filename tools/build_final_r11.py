@@ -5,6 +5,7 @@ effects were proven to execute in game). Performance stays unverified until meas
 """
 import argparse
 import copy
+import re
 import zipfile
 from pathlib import Path
 from manage_preview import ROOT, RECEIPT, digest, encoded, read_package
@@ -61,7 +62,9 @@ def package_zip(package, archive):
         entries['tools/' + name] = (ROOT/'tools'/name).read_bytes()
     for name in DOCS:
         entries['docs/' + name] = (ROOT/'docs'/name).read_bytes()
-    entries['README.md'] = (ROOT/'docs/RELEASE-r11.md').read_bytes()
+    # README sits at the archive root; its relative links point into docs/.
+    entries['README.md'] = re.sub(r'\]\(([A-Za-z0-9-]+\.md)\)', r'](docs/\1)',
+                                  (ROOT/'docs/RELEASE-r11.md').read_text(encoding='utf-8')).encode()
     checksums = {n: digest(v) for n, v in entries.items()}
     entries['SHA256SUMS.json'] = encoded(checksums)
     archive.parent.mkdir(parents=True, exist_ok=True)

@@ -8,16 +8,27 @@
 历史源码和未完成冷光校准位于 `archive/reshade-native-lighting-2026-10-10`，
 原工作区及忽略的配置、画面、GPU 数据、插件包和安装备份留在原位置。
 
-## 当前状态：r11 本地最终版
+## 当前版本：r11
 
-**[r11 发布说明](docs/RELEASE-r11.md)**：色调 A、去色带抖动、轻锐化、SMSM 光束、GPose 高光散景（强）、法线阴影，
-全部经用户在游戏内对比后选定默认值；每项有开关（关闭时的离线结果见发布说明，色调只能切回 R10）。Bloom、反射保留游戏原版。
-包 `artifacts/r11-final`，本地 ZIP `artifacts/releases/smsm-r11.zip`；**未推送、未发布**（全部结束后再决定）。
-客户端 2026.10.06（shader 与 2026.09.15 完全一致，包已重标签）。待做：帧率与长时间稳定性确认。
+**[r11 发布说明](docs/RELEASE-r11.md)**（GitHub Release `r11`，下载 `smsm-r11.zip`）。
+色调 A、去色带抖动、轻锐化、SMSM 光束、GPose 高光散景（强）、法线阴影，全部经游戏内对比后选定默认值；
+Bloom、反射保留游戏原版。客户端 2026.10.06（shader 与 2026.09.15 完全一致）。
+**安装前必须关闭 Dalamud 外部窗口（`IsDisableViewport=true`）**，安装与回退见发布说明。
 
-各项记录：[色调 T1](docs/TONE-PRESETS-T1.md) · [抖动 T2](docs/DITHER-T2.md) · [锐化 S1/S2](docs/SHARPEN-S1.md) ·
-[光束 T2](docs/RADIAL-T2.md) · [景深 D0/D1](docs/DOF-D1.md) · [法线阴影 N0/N1](docs/SHADOW-N1.md)。
-较早的 H1–H3 高光衰减已停止，见 [H3](docs/TONE-HIGHLIGHTS-H3.md)。
+| 按键 | 作用 |
+|---|---|
+| Ctrl＋F7 | 显示 / 隐藏左上角标签：A D S R B N |
+| Ctrl＋F8 | 色调 A / R10 |
+| Ctrl＋F6 | 去色带抖动 开 / 关 |
+| Ctrl＋F4 | 锐化 关 / 轻 / 中 / 强 |
+| Ctrl＋F5 | 光束 SMSM / 游戏 |
+| Ctrl＋F2 | GPose 散景 关 / 普通 / 强 |
+| Ctrl＋F1 | 法线阴影 开 / 关 |
+| Ctrl＋F3 · Ctrl＋F11 | 诊断（GPose 模糊染紫 · 去除太阳直射），仅测试用 |
+
+修改按键或默认档位见发布说明“修改按键”。各项记录：[色调 T1](docs/TONE-PRESETS-T1.md) · [抖动 T2](docs/DITHER-T2.md) ·
+[锐化 S1/S2](docs/SHARPEN-S1.md) · [光束 T2](docs/RADIAL-T2.md) · [景深 D0/D1](docs/DOF-D1.md) ·
+[法线阴影 N0/N1](docs/SHADOW-N1.md)。较早的 H1–H3 高光衰减已停止，见 [H3](docs/TONE-HIGHLIGHTS-H3.md)。
 
 ## c2 基线记录
 
