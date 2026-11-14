@@ -10,10 +10,10 @@
 
 ## 当前版本：r11
 
-**[r11 发布说明](docs/RELEASE-r11.md)**（GitHub Release `r11`，下载 `smsm-r11.zip`）。
+**[r11.1 发布说明](docs/RELEASE-r11.md)**：解压后双击 `Install.cmd` 即可安装（需 Python 3.10+）。后续计划见 [PLAN-NEXT](docs/PLAN-NEXT.md)。
 色调 A、去色带抖动、轻锐化、SMSM 光束、GPose 高光散景（强）、法线阴影，全部经游戏内对比后选定默认值；
-Bloom、反射保留游戏原版。客户端 2026.10.06（shader 与 2026.09.15 完全一致）。
-**安装前必须关闭 Dalamud 外部窗口（`IsDisableViewport=true`）**，安装与回退见发布说明。
+Bloom、反射保留游戏原版。客户端 2026.11.03（shader 与 2026.09.15 完全一致）。
+安装程序会自动关闭 Dalamud 外部窗口（`IsDisableViewport=true`，否则 3DMigoto 会崩溃）。
 
 | 按键 | 作用 |
 |---|---|

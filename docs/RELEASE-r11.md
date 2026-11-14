@@ -1,7 +1,7 @@
-# r11 — SMSM 3DMigoto 画质包
+# r11.1 — SMSM 3DMigoto 画质包
 
-2026-10-14。国际服客户端 `2026.10.06.0000.0000`（shader 与 2026.09.15 完全一致，见下）。
-运行库：官方 3DMigoto 1.3.16。下载：GitHub Release `r11` 的 `smsm-r11.zip`（附整包 `.sha256`）。
+2026-11-14。国际服客户端 `2026.11.03.0000.0000`（shader 与 2026.09.15 / 2026.10.06 完全一致，见下）。
+运行库：官方 3DMigoto 1.3.16。r11.1 与 r11 的画面效果完全相同，只更新客户端版本并加入双击安装。
 
 每一项都在游戏内由用户对比后选定默认值，每项都有开关。关闭后的离线结果（WARP）：光束、法线阴影与游戏 shader 逐位一致；
 景深与游戏差 ≤ 1.4e-6；抖动、锐化关闭时与未加该项的版本逐位一致。色调没有“原版”档，只能切回 R10（50% 混合）。
@@ -56,38 +56,47 @@
 想改默认档位：修改同文件 `[Constants]` 中的启动值（x7 色调 0 = R10 / 1 = A；z7 抖动；x6 锐化 0–3；w7 光束；
 y6 散景 0–2；x5 法线阴影；y7 标签）。
 
-## 安装
+## 安装（双击）
 
-前提：Python 3.10+；**Dalamud 必须关闭外部窗口（`IsDisableViewport=true`）**，否则 3DMigoto 会在额外窗口的
-DirectComposition 路径崩溃（1.3.11 与 1.3.16 均如此），见 [3DMIGOTO-COMPATIBILITY](3DMIGOTO-COMPATIBILITY.md)。
+需要 Python 3.10 或更高版本（[python.org](https://www.python.org/downloads/)，安装时勾选 “Add python.exe to PATH”）。
 
-将 ZIP 解压到独立目录（不要直接复制进游戏目录），**退出游戏**后：
+1. 退出游戏，把 ZIP 解压到任意文件夹。
+2. 双击 **`Install.cmd`**。它会：
+   - 自动找到游戏目录（XIVLauncher 配置 → Steam 库 → Square Enix 默认路径）；
+   - 检查游戏已退出、游戏版本与本包一致（不一致时不做任何修改并说明原因）；
+   - **自动关闭 Dalamud 外部窗口**（`IsDisableViewport=true`，否则 3DMigoto 会崩溃），只在需要时修改并备份原配置；
+   - 把包复制到 `%LOCALAPPDATA%\SMSM`，之后解压的文件夹可以删除；
+   - 安装全部默认效果，并备份安装前的游戏文件。
+3. 启动游戏即生效。
+
+| 文件 | 作用 |
+|---|---|
+| `Install.cmd` | 安装 / 重装全部默认效果 |
+| `Status.cmd` | 查看游戏目录、版本是否匹配、已装效果 |
+| `Uninstall.cmd` | 卸载，恢复游戏原版文件（Dalamud 窗口设置保持关闭） |
+| `Rollback.cmd` | 撤销上一次安装 / 卸载 / 回退 |
+
+自动找不到游戏时，在命令行运行 `Install.cmd --client-root "<含 game 文件夹的游戏根目录>"`。
+只装运行库、不启用效果：`Install.cmd --profile vanilla`。
+
+### 手动安装（高级）
 
 ```powershell
-python tools/configure_compat_viewports.py --config "$env:APPDATA\XIVLauncher\dalamudConfig.json" --backup '<解压目录>\dalamud-backup' --game '<客户端目录>\game'
-python tools/manage_preview.py install --client-root '<客户端目录>' --package '<解压目录>\package' --profile daily
-python tools/manage_preview.py status --client-root '<客户端目录>'
+python tools/configure_compat_viewports.py --config "$env:APPDATA\XIVLauncher\dalamudConfig.json" --backup '<备份目录>' --game '<客户端目录>\game'
+python tools/manage_preview.py install --client-root '<客户端目录>' --package '<解压目录>\package' --profile daily --backup-root '<备份目录>'
 ```
 
-不加 `--profile daily` 时默认零替换（只装运行库）。保留解压目录，管理器从该目录读取文件。
-
-## 回退与卸载
-
-每次安装都会输出备份目录；退出游戏后：
-
-```powershell
-python tools/manage_preview.py rollback --client-root '<客户端目录>' --backup '<备份目录>'
-python tools/manage_preview.py uninstall --client-root '<客户端目录>'
-```
-
-只想临时看原版：用上表按键逐项关闭即可（色调按 Ctrl＋F8 切到 R10 仍是 50% SMSM 混合，不是纯原版）。
-更多命令见 [MANAGEMENT](MANAGEMENT.md)。
+手动安装时管理器直接从解压目录读取文件，需保留该目录。更多命令见 [MANAGEMENT](MANAGEMENT.md)。
 
 ## 游戏更新后
 
-管理器发现客户端版本变化会拒绝安装。先用 ShaderAudit 重新提取 shader 并对比；只有被替换的 shader 全部未变时，
-才用 `tools/retarget_client_build.py` 复制包并更新版本标签（文件不变）。2026.10.06 即按此流程：31,018 个 shader 与
-2026.09.15 完全一致。被替换的 shader 有任何变化时必须重新适配，不能重标签。
+游戏更新后，已安装的效果通常仍然生效：3DMigoto 按 shader 内容哈希替换，游戏若改动了某个 shader，对应效果只会
+自动失效，不会替换到错误的 shader 上。但 `Install.cmd` 会拒绝在版本不一致时安装，`Status.cmd` 会提示版本不匹配，
+此时请下载对应新版本的安装包。
+
+维护者流程（需要 .NET 10 SDK）：`python tools/check_client_update.py --client-root <游戏根目录> --package <当前包> --previous <上次提取>`
+会重新提取全部 shader 并对比；被替换的 shader 全部未变时自动重标签并生成新 ZIP，有变化时停止并列出受影响的效果
+（这些效果需要重新适配，不能重标签）。2026.10.06 与 2026.11.03 均已按此流程确认：31,018 个 shader 与 2026.09.15 完全一致。
 
 ## 已知限制
 
@@ -96,6 +105,12 @@ python tools/manage_preview.py uninstall --client-root '<客户端目录>'
 - 散景是“更亮更饱满”，不是硬边圆盘；硬边圆盘需更换采样核（未做）。
 - 色调 A 比 R10 略亮。锐化轻档仍可能放大雨天湿地上的细碎反光。
 - Dalamud 窗口必须留在游戏内（见上）。
+
+## 更新记录
+
+- **r11.1（2026-11-14）**：客户端 2026.11.03（shader 未变，重标签）；新增双击安装 / 卸载 / 回退 / 状态，自动查找游戏目录、
+  自动设置 Dalamud 窗口、包复制到 `%LOCALAPPDATA%\SMSM`；维护者一键更新检查。画面效果与 r11 相同。
+- **r11（2026-10-14）**：首个最终版。
 
 ## 校验
 

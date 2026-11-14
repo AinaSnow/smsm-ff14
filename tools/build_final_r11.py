@@ -18,9 +18,10 @@ ACCEPTED = {
     'dof': ('accepted-default-strong', 'D0 purple diagnostic in /gpose; user chose D1 strong (2026-10-14)', 'DOF-D1.md'),
     'shadows': ('accepted-default-on', 'N0 removed direct sunlight; user chose N1 on, no flicker seen (2026-10-14)', 'SHADOW-N1.md'),
 }
-DOCS = ['RELEASE-r11.md', 'MANAGEMENT.md', '3DMIGOTO-COMPATIBILITY.md', 'PLAN-3DMIGOTO-RETURN-2026-10-10.md',
+DOCS = ['RELEASE-r11.md', 'PLAN-NEXT.md', 'MANAGEMENT.md', '3DMIGOTO-COMPATIBILITY.md', 'PLAN-3DMIGOTO-RETURN-2026-10-10.md',
         'SHARPEN-S1.md'] + [doc for *_, doc in ACCEPTED.values()]
-TOOLS = ['manage_preview.py', 'configure_compat_viewports.py', 'validate_d3d11.py', 'retarget_client_build.py']
+TOOLS = ['manage_preview.py', 'configure_compat_viewports.py', 'validate_d3d11.py', 'retarget_client_build.py',
+         'easy_install.py']
 
 
 def build(source, output):
@@ -52,14 +53,21 @@ def build(source, output):
     return final
 
 
-def package_zip(package, archive):
+LAUNCHERS = {'Install.cmd': 'install', 'Uninstall.cmd': 'uninstall', 'Rollback.cmd': 'rollback', 'Status.cmd': 'status'}
+
+
+def package_zip(package, archive, stamp=(2026, 10, 14, 0, 0, 0)):
     manifest, receipt = read_package(package)
-    if manifest['compatibility_candidate']['id'] != 'r11' or manifest['profiles'][manifest['default_profile']] != []:
-        raise ValueError('Expected the final r11 package with a zero-replacement default profile')
+    if not manifest['compatibility_candidate']['id'].startswith('r11') or manifest['profiles'][manifest['default_profile']] != []:
+        raise ValueError('Expected a final r11 package with a zero-replacement default profile')
     entries = {'package/' + n: (package/n).read_bytes() for n in manifest['files']}
     entries['package/' + RECEIPT] = receipt
     for name in TOOLS:
         entries['tools/' + name] = (ROOT/'tools'/name).read_bytes()
+    # Double-click launchers at the archive root; batch files get CRLF line endings.
+    template = (ROOT/'tools/launchers/launcher.cmd.template').read_text(encoding='utf-8').replace('\r\n', '\n')
+    for name, action in LAUNCHERS.items():
+        entries[name] = template.replace('{ACTION}', action).replace('\n', '\r\n').encode('ascii')
     for name in DOCS:
         entries['docs/' + name] = (ROOT/'docs'/name).read_bytes()
     # README sits at the archive root; its relative links point into docs/.
@@ -70,7 +78,7 @@ def package_zip(package, archive):
     archive.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive, 'x', zipfile.ZIP_DEFLATED) as z:
         for name, data in sorted(entries.items()):
-            info = zipfile.ZipInfo(name, (2026, 10, 14, 0, 0, 0))
+            info = zipfile.ZipInfo(name, stamp)
             info.compress_type = zipfile.ZIP_DEFLATED
             z.writestr(info, data)
     with zipfile.ZipFile(archive) as z:
@@ -88,9 +96,13 @@ if __name__ == '__main__':
     p.add_argument('source', type=Path)
     p.add_argument('output', type=Path)
     p.add_argument('--zip', type=Path, help='also write the local release ZIP (never published)')
+    p.add_argument('--zip-only', action='store_true', help='source is already a final (possibly retargeted) package')
     a = p.parse_args()
-    build(a.source, a.output)
-    print(f'Prepared {a.output}')
+    if a.zip_only:
+        a.output = a.source
+    else:
+        build(a.source, a.output)
+        print(f'Prepared {a.output}')
     if a.zip:
         count, sha = package_zip(a.output, a.zip)
         print(f'Verified {count} entries in {a.zip}: {sha}')
