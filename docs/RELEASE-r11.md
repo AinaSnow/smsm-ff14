@@ -1,7 +1,7 @@
 # r11.1 — SMSM 3DMigoto 画质包
 
 2026-11-14。国际服客户端 `2026.11.03.0000.0000`（shader 与 2026.09.15 / 2026.10.06 完全一致，见下）。
-运行库：官方 3DMigoto 1.3.16。r11.1 与 r11 的画面效果完全相同，只更新客户端版本并加入双击安装。
+运行库：官方 3DMigoto 1.3.16。r11.1 与 r11 的画面效果完全相同；新增双击安装，**不需要安装 Python**，也不再因游戏版本不同而拒绝安装。
 
 每一项都在游戏内由用户对比后选定默认值，每项都有开关。关闭后的离线结果（WARP）：光束、法线阴影与游戏 shader 逐位一致；
 景深与游戏差 ≤ 1.4e-6；抖动、锐化关闭时与未加该项的版本逐位一致。色调没有“原版”档，只能切回 R10（50% 混合）。
@@ -58,12 +58,12 @@ y6 散景 0–2；x5 法线阴影；y7 标签）。
 
 ## 安装（双击）
 
-需要 Python 3.10 或更高版本（[python.org](https://www.python.org/downloads/)，安装时勾选 “Add python.exe to PATH”）。
+ZIP 自带官方嵌入式 Python 3.13.17（`python` 文件夹，来自 python.org，校验值与官方一致），**不需要另外安装 Python**。
 
 1. 退出游戏，把 ZIP 解压到任意文件夹。
 2. 双击 **`Install.cmd`**。它会：
    - 自动找到游戏目录（XIVLauncher 配置 → Steam 库 → Square Enix 默认路径）；
-   - 检查游戏已退出、游戏版本与本包一致（不一致时不做任何修改并说明原因）；
+   - 检查游戏已退出；游戏版本与本包验证过的版本不同时只提示、照常安装（原因见下“游戏更新后”）；
    - **自动关闭 Dalamud 外部窗口**（`IsDisableViewport=true`，否则 3DMigoto 会崩溃），只在需要时修改并备份原配置；
    - 把包复制到 `%LOCALAPPDATA%\SMSM`，之后解压的文件夹可以删除；
    - 安装全部默认效果，并备份安装前的游戏文件。
@@ -86,13 +86,14 @@ python tools/configure_compat_viewports.py --config "$env:APPDATA\XIVLauncher\da
 python tools/manage_preview.py install --client-root '<客户端目录>' --package '<解压目录>\package' --profile daily --backup-root '<备份目录>'
 ```
 
-手动安装时管理器直接从解压目录读取文件，需保留该目录。更多命令见 [MANAGEMENT](MANAGEMENT.md)。
+手动安装需要系统里的 Python 3.10+，管理器直接从解压目录读取文件，需保留该目录；命令行管理器仍会在游戏版本不同时拒绝安装。更多命令见 [MANAGEMENT](MANAGEMENT.md)。
 
 ## 游戏更新后
 
-游戏更新后，已安装的效果通常仍然生效：3DMigoto 按 shader 内容哈希替换，游戏若改动了某个 shader，对应效果只会
-自动失效，不会替换到错误的 shader 上。但 `Install.cmd` 会拒绝在版本不一致时安装，`Status.cmd` 会提示版本不匹配，
-此时请下载对应新版本的安装包。
+游戏更新后不需要等新包：3DMigoto 按 shader 内容哈希替换。更新没改动的 shader，效果照常；更新改动了某个被替换的
+shader，对应效果自动失效，不会替换到错误的 shader 上，也不会因此出错。所以 `Install.cmd` 在游戏版本与本包验证过的版本
+不同时只提示、照常安装，`Status.cmd` 会注明“当前游戏版本未验证”。若某个效果在更新后消失，说明该 shader 被改动，
+需要等维护者重新适配。
 
 维护者流程（需要 .NET 10 SDK）：`python tools/check_client_update.py --client-root <游戏根目录> --package <当前包> --previous <上次提取>`
 会重新提取全部 shader 并对比；被替换的 shader 全部未变时自动重标签并生成新 ZIP，有变化时停止并列出受影响的效果
@@ -104,12 +105,14 @@ python tools/manage_preview.py install --client-root '<客户端目录>' --packa
   法线阴影每个受阳光像素 24 步（48 次采样）、光束 8 对 4 次采样；景深散景不增加采样。
 - 散景是“更亮更饱满”，不是硬边圆盘；硬边圆盘需更换采样核（未做）。
 - 色调 A 比 R10 略亮。锐化轻档仍可能放大雨天湿地上的细碎反光。
-- Dalamud 窗口必须留在游戏内（见上）。
+- Dalamud 窗口必须留在游戏内（安装程序会自动设置）。
+- 数据目录（`%LOCALAPPDATA%\SMSM`）路径过长（超过约 130 个字符）时安装程序会拒绝运行，避免触及 Windows 260 字符路径限制。
 
 ## 更新记录
 
 - **r11.1（2026-11-14）**：客户端 2026.11.03（shader 未变，重标签）；新增双击安装 / 卸载 / 回退 / 状态，自动查找游戏目录、
-  自动设置 Dalamud 窗口、包复制到 `%LOCALAPPDATA%\SMSM`；维护者一键更新检查。画面效果与 r11 相同。
+  自动设置 Dalamud 窗口、包复制到 `%LOCALAPPDATA%\SMSM`（解压目录可删）；自带嵌入式 Python，不再需要安装 Python；
+  游戏版本不同时不再拒绝安装；维护者一键更新检查。画面效果与 r11 相同。
 - **r11（2026-10-14）**：首个最终版。
 
 ## 校验
@@ -121,3 +124,4 @@ ZIP 附带 `SHA256SUMS.json`（逐文件）和 `.sha256`（整包）。包清单
 
 源自 [Silent's Messy Shader Mod](https://github.com/s-ilent/smsm-ff14)。项目部分遵循 MIT；3DMigoto 遵循 GPLv3，
 对应源码见 [官方 1.3.16 标签](https://github.com/bo3b/3Dmigoto/tree/1.3.16)。
+自带的嵌入式 Python 遵循 PSF License（见 `python/LICENSE.txt`）。

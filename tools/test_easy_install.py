@@ -54,7 +54,7 @@ class EasyInstallTests(unittest.TestCase):
         installed, current, state = m.snapshot(game)
         self.assertEqual(state['effects'], ['dithering', 'dof', 'radial', 'shadows', 'tone'])
         self.assertEqual(Path(state['package_path']).resolve(), stored[0].resolve())
-        self.assertIn('版本匹配', self.run_main('status'))
+        self.assertIn('文件完整，游戏版本与本包验证过的版本一致', self.run_main('status'))
         # Installing again reuses the stored copy and leaves Dalamud alone.
         self.assertIn('无需修改', self.run_main('install'))
         self.assertEqual(len(list((self.local/'SMSM/packages').iterdir())), 1)
@@ -63,15 +63,31 @@ class EasyInstallTests(unittest.TestCase):
         self.assertIn('已恢复', self.run_main('rollback'))
         self.assertEqual(m.snapshot(game)[0], installed)
 
-    def test_version_mismatch_changes_nothing(self):
+    def test_version_mismatch_installs_with_notice(self):
+        # No version gate: 3DMigoto replaces by shader hash, so a different client still installs.
         (self.client/'game/ffxivgame.ver').write_text('2099.01.01.0000.0000')
+        out = self.run_main('install')
+        self.assertIn('仍继续安装', out)
+        self.assertIn('安装完成', out)
+        self.assertIsNotNone(m.snapshot(self.client/'game')[1])
+        self.assertIn('当前游戏版本未验证', self.run_main('status'))
+        self.assertIn('已卸载', self.run_main('uninstall'))
+        self.assertIn('已恢复', self.run_main('rollback'))
+        self.assertIsNotNone(m.snapshot(self.client/'game')[1])
+
+    def test_long_data_path_refused_before_changes(self):
+        deep = self.local/('x' * 200)
         before = self.dalamud.read_bytes()
-        with self.assertRaises(SystemExit) as stop:
+        with mock.patch.dict(os.environ, {'LOCALAPPDATA': str(deep)}), self.assertRaises(SystemExit) as stop:
             self.run_main('install')
-        self.assertIn('版本', str(stop.exception))
+        self.assertIn('路径过长', str(stop.exception))
         self.assertEqual(self.dalamud.read_bytes(), before)
         self.assertIsNone(m.snapshot(self.client/'game')[1])
-        self.assertFalse((self.local/'SMSM/packages').exists())
+
+    def test_explicit_wrong_path_is_an_error(self):
+        with self.assertRaises(SystemExit) as stop:
+            e.find_client(self.client/'nope')
+        self.assertIn('找不到游戏', str(stop.exception))
 
     def test_no_game_found(self):
         (self.appdata/'XIVLauncher/launcherConfigV3.json').write_text(json.dumps({'GamePath': str(self.client/'missing')}))

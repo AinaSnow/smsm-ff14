@@ -54,6 +54,27 @@ def build(source, output):
 
 
 LAUNCHERS = {'Install.cmd': 'install', 'Uninstall.cmd': 'uninstall', 'Rollback.cmd': 'rollback', 'Status.cmd': 'status'}
+# Official Windows embeddable Python, bundled so users need no Python install. Download once to the
+# path below from https://www.python.org/ftp/python/3.13.17/ ; the hash is python.org's published SHA-256.
+PYTHON_EMBED = ROOT/'artifacts/vendor-download/python-3.13.17/python-3.13.17-embed-amd64.zip'
+PYTHON_EMBED_SHA256 = '9e35319bffedab8b36ad44d8f377cb4f1733bcec257a0b6d04d94f01486ddb38'
+
+
+def python_entries():
+    if not PYTHON_EMBED.is_file():
+        raise ValueError(f'Missing {PYTHON_EMBED}; download it from python.org (see PYTHON_EMBED)')
+    data = PYTHON_EMBED.read_bytes()
+    if digest(data) != PYTHON_EMBED_SHA256:
+        raise ValueError('Embeddable Python does not match the python.org SHA-256')
+    entries = {}
+    with zipfile.ZipFile(PYTHON_EMBED) as z:
+        for name in z.namelist():
+            body = z.read(name)
+            if name.endswith('._pth'):
+                # The ._pth file replaces sys.path; add the installer scripts next to the stdlib.
+                body = body.replace(b'\r\n', b'\n').rstrip(b'\n') + b'\n..\\tools\n'
+            entries['python/' + name] = body
+    return entries
 
 
 def package_zip(package, archive, stamp=(2026, 10, 14, 0, 0, 0)):
@@ -68,6 +89,7 @@ def package_zip(package, archive, stamp=(2026, 10, 14, 0, 0, 0)):
     template = (ROOT/'tools/launchers/launcher.cmd.template').read_text(encoding='utf-8').replace('\r\n', '\n')
     for name, action in LAUNCHERS.items():
         entries[name] = template.replace('{ACTION}', action).replace('\n', '\r\n').encode('ascii')
+    entries.update(python_entries())
     for name in DOCS:
         entries['docs/' + name] = (ROOT/'docs'/name).read_bytes()
     # README sits at the archive root; its relative links point into docs/.

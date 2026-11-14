@@ -47,9 +47,12 @@ def steam_libraries():
 
 def find_client(explicit=None):
     """Explicit path, XIVLauncher's GamePath, Steam libraries, then the Square Enix default."""
-    candidates = []
     if explicit:
-        candidates.append(Path(explicit))
+        # A path the user named is used or rejected, never silently replaced by an auto-detected one.
+        if is_client(explicit):
+            return Path(explicit).resolve()
+        raise SystemExit(f'找不到游戏：{explicit} 下没有 game\\ffxivgame.ver。请指定含 game 文件夹的游戏根目录。')
+    candidates = []
     config = appdata()/'XIVLauncher/launcherConfigV3.json'
     if config.is_file():
         try:
@@ -61,8 +64,6 @@ def find_client(explicit=None):
     for candidate in candidates:
         if is_client(candidate):
             return candidate.resolve()
-    if explicit:
-        raise SystemExit(f'找不到游戏：{explicit} 下没有 game\\ffxivgame.ver。请指定含 game 文件夹的游戏根目录。')
     raise SystemExit('没有自动找到游戏目录。请用 --client-root 指定含 game 文件夹的游戏根目录。')
 
 
@@ -85,7 +86,20 @@ def stored_package(source, root):
     return target
 
 
-def prepare(client):
+# Longest path the manager writes under the data folder (backup dir, shader file, temp suffix).
+LONGEST_BACKUP = len(r'\backups\20261114T090713Z-094976d3ef7946ceac9b8434c88d05aa\files\SMSM-ShaderFixes'
+                     r'\72a656dfd52149ad-ps_replace.bin.smsm-6bfec341ea54445c8998947ab34016ec')
+
+
+def check_path_length(root):
+    if len(str(root.resolve())) + LONGEST_BACKUP >= 259:
+        raise SystemExit(f'数据目录路径过长：{root}\nWindows 默认限制路径 260 个字符，备份文件会写不进去。'
+                         '请把 LOCALAPPDATA 指向较短的目录后重试。本次未做任何修改。')
+
+
+def prepare(client, root=None):
+    if root is not None:
+        check_path_length(root)
     game = (client/'game').resolve(strict=True)
     if m.running_game(game):
         raise SystemExit('游戏正在运行，请先完全退出游戏再操作。')
@@ -118,12 +132,14 @@ def ensure_dalamud(game, root):
 
 
 def install(client, package_dir, root, profile='daily'):
-    game = prepare(client)
+    game = prepare(client, root)
     manifest, _ = m.read_package(package_dir)
     version = (game/'ffxivgame.ver').read_text().strip()
     if version != manifest['client_build']:
-        raise SystemExit(f'游戏版本 {version} 与本包支持的 {manifest["client_build"]} 不同。\n'
-                         '游戏更新后需要先确认被替换的 shader 没有变化，请下载对应新版本的安装包。本次未做任何修改。')
+        # No version gate: 3DMigoto replaces by shader content hash, so a shader the update changed is
+        # simply not replaced and its effect turns off; nothing lands on the wrong shader.
+        print(f'提示：游戏版本 {version} 与本包验证过的 {manifest["client_build"]} 不同，仍继续安装。')
+        print('游戏若改动了被替换的 shader，对应效果会自动失效（不会出错），其余效果照常生效。')
     stored = stored_package(package_dir, root)
     manifest, receipt = m.read_package(stored)
     dalamud = ensure_dalamud(game, root)
@@ -139,7 +155,7 @@ def install(client, package_dir, root, profile='daily'):
 
 
 def uninstall(client, root):
-    game = prepare(client)
+    game = prepare(client, root)
     before, current, _ = m.snapshot(game)
     if not current:
         raise SystemExit('当前没有安装 SMSM。')
@@ -156,11 +172,9 @@ def rollback(client, root):
         raise SystemExit('没有可回退的记录。')
     last = json.loads(log.read_text(encoding='utf-8'))
     client = client or Path(last['client_root'])
-    game = prepare(client)
+    game = prepare(client, root)
     before, _, _ = m.snapshot(game)
     after = m.read_backup(Path(last['backup']), game)
-    if m.RECEIPT in after:
-        m.check_build(game, json.loads(after[m.RECEIPT]))
     backup = m.transition(game, before, after, root/'backups')
     record(root, 'rollback', client, backup, {'restored_from': last['backup']})
     print(f'已恢复到上一次操作（{last["action"]}）之前的状态。当前状态备份在 {backup}，再次回退会撤销这次恢复。')
@@ -177,7 +191,9 @@ def status(client):
         return
     ok = version == current['client_build']
     print(f'SMSM：{current["compatibility_candidate"]["id"]}，效果 {", ".join(state["effects"]) or "无"}')
-    print('版本匹配，文件完整。' if ok else f'版本不匹配（包为 {current["client_build"]}）：被替换的 shader 若已改变，相关效果不会生效；请下载新版本。')
+    print('文件完整，游戏版本与本包验证过的版本一致。' if ok else
+          f'文件完整。本包在 {current["client_build"]} 上验证过，当前游戏版本未验证：'
+          '效果按 shader 内容生效，游戏改动过的 shader 对应效果会自动失效。')
 
 
 def main(argv=None):
